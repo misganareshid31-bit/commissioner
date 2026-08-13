@@ -32,3 +32,12 @@ The public profile fallback relies on the existing RLS policies that allow appro
 ## Important
 
 The code prepares the NFC URL and the web flow. It cannot physically write the NFC chip because that requires the physical NFC tag and an NFC-capable device. No private Supabase service-role key is included in this package.
+
+
+## Gift / open-ended profiles
+
+The Admin page now has **New open-ended gift profile**. Leave the recipient name empty if you want a blank gift profile. The recipient can tap the NFC card and fill in their own name, username, city, bio, social links, photo, banner, portfolio, availability, and preferences before the admin approves it.
+
+## NTAG215 writing
+
+The built-in **Write to NTAG215** button uses the browser Web NFC API and writes a standard URL/NDEF record. Web NFC writing requires an HTTPS deployment and a supported NFC-capable Android browser/device (commonly Chrome). Desktop browsers generally cannot physically write an NFC tag. If Web NFC is unavailable, use the **Copy** button with an NFC-writing app.

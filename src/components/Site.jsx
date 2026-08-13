@@ -16,7 +16,12 @@ import {
   BarChart, Bar, CartesianGrid
 } from 'recharts';
 
-const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'admin@commissioner.app').toLowerCase();
+const ADMIN_EMAILS = [
+  import.meta.env.VITE_ADMIN_EMAIL,
+  'misganareshid27@gmail.com',
+  'admin@commissioner.app',
+].filter(Boolean).map(e => e.toLowerCase());
+const isAdminEmail = (email) => ADMIN_EMAILS.includes((email || '').toLowerCase());
 
 /* ---------------------------------- fonts / tokens ---------------------------------- */
 
@@ -229,7 +234,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                 <div className="absolute right-0 top-full mt-1 w-52 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
-                  {session.user.email?.toLowerCase() === ADMIN_EMAIL && (
+                  {isAdminEmail(session.user.email) && (
                     <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Admin</button>
                   )}
                   <div className="h-px my-1" style={{ background: '#E5E7EB' }} />
@@ -304,7 +309,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                   <div className="px-3 py-2 text-xs truncate" style={{ color: '#6B7280' }}>{session.user.email}</div>
                   <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
                   <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
-                  {session.user.email?.toLowerCase() === ADMIN_EMAIL && (
+                  {isAdminEmail(session.user.email) && (
                     <button onClick={() => { setPage('admin'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Admin</button>
                   )}
                   <button onClick={async () => { await supabase.auth.signOut(); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold" style={{ color: '#DC2626' }}>Sign out</button>
@@ -2007,14 +2012,19 @@ const AdminPanel = ({ session }) => {
   const [niche, setNiche] = useState(NICHES[0]);
   const [industry, setIndustry] = useState(BUSINESS_CATEGORIES[0]);
   const [verifiedOnCreate, setVerifiedOnCreate] = useState(true);
+  const [giftMode, setGiftMode] = useState(true);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [newLink, setNewLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [nfcWriting, setNfcWriting] = useState(false);
+  const [nfcMessage, setNfcMessage] = useState('');
 
   const [rows, setRows] = useState([]);
   const [loadingRows, setLoadingRows] = useState(true);
   const [busyId, setBusyId] = useState(null);
+
+  const isAdmin = !!session && isAdminEmail(session.user.email);
 
   const loadRows = async () => {
     setLoadingRows(true);
@@ -2030,27 +2040,69 @@ const AdminPanel = ({ session }) => {
     setLoadingRows(false);
   };
 
-  useEffect(() => { loadRows(); }, []);
+  useEffect(() => {
+    if (isAdmin) loadRows();
+  }, [isAdmin]);
 
   const handleCreate = async () => {
-    if (!pageName.trim()) { setCreateError('Enter a name first.'); return; }
+    // A gift card may intentionally start blank. The recipient fills the
+    // profile after tapping the NFC card.
+    const effectiveName = pageName.trim() || (giftMode ? 'Gifted profile' : '');
+    if (!effectiveName) { setCreateError('Enter a name first.'); return; }
     setCreating(true);
     setCreateError('');
     setNewLink('');
+    setNfcMessage('');
+
     const { data, error } = claimType === 'creator'
-      ? await supabase.rpc('admin_create_claim', { p_page_name: pageName, p_primary_niche: niche, p_verified: verifiedOnCreate })
-      : await supabase.rpc('admin_create_business_claim', { p_business_name: pageName, p_industry: industry, p_verified: verifiedOnCreate });
+      ? await supabase.rpc('admin_create_claim', {
+          p_page_name: effectiveName,
+          p_primary_niche: giftMode ? null : niche,
+          p_verified: verifiedOnCreate
+        })
+      : await supabase.rpc('admin_create_business_claim', {
+          p_business_name: effectiveName,
+          p_industry: giftMode ? null : industry,
+          p_verified: verifiedOnCreate
+        });
+
     setCreating(false);
     if (error) { setCreateError(error.message); return; }
-    setNewLink(`${window.location.origin}/?claim=${data}`);
+
+    const link = `${window.location.origin}/?claim=${data}`;
+    setNewLink(link);
     setPageName('');
     loadRows();
   };
 
-  const copyLink = (link) => {
-    navigator.clipboard.writeText(link);
-    setCopied(link);
-    setTimeout(() => setCopied(false), 1500);
+  const copyLink = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(link);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCreateError('Could not copy automatically. Select and copy the NFC URL manually.');
+    }
+  };
+
+  const writeNfc = async (link) => {
+    setNfcMessage('');
+    if (!('NDEFReader' in window)) {
+      setNfcMessage('NFC writing is not available in this browser. Use Chrome on an NFC-enabled Android phone over HTTPS.');
+      return;
+    }
+    setNfcWriting(true);
+    try {
+      const ndef = new window.NDEFReader();
+      await ndef.write({
+        records: [{ recordType: 'url', data: link }]
+      });
+      setNfcMessage('Success — the URL was written to the NFC tag. Tap the NTAG215 card with a phone to test it.');
+    } catch (error) {
+      setNfcMessage(error?.message || 'NFC write failed. Make sure the NTAG215 is close to the phone and writable.');
+    } finally {
+      setNfcWriting(false);
+    }
   };
 
   const toggleField = async (row, field) => {
@@ -2074,52 +2126,62 @@ const AdminPanel = ({ session }) => {
     </span>
   );
 
-  const RowCard = ({ r }) => (
-    <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div>
-          <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#111827' }}>
-            {r.displayName || <span style={{ color: '#9CA3AF' }}>Unnamed</span>}
-            {r.verified && <VerifiedBadge />}
-            <KindTag kind={r.kind} />
-          </p>
-          <p className="text-xs" style={{ color: '#6B7280' }}>{r.username ? `@${r.username}` : ''} {r.displayTag ? `· ${r.displayTag}` : ''} {r.city ? `· ${r.city}` : ''}</p>
+  const RowCard = ({ r }) => {
+    const rowLink = r.claim_token ? `${window.location.origin}/?claim=${r.claim_token}` : '';
+    return (
+      <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#111827' }}>
+              {r.displayName || <span style={{ color: '#9CA3AF' }}>Unnamed</span>}
+              {r.verified && <VerifiedBadge />}
+              <KindTag kind={r.kind} />
+            </p>
+            <p className="text-xs" style={{ color: '#6B7280' }}>
+              {r.username ? `@${r.username}` : ''} {r.displayTag ? `· ${r.displayTag}` : ''} {r.city ? `· ${r.city}` : ''}
+            </p>
+          </div>
+          {!r.onboarded && rowLink && (
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => copyLink(rowLink)} className="text-[11px] font-semibold" style={{ color: '#036377' }}>
+                {copied === rowLink ? 'Copied!' : 'Copy link'}
+              </button>
+              <button onClick={() => writeNfc(rowLink)} className="text-[11px] font-semibold" style={{ color: '#99154F' }}>
+                Write NFC
+              </button>
+            </div>
+          )}
         </div>
-        {!r.onboarded && r.claim_token && (
-          <button onClick={() => copyLink(`${window.location.origin}/?claim=${r.claim_token}`)} className="text-[11px] font-semibold shrink-0" style={{ color: '#036377' }}>
-            {copied === `${window.location.origin}/?claim=${r.claim_token}` ? 'Copied!' : 'Copy link'}
-          </button>
-        )}
-      </div>
-      {r.bio && <p className="text-xs mb-3" style={{ color: '#374151' }}>{r.bio}</p>}
-      <div className="flex items-center gap-2">
-        {r.onboarded && (
+        {r.bio && <p className="text-xs mb-3" style={{ color: '#374151' }}>{r.bio}</p>}
+        <div className="flex items-center gap-2">
+          {r.onboarded && (
+            <button
+              onClick={() => toggleField(r, 'approved')}
+              disabled={busyId === r.id + 'approved'}
+              className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
+              style={r.approved
+                ? { background: '#E9FBEF', color: '#0E7A3B', borderColor: '#0E7A3B' }
+                : { background: 'white', color: '#374151', borderColor: '#E5E7EB' }}
+            >
+              {r.approved ? 'Approved ✓' : 'Approve'}
+            </button>
+          )}
           <button
-            onClick={() => toggleField(r, 'approved')}
-            disabled={busyId === r.id + 'approved'}
+            onClick={() => toggleField(r, 'verified')}
+            disabled={busyId === r.id + 'verified'}
             className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
-            style={r.approved
-              ? { background: '#E9FBEF', color: '#0E7A3B', borderColor: '#0E7A3B' }
+            style={r.verified
+              ? { background: '#E0FBFF', color: '#036377', borderColor: '#00D9FF' }
               : { background: 'white', color: '#374151', borderColor: '#E5E7EB' }}
           >
-            {r.approved ? 'Approved ✓' : 'Approve'}
+            {r.verified ? 'Verified ✓' : 'Mark verified'}
           </button>
-        )}
-        <button
-          onClick={() => toggleField(r, 'verified')}
-          disabled={busyId === r.id + 'verified'}
-          className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
-          style={r.verified
-            ? { background: '#E0FBFF', color: '#036377', borderColor: '#00D9FF' }
-            : { background: 'white', color: '#374151', borderColor: '#E5E7EB' }}
-        >
-          {r.verified ? 'Verified ✓' : 'Mark verified'}
-        </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  if (!session || session.user.email?.toLowerCase() !== ADMIN_EMAIL) {
+  if (!isAdmin) {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
         <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Not authorized</p>
@@ -2130,15 +2192,22 @@ const AdminPanel = ({ session }) => {
 
   return (
     <div className="max-w-3xl mx-auto px-5 md:px-8 py-10">
-      <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#111827' }}>Admin</h1>
+      <div className="flex items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="cm-display font-bold text-2xl" style={{ color: '#111827' }}>Admin</h1>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Create gift profiles, prepare NFC cards, and approve published profiles.</p>
+        </div>
+        <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>
+          <Zap size={12} /> NTAG215 ready
+        </span>
+      </div>
 
       <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Create a claim link for an NFC card</p>
-            <p className="text-xs mt-1" style={{ color: '#6B7280' }}>The same NFC URL stays permanent: first it opens the creator's setup page, then after approval it opens the public profile.</p>
-          </div>
-          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}><Zap size={12} /> NFC ready</span>
+        <div className="mb-4">
+          <p className="text-sm font-semibold" style={{ color: '#111827' }}>Create a gift profile + NFC card</p>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
+            Create an open-ended profile for anyone you want to gift. Leave the name empty and the recipient can fill in their own name, bio, socials, photo, and other details from the claim page.
+          </p>
         </div>
 
         <div className="flex border rounded-lg p-1 mb-4 w-fit" style={{ borderColor: '#E5E7EB' }}>
@@ -2157,40 +2226,82 @@ const AdminPanel = ({ session }) => {
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             type="button"
-            onClick={() => { setClaimType('creator'); setPageName('4Kilo Entertainment'); setNiche('Entertainment'); setVerifiedOnCreate(true); setNewLink(''); setCreateError(''); }}
+            onClick={() => { setClaimType('creator'); setPageName(''); setNiche('Entertainment'); setGiftMode(true); setVerifiedOnCreate(true); setNewLink(''); setCreateError(''); }}
             className="text-xs font-semibold px-3 py-2 rounded-lg border flex items-center gap-1.5"
             style={{ borderColor: '#E6007A', color: '#99154F', background: '#FDE7F1' }}
+          >
+            <Award size={13} /> New open-ended gift profile
+          </button>
+          <button
+            type="button"
+            onClick={() => { setClaimType('creator'); setPageName('4Kilo Entertainment'); setNiche('Entertainment'); setGiftMode(false); setVerifiedOnCreate(true); setNewLink(''); setCreateError(''); }}
+            className="text-xs font-semibold px-3 py-2 rounded-lg border flex items-center gap-1.5"
+            style={{ borderColor: '#E5E7EB', color: '#374151', background: 'white' }}
           >
             <Award size={13} /> Prepare 4Kilo Entertainment card
           </button>
         </div>
+
+        <label className="flex items-start gap-2 text-sm mb-4" style={{ color: '#374151' }}>
+          <input type="checkbox" checked={giftMode} onChange={e => setGiftMode(e.target.checked)} className="mt-0.5" />
+          <span>
+            <span className="font-semibold">Open-ended gift</span>
+            <span className="block text-xs mt-0.5" style={{ color: '#6B7280' }}>No niche/industry is locked in. The recipient chooses their profile details after tapping the card.</span>
+          </span>
+        </label>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <input value={pageName} onChange={e => setPageName(e.target.value)} placeholder={claimType === 'creator' ? 'Page name' : 'Business name'} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+          <input
+            value={pageName}
+            onChange={e => setPageName(e.target.value)}
+            placeholder={giftMode ? 'Optional recipient name' : (claimType === 'creator' ? 'Page name' : 'Business name')}
+            className="border rounded-lg px-3 py-2.5 text-sm outline-none"
+            style={{ borderColor: '#E5E7EB' }}
+          />
           {claimType === 'creator' ? (
-            <select value={niche} onChange={e => setNiche(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
+            <select disabled={giftMode} value={niche} onChange={e => setNiche(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none disabled:bg-gray-50 disabled:text-gray-400" style={{ borderColor: '#E5E7EB' }}>
               {NICHES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           ) : (
-            <select value={industry} onChange={e => setIndustry(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
+            <select disabled={giftMode} value={industry} onChange={e => setIndustry(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none disabled:bg-gray-50 disabled:text-gray-400" style={{ borderColor: '#E5E7EB' }}>
               {BUSINESS_CATEGORIES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           )}
         </div>
+
         <label className="flex items-center gap-2 text-sm mb-4" style={{ color: '#374151' }}>
           <input type="checkbox" checked={verifiedOnCreate} onChange={e => setVerifiedOnCreate(e.target.checked)} />
-          Mark verified right away (you already know this {claimType})
+          Mark verified right away
         </label>
+
         <button onClick={handleCreate} disabled={creating} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {creating ? 'Creating…' : 'Create claim link'}
         </button>
+
         {createError && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{createError}</p>}
+
         {newLink && (
-          <div className="mt-4 flex items-center gap-2 border rounded-lg px-3 py-2.5" style={{ borderColor: '#00D9FF', background: '#E0FBFF' }}>
-            <p className="text-xs flex-1 truncate" style={{ color: '#036377' }}>{newLink}</p>
-            <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#111827' }}>Open</button>
-            <button onClick={() => copyLink(newLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>
-              {copied === newLink ? 'Copied!' : 'Copy NFC URL'}
-            </button>
+          <div className="mt-4 border rounded-xl p-4" style={{ borderColor: '#00D9FF', background: '#E0FBFF' }}>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#036377' }}>NFC URL for this gift card</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs flex-1 truncate cm-mono" style={{ color: '#036377' }}>{newLink}</p>
+              <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#111827' }}>Open</button>
+              <button onClick={() => copyLink(newLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>
+                {copied === newLink ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <button
+                onClick={() => writeNfc(newLink)}
+                disabled={nfcWriting}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-50"
+                style={{ background: '#111827' }}
+              >
+                <Zap size={13} /> {nfcWriting ? 'Hold NTAG215 near phone…' : 'Write to NTAG215'}
+              </button>
+              <span className="text-[11px]" style={{ color: '#036377' }}>NTAG215 has enough NDEF capacity for this URL.</span>
+            </div>
+            {nfcMessage && <p className="text-xs mt-3" style={{ color: nfcMessage.startsWith('Success') ? '#0E7A3B' : '#9A4A0C' }}>{nfcMessage}</p>}
           </div>
         )}
       </div>
@@ -2202,22 +2313,22 @@ const AdminPanel = ({ session }) => {
           {pending.length > 0 && (
             <div className="mb-8">
               <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Pending approval ({pending.length})</p>
-              <div className="flex flex-col gap-3">{pending.map(r => <RowCard key={r.id} r={r} />)}</div>
+              <div className="flex flex-col gap-3">{pending.map(r => <RowCard key={r.kind + r.id} r={r} />)}</div>
             </div>
           )}
           {waiting.length > 0 && (
             <div className="mb-8">
-              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Cards not yet claimed ({waiting.length})</p>
-              <div className="flex flex-col gap-3">{waiting.map(r => <RowCard key={r.id} r={r} />)}</div>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Gift/NFC cards not yet claimed ({waiting.length})</p>
+              <div className="flex flex-col gap-3">{waiting.map(r => <RowCard key={r.kind + r.id} r={r} />)}</div>
             </div>
           )}
           {live.length > 0 && (
             <div>
               <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Live on the site ({live.length})</p>
-              <div className="flex flex-col gap-3">{live.map(r => <RowCard key={r.id} r={r} />)}</div>
+              <div className="flex flex-col gap-3">{live.map(r => <RowCard key={r.kind + r.id} r={r} />)}</div>
             </div>
           )}
-          {rows.length === 0 && <p className="text-sm" style={{ color: '#6B7280' }}>No creators yet.</p>}
+          {rows.length === 0 && <p className="text-sm" style={{ color: '#6B7280' }}>No profiles yet.</p>}
         </>
       )}
     </div>

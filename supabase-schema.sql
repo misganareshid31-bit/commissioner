@@ -236,7 +236,7 @@ end;
 $$ language plpgsql security definer;
 grant execute on function public.claim_profile(text, text, text, text, text, text, text, text, jsonb, text, text, text) to anon, authenticated;
 
--- Creates a new pre-filled, unclaimed profile and returns its claim token.
+-- Creates a new claimable profile and returns its claim token. The name/niche may be null for an open-ended gift profile.
 -- This is what the in-app admin page calls. Enforced here, not just in the
 -- UI — anyone else who tries calling this directly gets rejected even if
 -- they somehow found the function name.
