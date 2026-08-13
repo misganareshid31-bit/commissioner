@@ -509,17 +509,39 @@ declare
   c jsonb;
   b jsonb;
 begin
-  select to_jsonb(cp) into c from creator_profiles cp where claim_token = p_token and approved = false;
+  -- NFC tokens are permanent identifiers. Look up the token regardless of
+  -- approval state so the same physical card keeps working after the gift
+  -- page is claimed and published. This is safe because the caller must know
+  -- the unguessable token, and the app only exposes this exact row.
+  select to_jsonb(cp) into c
+  from creator_profiles cp
+  where cp.claim_token = p_token
+  limit 1;
   if c is not null then
-    return jsonb_build_object('kind', 'creator') || c;
+    return jsonb_build_object(
+      'kind', 'creator',
+      'status', case when coalesce((c->>'approved')::boolean, false)
+                     and coalesce((c->>'onboarded')::boolean, false)
+                     then 'published' else 'claimable' end
+    ) || c;
   end if;
-  select to_jsonb(bp) into b from business_profiles bp where claim_token = p_token and approved = false;
+
+  select to_jsonb(bp) into b
+  from business_profiles bp
+  where bp.claim_token = p_token
+  limit 1;
   if b is not null then
-    return jsonb_build_object('kind', 'business') || b;
+    return jsonb_build_object(
+      'kind', 'business',
+      'status', case when coalesce((b->>'approved')::boolean, false)
+                     and coalesce((b->>'onboarded')::boolean, false)
+                     then 'published' else 'claimable' end
+    ) || b;
   end if;
+
   return null;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 grant execute on function public.get_claim_any(text) to anon, authenticated;
 
 -- Admin-only: create a new claimable business page. Same authorization

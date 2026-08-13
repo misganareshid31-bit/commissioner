@@ -2074,23 +2074,32 @@ const PublicBusinessProfile = ({ profile }) => (
 // NFC links are permanent: before a profile is claimed they open the claim form;
 // once approved, the exact same NFC URL opens the public profile.
 const ClaimGate = ({ token }) => {
-  const [state, setState] = useState({ kind: null, profile: null });
+  const [state, setState] = useState({ kind: null, profile: null, error: '' });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.rpc('get_claim_any', { p_token: token });
+      const { data, error } = await supabase.rpc('get_claim_any', { p_token: token });
       if (cancelled) return;
-      if (data?.kind) { setState({ kind: data.kind, profile: null }); return; }
 
-      const [creator, business] = await Promise.all([
-        supabase.from('creator_profiles').select('*').eq('claim_token', token).eq('approved', true).eq('onboarded', true).maybeSingle(),
-        supabase.from('business_profiles').select('*').eq('claim_token', token).eq('approved', true).eq('onboarded', true).maybeSingle(),
-      ]);
-      if (cancelled) return;
-      if (creator.data) setState({ kind: 'public_creator', profile: creator.data });
-      else if (business.data) setState({ kind: 'public_business', profile: business.data });
-      else setState({ kind: 'not_found', profile: null });
+      if (error) {
+        setState({ kind: 'error', profile: null, error: error.message || 'NFC lookup failed' });
+        return;
+      }
+
+      if (!data?.kind) {
+        setState({ kind: 'not_found', profile: null, error: '' });
+        return;
+      }
+
+      // The RPC is security-definer and deliberately handles both claimable
+      // and published rows. This keeps the physical NFC URL permanent.
+      if (data.status === 'published') {
+        if (data.kind === 'creator') setState({ kind: 'public_creator', profile: data, error: '' });
+        else setState({ kind: 'public_business', profile: data, error: '' });
+      } else {
+        setState({ kind: data.kind, profile: data, error: '' });
+      }
     })();
     return () => { cancelled = true; };
   }, [token]);
@@ -2098,7 +2107,8 @@ const ClaimGate = ({ token }) => {
   if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading NFC profile…</div>;
   if (state.kind === 'public_creator') return <PublicCreatorProfile profile={state.profile} />;
   if (state.kind === 'public_business') return <PublicBusinessProfile profile={state.profile} />;
-  if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#6B7280' }}>The NFC link may be incorrect or the profile is not published yet.</p></div>;
+  if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#6B7280' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
+  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#6B7280' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest supabase-schema.sql migration, then try again.</p></div>;
   return state.kind === 'business' ? <BusinessClaimForm token={token} /> : <CreatorClaimForm token={token} />;
 };
 
