@@ -225,6 +225,9 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                 <div className="absolute right-0 top-full mt-1 w-52 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
+                  {session.user.email?.toLowerCase() === ADMIN_EMAIL && (
+                    <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Admin</button>
+                  )}
                   <div className="h-px my-1" style={{ background: '#E5E7EB' }} />
                   <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#DC2626' }}>Sign out</button>
                 </div>
@@ -271,6 +274,9 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
               <div className="text-left px-3 py-2 text-xs font-semibold" style={{ color: '#6B7280' }}>{session.user.email}</div>
               <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium" style={{ color: '#374151' }}>Dashboard</button>
               <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium" style={{ color: '#374151' }}>Account settings</button>
+              {session.user.email?.toLowerCase() === ADMIN_EMAIL && (
+                <button onClick={() => { setPage('admin'); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium" style={{ color: '#374151' }}>Admin</button>
+              )}
               <button onClick={async () => { await supabase.auth.signOut(); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-semibold" style={{ color: '#DC2626' }}>Sign out</button>
             </>
           ) : (
@@ -1665,6 +1671,178 @@ const ClaimProfile = ({ token }) => {
   );
 };
 
+const ADMIN_EMAIL = 'misganareshid27@gmail.com';
+
+const AdminPanel = ({ session }) => {
+  const [pageName, setPageName] = useState('');
+  const [niche, setNiche] = useState(NICHES[0]);
+  const [verifiedOnCreate, setVerifiedOnCreate] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [newLink, setNewLink] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const [rows, setRows] = useState([]);
+  const [loadingRows, setLoadingRows] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const loadRows = () => {
+    setLoadingRows(true);
+    supabase
+      .from('creator_profiles')
+      .select('id, page_name, username, city, bio, primary_niche, verified, approved, onboarded, claimed, claim_token, created_at')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { setRows(data || []); setLoadingRows(false); });
+  };
+
+  useEffect(() => { loadRows(); }, []);
+
+  const handleCreate = async () => {
+    if (!pageName.trim()) { setCreateError('Enter a page name first.'); return; }
+    setCreating(true);
+    setCreateError('');
+    setNewLink('');
+    const { data, error } = await supabase.rpc('admin_create_claim', {
+      p_page_name: pageName,
+      p_primary_niche: niche,
+      p_verified: verifiedOnCreate,
+    });
+    setCreating(false);
+    if (error) { setCreateError(error.message); return; }
+    setNewLink(`${window.location.origin}/?claim=${data}`);
+    setPageName('');
+    loadRows();
+  };
+
+  const copyLink = (link) => {
+    navigator.clipboard.writeText(link);
+    setCopied(link);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const toggleField = async (row, field) => {
+    setBusyId(row.id + field);
+    await supabase.from('creator_profiles').update({ [field]: !row[field] }).eq('id', row.id);
+    setBusyId(null);
+    loadRows();
+  };
+
+  const pending = rows.filter(r => r.onboarded && !r.approved);
+  const live = rows.filter(r => r.onboarded && r.approved);
+  const waiting = rows.filter(r => !r.onboarded);
+
+  const RowCard = ({ r }) => (
+    <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div>
+          <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#111827' }}>
+            {r.page_name || <span style={{ color: '#9CA3AF' }}>Unnamed</span>}
+            {r.verified && <VerifiedBadge />}
+          </p>
+          <p className="text-xs" style={{ color: '#6B7280' }}>{r.username ? `@${r.username}` : ''} {r.primary_niche ? `· ${r.primary_niche}` : ''} {r.city ? `· ${r.city}` : ''}</p>
+        </div>
+        {!r.onboarded && r.claim_token && (
+          <button onClick={() => copyLink(`${window.location.origin}/?claim=${r.claim_token}`)} className="text-[11px] font-semibold shrink-0" style={{ color: '#036377' }}>
+            {copied === `${window.location.origin}/?claim=${r.claim_token}` ? 'Copied!' : 'Copy link'}
+          </button>
+        )}
+      </div>
+      {r.bio && <p className="text-xs mb-3" style={{ color: '#374151' }}>{r.bio}</p>}
+      <div className="flex items-center gap-2">
+        {r.onboarded && (
+          <button
+            onClick={() => toggleField(r, 'approved')}
+            disabled={busyId === r.id + 'approved'}
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
+            style={r.approved
+              ? { background: '#E9FBEF', color: '#0E7A3B', borderColor: '#0E7A3B' }
+              : { background: 'white', color: '#374151', borderColor: '#E5E7EB' }}
+          >
+            {r.approved ? 'Approved ✓' : 'Approve'}
+          </button>
+        )}
+        <button
+          onClick={() => toggleField(r, 'verified')}
+          disabled={busyId === r.id + 'verified'}
+          className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
+          style={r.verified
+            ? { background: '#E0FBFF', color: '#036377', borderColor: '#00D9FF' }
+            : { background: 'white', color: '#374151', borderColor: '#E5E7EB' }}
+        >
+          {r.verified ? 'Verified ✓' : 'Mark verified'}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (!session || session.user.email?.toLowerCase() !== ADMIN_EMAIL) {
+    return (
+      <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
+        <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Not authorized</p>
+        <p className="text-xs" style={{ color: '#6B7280' }}>This page is only available to the site admin.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-5 md:px-8 py-10">
+      <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#111827' }}>Admin</h1>
+
+      <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
+        <p className="text-sm font-semibold mb-4" style={{ color: '#111827' }}>Create a claim link (for a new NFC card)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <input value={pageName} onChange={e => setPageName(e.target.value)} placeholder="Page name" className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+          <select value={niche} onChange={e => setNiche(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
+            {NICHES.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <label className="flex items-center gap-2 text-sm mb-4" style={{ color: '#374151' }}>
+          <input type="checkbox" checked={verifiedOnCreate} onChange={e => setVerifiedOnCreate(e.target.checked)} />
+          Mark verified right away (you already know this person)
+        </label>
+        <button onClick={handleCreate} disabled={creating} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
+          {creating ? 'Creating…' : 'Create claim link'}
+        </button>
+        {createError && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{createError}</p>}
+        {newLink && (
+          <div className="mt-4 flex items-center gap-2 border rounded-lg px-3 py-2.5" style={{ borderColor: '#00D9FF', background: '#E0FBFF' }}>
+            <p className="text-xs flex-1 truncate" style={{ color: '#036377' }}>{newLink}</p>
+            <button onClick={() => copyLink(newLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>
+              {copied === newLink ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {loadingRows ? (
+        <p className="text-sm" style={{ color: '#6B7280' }}>Loading…</p>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <div className="mb-8">
+              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Pending approval ({pending.length})</p>
+              <div className="flex flex-col gap-3">{pending.map(r => <RowCard key={r.id} r={r} />)}</div>
+            </div>
+          )}
+          {waiting.length > 0 && (
+            <div className="mb-8">
+              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Cards not yet claimed ({waiting.length})</p>
+              <div className="flex flex-col gap-3">{waiting.map(r => <RowCard key={r.id} r={r} />)}</div>
+            </div>
+          )}
+          {live.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Live on the site ({live.length})</p>
+              <div className="flex flex-col gap-3">{live.map(r => <RowCard key={r.id} r={r} />)}</div>
+            </div>
+          )}
+          {rows.length === 0 && <p className="text-sm" style={{ color: '#6B7280' }}>No creators yet.</p>}
+        </>
+      )}
+    </div>
+  );
+};
+
 export default function Commissioner() {
   const [page, setPage] = useState('home');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1718,6 +1896,7 @@ export default function Commissioner() {
       {page === 'dashboard' && <Dashboard session={session} />}
       {page === 'onboarding' && <Onboarding session={session} setPage={setPage} />}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} /> : <Auth onAuthenticated={() => setPage('account')} />)}
+      {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 py-16">
           <Auth onAuthenticated={() => setPage('dashboard')} />

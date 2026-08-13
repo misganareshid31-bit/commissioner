@@ -95,6 +95,11 @@ end $$;
 -- 2. Row Level Security
 alter table creator_profiles enable row level security;
 
+-- This is the ONE account allowed to see every profile, create claim
+-- links, and approve/verify people. Everything below checks against it —
+-- change this if the admin's login email ever changes.
+-- ADMIN EMAIL: misganareshid27@gmail.com
+
 drop policy if exists "Public can view approved creator profiles" on creator_profiles;
 create policy "Public can view approved creator profiles"
   on creator_profiles for select
@@ -112,13 +117,23 @@ create policy "Users can update their own profile"
   on creator_profiles for update
   using (auth.uid() = auth_user_id);
 
+drop policy if exists "Admin can view all profiles" on creator_profiles;
+create policy "Admin can view all profiles"
+  on creator_profiles for select
+  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+
+drop policy if exists "Admin can update all profiles" on creator_profiles;
+create policy "Admin can update all profiles"
+  on creator_profiles for update
+  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+
 -- Safety net: don't let creators flip approved/verified on themselves
--- through the app. Only changes made from the Supabase dashboard (or a
--- service-role key) can move these two fields — that's how you approve people.
+-- through the app. Only the admin account, the Supabase dashboard, or a
+-- service-role key can move these two fields.
 create or replace function public.protect_admin_fields()
 returns trigger as $$
 begin
-  if auth.role() <> 'service_role' then
+  if auth.role() <> 'service_role' and coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
     new.approved = old.approved;
     new.verified = old.verified;
   end if;
@@ -220,6 +235,26 @@ begin
 end;
 $$ language plpgsql security definer;
 grant execute on function public.claim_profile(text, text, text, text, text, text, text, text, jsonb, text, text, text) to anon, authenticated;
+
+-- Creates a new pre-filled, unclaimed profile and returns its claim token.
+-- This is what the in-app admin page calls. Enforced here, not just in the
+-- UI — anyone else who tries calling this directly gets rejected even if
+-- they somehow found the function name.
+create or replace function public.admin_create_claim(p_page_name text, p_primary_niche text, p_verified boolean default true)
+returns text as $$
+declare
+  new_token text;
+begin
+  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+    raise exception 'not authorized';
+  end if;
+  new_token := encode(gen_random_bytes(16), 'hex');
+  insert into creator_profiles (page_name, primary_niche, claim_token, verified)
+  values (p_page_name, p_primary_niche, new_token, p_verified);
+  return new_token;
+end;
+$$ language plpgsql security definer;
+grant execute on function public.admin_create_claim(text, text, boolean) to authenticated;
 
 -- 5. Storage buckets for profile photo + banner (public read, owner write)
 insert into storage.buckets (id, name, public)
