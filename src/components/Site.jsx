@@ -15,7 +15,8 @@ import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
   BarChart, Bar, CartesianGrid
 } from 'recharts';
-
+// insret this on line 19
+const ADMIN_EMAIL = 'your-email@example.com'.toLowerCase();
 /* ---------------------------------- fonts / tokens ---------------------------------- */
 
 const FontLoader = () => (
