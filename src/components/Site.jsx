@@ -1223,8 +1223,8 @@ const Onboarding = ({ session, setPage }) => {
         {/* Step 0 — Basic info */}
         {step === 0 && (
           <div className="flex flex-col gap-5">
-            <OnboardingField label="Page name" placeholder="e.g. Amara Eats" value={pageName} onChange={e => setPageName(e.target.value)} />
-            <OnboardingField label="Creator username" placeholder="e.g. @amara.eats" value={username} onChange={e => setUsername(e.target.value)} />
+            <OnboardingField label="Page name" placeholder="e.g. Sunrise Kitchen" value={pageName} onChange={e => setPageName(e.target.value)} />
+            <OnboardingField label="Creator username" placeholder="e.g. @sunrise.kitchen" value={username} onChange={e => setUsername(e.target.value)} />
 
             <div className="grid grid-cols-2 gap-4">
               <ImageUploadTile label="Profile photo" shape="circle" previewUrl={avatarPreview} onFile={handleAvatarFile} uploading={uploadingAvatar} />
@@ -1622,8 +1622,8 @@ const ClaimProfile = ({ token }) => {
           <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={handleBannerFile} uploading={uploadingBanner} />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <OnboardingField label="Page name" placeholder="e.g. Amara Eats" value={pageName} onChange={e => setPageName(e.target.value)} />
-          <OnboardingField label="Username" placeholder="e.g. amara.eats" icon={AtSign} value={username} onChange={e => setUsername(e.target.value.replace(/\s/g, ''))} />
+          <OnboardingField label="Page name" placeholder="e.g. Sunrise Kitchen" value={pageName} onChange={e => setPageName(e.target.value)} />
+          <OnboardingField label="Username" placeholder="e.g. sunrise.kitchen" icon={AtSign} value={username} onChange={e => setUsername(e.target.value.replace(/\s/g, ''))} />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <OnboardingField label="City" placeholder="e.g. Addis Ababa" icon={MapPin} value={city} onChange={e => setCity(e.target.value)} />

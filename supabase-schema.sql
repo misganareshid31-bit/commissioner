@@ -181,7 +181,7 @@ create trigger touch_creator_profiles
 -- To create a card: insert a row yourself with page_name/primary_niche set
 -- and a random claim_token, e.g.:
 --   insert into creator_profiles (page_name, primary_niche, claim_token)
---   values ('Amara Eats', 'Food & Restaurants', encode(gen_random_bytes(16), 'hex'));
+--   values ('Sunrise Kitchen', 'Food & Restaurants', encode(gen_random_bytes(16), 'hex'));
 -- Then program the NFC card with:
 --   https://commissioner-dusky.vercel.app/?claim=<that token>
 
