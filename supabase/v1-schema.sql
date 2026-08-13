@@ -15,9 +15,11 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Profiles are publicly viewable" on public.profiles;
 create policy "Profiles are publicly viewable"
   on public.profiles for select using (true);
 
+drop policy if exists "Users can update their own profile row" on public.profiles;
 create policy "Users can update their own profile row"
   on public.profiles for update using (auth.uid() = id);
 
@@ -63,10 +65,12 @@ drop policy if exists "Users can update their own creator profile" on public.cre
 create policy "Users can update their own creator profile"
   on public.creator_profiles for update using (auth.uid() = id);
 
+drop policy if exists "Admins can update any creator profile" on public.creator_profiles;
 create policy "Admins can update any creator profile"
   on public.creator_profiles for update
   using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
 
+drop policy if exists "Admins can delete creator profiles" on public.creator_profiles;
 create policy "Admins can delete creator profiles"
   on public.creator_profiles for delete
   using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
@@ -100,10 +104,12 @@ drop policy if exists "Users can update their own business profile" on public.bu
 create policy "Users can update their own business profile"
   on public.business_profiles for update using (auth.uid() = id);
 
+drop policy if exists "Admins can update any business profile" on public.business_profiles;
 create policy "Admins can update any business profile"
   on public.business_profiles for update
   using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
 
+drop policy if exists "Admins can delete business profiles" on public.business_profiles;
 create policy "Admins can delete business profiles"
   on public.business_profiles for delete
   using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true));
@@ -124,9 +130,11 @@ create table if not exists public.social_accounts (
 
 alter table public.social_accounts enable row level security;
 
+drop policy if exists "Social accounts are publicly viewable" on public.social_accounts;
 create policy "Social accounts are publicly viewable"
   on public.social_accounts for select using (true);
 
+drop policy if exists "Users manage their own social accounts" on public.social_accounts;
 create policy "Users manage their own social accounts"
   on public.social_accounts for all
   using (auth.uid() = creator_id) with check (auth.uid() = creator_id);
@@ -145,9 +153,11 @@ create table if not exists public.nfc_cards (
 
 alter table public.nfc_cards enable row level security;
 
+drop policy if exists "NFC card status is publicly viewable" on public.nfc_cards;
 create policy "NFC card status is publicly viewable"
   on public.nfc_cards for select using (true);
 
+drop policy if exists "Only admins manage NFC cards" on public.nfc_cards;
 create policy "Only admins manage NFC cards"
   on public.nfc_cards for all
   using (exists (select 1 from public.profiles where id = auth.uid() and is_admin = true))
@@ -166,9 +176,11 @@ create table if not exists public.notifications (
 
 alter table public.notifications enable row level security;
 
+drop policy if exists "Users see only their own notifications" on public.notifications;
 create policy "Users see only their own notifications"
   on public.notifications for select using (auth.uid() = user_id);
 
+drop policy if exists "Users can mark their own notifications read" on public.notifications;
 create policy "Users can mark their own notifications read"
   on public.notifications for update using (auth.uid() = user_id);
 
@@ -203,18 +215,24 @@ values
   ('portfolio', 'portfolio', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Public read access to profile photos" on storage.objects;
 create policy "Public read access to profile photos"
   on storage.objects for select using (bucket_id = 'profile-photos');
+drop policy if exists "Authenticated users can upload their own profile photo" on storage.objects;
 create policy "Authenticated users can upload their own profile photo"
   on storage.objects for insert with check (bucket_id = 'profile-photos' and auth.role() = 'authenticated');
 
+drop policy if exists "Public read access to business logos" on storage.objects;
 create policy "Public read access to business logos"
   on storage.objects for select using (bucket_id = 'business-logos');
+drop policy if exists "Authenticated users can upload their own logo" on storage.objects;
 create policy "Authenticated users can upload their own logo"
   on storage.objects for insert with check (bucket_id = 'business-logos' and auth.role() = 'authenticated');
 
+drop policy if exists "Public read access to portfolio" on storage.objects;
 create policy "Public read access to portfolio"
   on storage.objects for select using (bucket_id = 'portfolio');
+drop policy if exists "Authenticated users can upload portfolio items" on storage.objects;
 create policy "Authenticated users can upload portfolio items"
   on storage.objects for insert with check (bucket_id = 'portfolio' and auth.role() = 'authenticated');
 
