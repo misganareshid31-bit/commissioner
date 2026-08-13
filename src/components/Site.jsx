@@ -116,7 +116,7 @@ async function fetchLiveCreators(limit = 48) {
   });
 }
 
-const NICHES = ['Food & Restaurants', 'Fashion', 'Beauty', 'Technology', 'Gaming', 'Fitness', 'Travel', 'Comedy'];
+const NICHES = ['Food & Restaurants', 'Fashion', 'Beauty', 'Technology', 'Gaming', 'Fitness', 'Travel', 'Comedy', 'Entertainment'];
 const BUSINESS_CATEGORIES = ['Food & Restaurants', 'Fashion & Retail', 'Beauty & Cosmetics', 'Technology', 'Gaming', 'Fitness & Wellness', 'Travel & Hospitality', 'Entertainment', 'Other'];
 const LOOKING_FOR_OPTIONS = ['Sponsored posts', 'Product reviews', 'Long-term ambassadorship', 'Event coverage', 'UGC content', 'Affiliate partnerships'];
 
@@ -262,37 +262,64 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
       </div>
 
       {menuOpen && (
-        <div className="lg:hidden border-t px-5 py-3 flex flex-col gap-1" style={{ borderColor: '#E5E7EB' }}>
-          {links.map(l => (
-            <button
-              key={l.id}
-              onClick={() => { setPage(l.id); setMenuOpen(false); }}
-              className="text-left px-3 py-2.5 rounded-lg text-sm font-medium"
-              style={{ color: page === l.id ? '#E6007A' : '#374151', background: page === l.id ? '#FDE7F1' : 'transparent' }}
-            >
-              {l.label}
-            </button>
-          ))}
-          {session ? (
-            <>
-              <div className="text-left px-3 py-2 text-xs font-semibold" style={{ color: '#6B7280' }}>{session.user.email}</div>
-              <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium" style={{ color: '#374151' }}>Dashboard</button>
-              <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium" style={{ color: '#374151' }}>Account settings</button>
-              {session.user.email?.toLowerCase() === ADMIN_EMAIL && (
-                <button onClick={() => { setPage('admin'); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium" style={{ color: '#374151' }}>Admin</button>
+        <>
+          <button
+            aria-label="Close navigation"
+            onClick={() => setMenuOpen(false)}
+            className="lg:hidden fixed inset-0 z-40 bg-black/30"
+          />
+          <aside
+            className="lg:hidden fixed top-0 right-0 z-50 h-screen w-[min(88vw,360px)] bg-white shadow-2xl border-l flex flex-col"
+            style={{ borderColor: '#E5E7EB' }}
+          >
+            <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg cm-beam flex items-center justify-center">
+                  <span className="cm-display text-white font-bold text-sm">C</span>
+                </div>
+                <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
+              </div>
+              <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-50">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto cm-scroll p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Navigation</p>
+              <div className="flex flex-col gap-1">
+                {links.map(l => (
+                  <button
+                    key={l.id}
+                    onClick={() => { setPage(l.id); setMenuOpen(false); }}
+                    className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center justify-between"
+                    style={{ color: page === l.id ? '#E6007A' : '#374151', background: page === l.id ? '#FDE7F1' : 'transparent' }}
+                  >
+                    {l.label}<ChevronRight size={15} />
+                  </button>
+                ))}
+              </div>
+              <div className="h-px my-4" style={{ background: '#E5E7EB' }} />
+              <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Account</p>
+              {session ? (
+                <div className="flex flex-col gap-1">
+                  <div className="px-3 py-2 text-xs truncate" style={{ color: '#6B7280' }}>{session.user.email}</div>
+                  <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
+                  <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
+                  {session.user.email?.toLowerCase() === ADMIN_EMAIL && (
+                    <button onClick={() => { setPage('admin'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Admin</button>
+                  )}
+                  <button onClick={async () => { await supabase.auth.signOut(); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold" style={{ color: '#DC2626' }}>Sign out</button>
+                </div>
+              ) : (
+                <button onClick={() => { setPage('auth'); setMenuOpen(false); }} className="w-full text-left px-3 py-3 rounded-xl text-sm font-semibold" style={{ color: '#E6007A', background: '#FDE7F1' }}>Sign in</button>
               )}
-              <button onClick={async () => { await supabase.auth.signOut(); setMenuOpen(false); }} className="text-left px-3 py-2.5 rounded-lg text-sm font-semibold" style={{ color: '#DC2626' }}>Sign out</button>
-            </>
-          ) : (
-            <button
-              onClick={() => { setPage('auth'); setMenuOpen(false); }}
-              className="text-left px-3 py-2.5 rounded-lg text-sm font-semibold"
-              style={{ color: '#E6007A' }}
-            >
-              Sign in
-            </button>
-          )}
-        </div>
+            </div>
+            <div className="p-4 border-t shrink-0" style={{ borderColor: '#E5E7EB' }}>
+              <button onClick={() => { setPage(session ? 'onboarding' : 'auth'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
+                {session ? 'Edit creator profile' : 'Join as a creator'}
+              </button>
+            </div>
+          </aside>
+        </>
       )}
     </header>
   );
@@ -1617,7 +1644,7 @@ const CreatorClaimForm = ({ token }) => {
     <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-8">
         <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#111827' }}>Finish your Commissioner profile</h1>
-        <p className="text-sm" style={{ color: '#6B7280' }}>{pageName ? `You're setting up the profile for ${pageName}.` : "You're setting up your creator profile."} No account needed — just fill this in and submit.</p>
+        <p className="text-sm" style={{ color: '#6B7280' }}>{pageName ? `You're setting up the profile for ${pageName}.` : "You're setting up your creator profile."} This is the page your NFC card will open. No account needed — fill in the public details and submit.</p>
       </div>
 
       <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
@@ -1788,7 +1815,7 @@ const BusinessClaimForm = ({ token }) => {
     <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-8">
         <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#111827' }}>Finish your business page</h1>
-        <p className="text-sm" style={{ color: '#6B7280' }}>{businessName ? `You're setting up the page for ${businessName}.` : "You're setting up your business page."} No account needed — just fill this in and submit.</p>
+        <p className="text-sm" style={{ color: '#6B7280' }}>{businessName ? `You're setting up the page for ${businessName}.` : "You're setting up your business page."} This is the page your NFC card will open. No account needed — fill in the public details and submit.</p>
       </div>
 
       <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
@@ -1852,32 +1879,127 @@ const BusinessClaimForm = ({ token }) => {
   );
 };
 
-// Figures out whether a claim token belongs to a creator or a business,
-// then hands off to the matching form — so the same NFC link format works
-// for both, and nobody has to remember which type a card was.
+const PublicCreatorProfile = ({ profile }) => {
+  const socials = profile.platforms && typeof profile.platforms === 'object' ? profile.platforms : {};
+  const socialEntries = Object.entries(socials).filter(([, value]) => value && (value.handle || value.url));
+  const services = profile.services && typeof profile.services === 'object' ? profile.services : {};
+  const serviceEntries = Object.entries(services).filter(([, value]) => value);
+  return (
+    <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
+      <div className="max-w-4xl mx-auto px-5 md:px-8 py-8 md:py-12">
+        <div className="bg-white border rounded-3xl overflow-hidden shadow-sm" style={{ borderColor: '#E5E7EB' }}>
+          <div className="h-36 md:h-48 relative" style={{ background: profile.banner_url ? `url(${profile.banner_url}) center/cover` : 'linear-gradient(120deg,#111827,#334155)' }}>
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 35%, rgba(17,24,39,.55))' }} />
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#111827' }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner profile
+            </div>
+          </div>
+          <div className="px-5 md:px-8 pb-8">
+            <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
+              <Avatar name={profile.page_name || profile.username || 'Creator'} size={96} ring src={profile.avatar_url} />
+              <div className="pb-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.page_name || profile.username || 'Creator'}</h1>
+                  {profile.verified && <VerifiedBadge />}
+                </div>
+                <p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {profile.primary_niche && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FDE7F1', color: '#99154F' }}>{profile.primary_niche}</span>}
+              {profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
+              {profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
+            </div>
+            {profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#374151' }}>{profile.bio}</p>}
+            {socialEntries.length > 0 && (
+              <div className="mb-7">
+                <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Social platforms</p>
+                <div className="flex flex-wrap gap-2">
+                  {socialEntries.map(([platform, value]) => {
+                    const href = value.url || (value.handle && /^https?:\/\//.test(value.handle) ? value.handle : null);
+                    return href ? (
+                      <a key={platform} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold hover:bg-gray-50" style={{ borderColor: '#E5E7EB', color: '#374151' }}>
+                        <PlatformIcon p={platform.toLowerCase()} /> {platform} {value.handle && !value.handle.startsWith('http') ? `· ${value.handle}` : ''}
+                      </a>
+                    ) : (
+                      <span key={platform} className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold" style={{ borderColor: '#E5E7EB', color: '#374151' }}><PlatformIcon p={platform.toLowerCase()} /> {platform} · {value.handle}</span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {serviceEntries.length > 0 && (
+              <div className="mb-7">
+                <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Collaboration services</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {serviceEntries.map(([name, price]) => <div key={name} className="border rounded-xl px-3 py-3 flex items-center justify-between text-xs" style={{ borderColor: '#E5E7EB' }}><span className="font-semibold capitalize" style={{ color: '#374151' }}>{name.replaceAll('_',' ')}</span><span className="cm-mono font-semibold" style={{ color: '#111827' }}>{String(price)}</span></div>)}
+                </div>
+              </div>
+            )}
+            {profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#111827' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15} /></a>}
+          </div>
+        </div>
+        <div className="text-center mt-5 text-xs" style={{ color: '#9CA3AF' }}>Verified creator profile powered by Commissioner</div>
+      </div>
+    </div>
+  );
+};
+
+const PublicBusinessProfile = ({ profile }) => (
+  <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
+    <div className="max-w-4xl mx-auto px-5 md:px-8 py-8 md:py-12">
+      <div className="bg-white border rounded-3xl overflow-hidden shadow-sm" style={{ borderColor: '#E5E7EB' }}>
+        <div className="h-36 md:h-48 relative" style={{ background: profile.banner_url ? `url(${profile.banner_url}) center/cover` : 'linear-gradient(120deg,#111827,#334155)' }}>
+          <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#111827' }}><span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner business profile</div>
+        </div>
+        <div className="px-5 md:px-8 pb-8">
+          <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
+            <Avatar name={profile.business_name || profile.username || 'Business'} size={96} ring src={profile.avatar_url} />
+            <div className="pb-1"><div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.business_name || profile.username || 'Business'}</h1>{profile.verified && <VerifiedBadge />}</div><p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p></div>
+          </div>
+          {profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
+          {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#374151' }}>{profile.bio}</p>}
+          <div className="flex flex-wrap gap-3">
+            {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#111827' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+          </div>
+        </div>
+      </div>
+      <div className="text-center mt-5 text-xs" style={{ color: '#9CA3AF' }}>Verified business profile powered by Commissioner</div>
+    </div>
+  </div>
+);
+
+// NFC links are permanent: before a profile is claimed they open the claim form;
+// once approved, the exact same NFC URL opens the public profile.
 const ClaimGate = ({ token }) => {
-  const [kind, setKind] = useState(null); // 'creator' | 'business' | 'not_found' | null (loading)
+  const [state, setState] = useState({ kind: null, profile: null });
 
   useEffect(() => {
-    supabase.rpc('get_claim_any', { p_token: token }).then(({ data, error }) => {
-      if (error || !data) { setKind('not_found'); return; }
-      setKind(data.kind);
-    });
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc('get_claim_any', { p_token: token });
+      if (cancelled) return;
+      if (data?.kind) { setState({ kind: data.kind, profile: null }); return; }
+
+      const [creator, business] = await Promise.all([
+        supabase.from('creator_profiles').select('*').eq('claim_token', token).eq('approved', true).eq('onboarded', true).maybeSingle(),
+        supabase.from('business_profiles').select('*').eq('claim_token', token).eq('approved', true).eq('onboarded', true).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      if (creator.data) setState({ kind: 'public_creator', profile: creator.data });
+      else if (business.data) setState({ kind: 'public_business', profile: business.data });
+      else setState({ kind: 'not_found', profile: null });
+    })();
+    return () => { cancelled = true; };
   }, [token]);
 
-  if (kind === null) {
-    return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading…</div>;
-  }
-  if (kind === 'not_found') {
-    return (
-      <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
-        <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This link isn't available</p>
-        <p className="text-xs" style={{ color: '#6B7280' }}>It may have already been finished and approved, or the link is incorrect.</p>
-      </div>
-    );
-  }
-  return kind === 'business' ? <BusinessClaimForm token={token} /> : <CreatorClaimForm token={token} />;
+  if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading NFC profile…</div>;
+  if (state.kind === 'public_creator') return <PublicCreatorProfile profile={state.profile} />;
+  if (state.kind === 'public_business') return <PublicBusinessProfile profile={state.profile} />;
+  if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#6B7280' }}>The NFC link may be incorrect or the profile is not published yet.</p></div>;
+  return state.kind === 'business' ? <BusinessClaimForm token={token} /> : <CreatorClaimForm token={token} />;
 };
+
 
 const AdminPanel = ({ session }) => {
   const [claimType, setClaimType] = useState('creator'); // 'creator' | 'business'
@@ -2011,7 +2133,13 @@ const AdminPanel = ({ session }) => {
       <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#111827' }}>Admin</h1>
 
       <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-semibold mb-4" style={{ color: '#111827' }}>Create a claim link (for a new NFC card)</p>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Create a claim link for an NFC card</p>
+            <p className="text-xs mt-1" style={{ color: '#6B7280' }}>The same NFC URL stays permanent: first it opens the creator's setup page, then after approval it opens the public profile.</p>
+          </div>
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}><Zap size={12} /> NFC ready</span>
+        </div>
 
         <div className="flex border rounded-lg p-1 mb-4 w-fit" style={{ borderColor: '#E5E7EB' }}>
           {['creator', 'business'].map(t => (
@@ -2026,6 +2154,16 @@ const AdminPanel = ({ session }) => {
           ))}
         </div>
 
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => { setClaimType('creator'); setPageName('4Kilo Entertainment'); setNiche('Entertainment'); setVerifiedOnCreate(true); setNewLink(''); setCreateError(''); }}
+            className="text-xs font-semibold px-3 py-2 rounded-lg border flex items-center gap-1.5"
+            style={{ borderColor: '#E6007A', color: '#99154F', background: '#FDE7F1' }}
+          >
+            <Award size={13} /> Prepare 4Kilo Entertainment card
+          </button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <input value={pageName} onChange={e => setPageName(e.target.value)} placeholder={claimType === 'creator' ? 'Page name' : 'Business name'} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
           {claimType === 'creator' ? (
@@ -2049,8 +2187,9 @@ const AdminPanel = ({ session }) => {
         {newLink && (
           <div className="mt-4 flex items-center gap-2 border rounded-lg px-3 py-2.5" style={{ borderColor: '#00D9FF', background: '#E0FBFF' }}>
             <p className="text-xs flex-1 truncate" style={{ color: '#036377' }}>{newLink}</p>
+            <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#111827' }}>Open</button>
             <button onClick={() => copyLink(newLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>
-              {copied === newLink ? 'Copied!' : 'Copy'}
+              {copied === newLink ? 'Copied!' : 'Copy NFC URL'}
             </button>
           </div>
         )}
