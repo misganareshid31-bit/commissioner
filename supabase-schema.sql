@@ -308,3 +308,195 @@ drop policy if exists "Users update their own banner" on storage.objects;
 create policy "Users update their own banner"
   on storage.objects for update
   using (bucket_id = 'banners' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- =====================================================================
+-- 6. business_profiles — same pattern as creator_profiles, so businesses
+--    can also get a public page, claimed via an NFC card the same way.
+-- =====================================================================
+
+create table if not exists business_profiles (
+  id uuid primary key default gen_random_uuid()
+);
+
+alter table business_profiles add column if not exists auth_user_id uuid references auth.users(id) on delete cascade;
+alter table business_profiles add column if not exists claim_token text;
+alter table business_profiles add column if not exists claimed boolean default false;
+alter table business_profiles add column if not exists business_name text;
+alter table business_profiles add column if not exists username text;
+alter table business_profiles add column if not exists avatar_url text;
+alter table business_profiles add column if not exists banner_url text;
+alter table business_profiles add column if not exists bio text;
+alter table business_profiles add column if not exists city text;
+alter table business_profiles add column if not exists language text;
+alter table business_profiles add column if not exists industry text;
+alter table business_profiles add column if not exists website text;
+alter table business_profiles add column if not exists looking_for text[] default '{}';
+alter table business_profiles add column if not exists budget_range text;
+alter table business_profiles add column if not exists preferences text;
+alter table business_profiles add column if not exists verified boolean default false;
+alter table business_profiles add column if not exists onboarded boolean default false;
+alter table business_profiles add column if not exists approved boolean default false;
+alter table business_profiles add column if not exists created_at timestamptz default now();
+alter table business_profiles add column if not exists updated_at timestamptz default now();
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'business_profiles_auth_user_id_key') then
+    alter table business_profiles add constraint business_profiles_auth_user_id_key unique (auth_user_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'business_profiles_username_key') then
+    alter table business_profiles add constraint business_profiles_username_key unique (username);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'business_profiles_claim_token_key') then
+    alter table business_profiles add constraint business_profiles_claim_token_key unique (claim_token);
+  end if;
+end $$;
+
+alter table business_profiles enable row level security;
+
+drop policy if exists "Public can view approved business profiles" on business_profiles;
+create policy "Public can view approved business profiles"
+  on business_profiles for select
+  using (onboarded = true and approved = true);
+
+drop policy if exists "Businesses can view their own profile" on business_profiles;
+create policy "Businesses can view their own profile"
+  on business_profiles for select
+  using (auth.uid() = auth_user_id);
+
+drop policy if exists "Businesses can update their own profile" on business_profiles;
+create policy "Businesses can update their own profile"
+  on business_profiles for update
+  using (auth.uid() = auth_user_id);
+
+drop policy if exists "Admin can view all business profiles" on business_profiles;
+create policy "Admin can view all business profiles"
+  on business_profiles for select
+  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+
+drop policy if exists "Admin can update all business profiles" on business_profiles;
+create policy "Admin can update all business profiles"
+  on business_profiles for update
+  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+
+-- Same protection as creator_profiles — reuses the same trigger function,
+-- since it works generically off NEW/OLD approved+verified.
+drop trigger if exists protect_admin_fields_trigger on business_profiles;
+create trigger protect_admin_fields_trigger
+  before update on business_profiles
+  for each row execute procedure public.protect_admin_fields();
+
+drop trigger if exists touch_business_profiles on business_profiles;
+create trigger touch_business_profiles
+  before update on business_profiles
+  for each row execute procedure public.touch_updated_at();
+
+-- Auto-create a blank business row when someone signs up choosing "Business"
+create or replace function public.handle_new_business()
+returns trigger as $$
+begin
+  if (new.raw_user_meta_data->>'role') = 'business' then
+    insert into public.business_profiles (auth_user_id, claimed) values (new.id, true)
+    on conflict (auth_user_id) do nothing;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created_business on auth.users;
+create trigger on_auth_user_created_business
+  after insert on auth.users
+  for each row execute procedure public.handle_new_business();
+
+-- Claim-link lookup + save for businesses (mirrors get_claim_profile / claim_profile)
+create or replace function public.get_claim_business(p_token text)
+returns setof business_profiles as $$
+  select * from business_profiles
+  where claim_token = p_token and approved = false;
+$$ language sql security definer;
+grant execute on function public.get_claim_business(text) to anon, authenticated;
+
+create or replace function public.claim_business(
+  p_token text,
+  p_business_name text,
+  p_username text,
+  p_city text,
+  p_language text,
+  p_bio text,
+  p_avatar_url text,
+  p_banner_url text,
+  p_website text,
+  p_looking_for text[],
+  p_budget_range text,
+  p_preferences text
+)
+returns boolean as $$
+declare
+  updated_rows int;
+begin
+  update business_profiles set
+    business_name = p_business_name,
+    username = p_username,
+    city = p_city,
+    language = p_language,
+    bio = p_bio,
+    avatar_url = p_avatar_url,
+    banner_url = p_banner_url,
+    website = p_website,
+    looking_for = p_looking_for,
+    budget_range = p_budget_range,
+    preferences = p_preferences,
+    onboarded = true,
+    claimed = true
+  where claim_token = p_token and approved = false;
+  get diagnostics updated_rows = row_count;
+  return updated_rows > 0;
+end;
+$$ language plpgsql security definer;
+grant execute on function public.claim_business(text, text, text, text, text, text, text, text, text, text[], text, text) to anon, authenticated;
+
+-- One combined lookup so the claim page (and NFC link) doesn't need to
+-- know in advance whether a token belongs to a creator or a business —
+-- it just asks this, and gets back whichever one matches (or neither).
+create or replace function public.get_claim_any(p_token text)
+returns jsonb as $$
+declare
+  c jsonb;
+  b jsonb;
+begin
+  select to_jsonb(cp) into c from creator_profiles cp where claim_token = p_token and approved = false;
+  if c is not null then
+    return jsonb_build_object('kind', 'creator') || c;
+  end if;
+  select to_jsonb(bp) into b from business_profiles bp where claim_token = p_token and approved = false;
+  if b is not null then
+    return jsonb_build_object('kind', 'business') || b;
+  end if;
+  return null;
+end;
+$$ language plpgsql security definer;
+grant execute on function public.get_claim_any(text) to anon, authenticated;
+
+-- Admin-only: create a new claimable business page. Same authorization
+-- pattern as admin_create_claim — checked here, not just in the UI.
+create or replace function public.admin_create_business_claim(p_business_name text, p_industry text, p_verified boolean default true)
+returns text as $$
+declare
+  new_token text;
+begin
+  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+    raise exception 'not authorized';
+  end if;
+  new_token := encode(gen_random_bytes(16), 'hex');
+  insert into business_profiles (business_name, industry, claim_token, verified)
+  values (p_business_name, p_industry, new_token, p_verified);
+  return new_token;
+end;
+$$ language plpgsql security definer;
+grant execute on function public.admin_create_business_claim(text, text, boolean) to authenticated;
+
+-- Storage: businesses upload logos/banners under the same buckets, scoped
+-- the same two ways creators are — by their own auth.uid() once signed up
+-- normally, or by claim-token folder when claimed via an NFC card. Both
+-- policies already exist from the creator setup above and are bucket-wide,
+-- not creator-specific, so no new storage policies are needed here.

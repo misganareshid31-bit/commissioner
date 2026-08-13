@@ -115,6 +115,8 @@ async function fetchLiveCreators(limit = 48) {
 }
 
 const NICHES = ['Food & Restaurants', 'Fashion', 'Beauty', 'Technology', 'Gaming', 'Fitness', 'Travel', 'Comedy'];
+const BUSINESS_CATEGORIES = ['Food & Restaurants', 'Fashion & Retail', 'Beauty & Cosmetics', 'Technology', 'Gaming', 'Fitness & Wellness', 'Travel & Hospitality', 'Entertainment', 'Other'];
+const LOOKING_FOR_OPTIONS = ['Sponsored posts', 'Product reviews', 'Long-term ambassadorship', 'Event coverage', 'UGC content', 'Affiliate partnerships'];
 
 const CREATOR_PLANS = [
   { id: 'basic', name: 'Basic', price: '$1', period: '/month', features: ['Profile', 'Portfolio', 'Social links', '3 Spotlight videos'], tone: 'gray' },
@@ -1498,7 +1500,7 @@ const AccountSettings = ({ session, setPage }) => {
   );
 };
 
-const ClaimProfile = ({ token }) => {
+const CreatorClaimForm = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [pageName, setPageName] = useState('');
@@ -1671,11 +1673,215 @@ const ClaimProfile = ({ token }) => {
   );
 };
 
-const ADMIN_EMAIL = 'misganareshid27@gmail.com';
+const BusinessClaimForm = ({ token }) => {
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [businessName, setBusinessName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [username, setUsername] = useState('');
+  const [city, setCity] = useState('');
+  const [language, setLanguage] = useState('');
+  const [bio, setBio] = useState('');
+  const [website, setWebsite] = useState('');
+  const [lookingFor, setLookingFor] = useState([]);
+  const [budgetRange, setBudgetRange] = useState('');
+  const [preferences, setPreferences] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.rpc('get_claim_business', { p_token: token }).then(({ data, error }) => {
+      if (error || !data || data.length === 0) { setNotFound(true); setLoading(false); return; }
+      const row = data[0];
+      setBusinessName(row.business_name || '');
+      setIndustry(row.industry || '');
+      setUsername(row.username || '');
+      setCity(row.city || '');
+      setLanguage(row.language || '');
+      setBio(row.bio || '');
+      setWebsite(row.website || '');
+      setLookingFor(row.looking_for || []);
+      setBudgetRange(row.budget_range || '');
+      setPreferences(row.preferences || '');
+      setAvatarPreview(row.avatar_url || '');
+      setBannerPreview(row.banner_url || '');
+      setLoading(false);
+    });
+  }, [token]);
+
+  const toggleLookingFor = (l) => setLookingFor(lf => lf.includes(l) ? lf.filter(x => x !== l) : [...lf, l]);
+  const handleAvatarFile = (file) => { setAvatarFile(file); setAvatarPreview(URL.createObjectURL(file)); };
+  const handleBannerFile = (file) => { setBannerFile(file); setBannerPreview(URL.createObjectURL(file)); };
+
+  const uploadImage = async (file, bucket) => {
+    const ext = file.name.split('.').pop();
+    const path = `claim/${token}/${bucket}-${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+    if (uploadError) throw uploadError;
+    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      let avatarUrl, bannerUrl;
+      if (avatarFile) { setUploadingAvatar(true); avatarUrl = await uploadImage(avatarFile, 'avatars'); setUploadingAvatar(false); }
+      if (bannerFile) { setUploadingBanner(true); bannerUrl = await uploadImage(bannerFile, 'banners'); setUploadingBanner(false); }
+      const { data, error } = await supabase.rpc('claim_business', {
+        p_token: token,
+        p_business_name: businessName,
+        p_username: username,
+        p_city: city,
+        p_language: language,
+        p_bio: bio,
+        p_avatar_url: avatarUrl || avatarPreview || null,
+        p_banner_url: bannerUrl || bannerPreview || null,
+        p_website: website,
+        p_looking_for: lookingFor,
+        p_budget_range: budgetRange,
+        p_preferences: preferences,
+      });
+      if (error) throw error;
+      if (!data) { setNotFound(true); return; }
+      setSaved(true);
+    } catch (err) {
+      setSaveError(err.message || 'Something went wrong saving your profile.');
+    } finally {
+      setSaving(false);
+      setUploadingAvatar(false);
+      setUploadingBanner(false);
+    }
+  };
+
+  if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading your page…</div>;
+
+  if (notFound) {
+    return (
+      <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
+        <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This link isn't available</p>
+        <p className="text-xs" style={{ color: '#6B7280' }}>It may have already been finished and approved, or the link is incorrect.</p>
+      </div>
+    );
+  }
+
+  if (saved) {
+    return (
+      <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
+        <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
+        <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Page saved</p>
+        <p className="text-xs" style={{ color: '#6B7280' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
+      <div className="mb-8">
+        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#111827' }}>Finish your business page</h1>
+        <p className="text-sm" style={{ color: '#6B7280' }}>{businessName ? `You're setting up the page for ${businessName}.` : "You're setting up your business page."} No account needed — just fill this in and submit.</p>
+      </div>
+
+      <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
+        <div className="grid grid-cols-2 gap-4">
+          <ImageUploadTile label="Logo" shape="circle" previewUrl={avatarPreview} onFile={handleAvatarFile} uploading={uploadingAvatar} />
+          <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={handleBannerFile} uploading={uploadingBanner} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <OnboardingField label="Business name" placeholder="e.g. Sunrise Kitchen Co." value={businessName} onChange={e => setBusinessName(e.target.value)} />
+          <OnboardingField label="Username" placeholder="e.g. sunrisekitchen" icon={AtSign} value={username} onChange={e => setUsername(e.target.value.replace(/\s/g, ''))} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <OnboardingField label="City" placeholder="e.g. Addis Ababa" icon={MapPin} value={city} onChange={e => setCity(e.target.value)} />
+          <OnboardingField label="Language" placeholder="e.g. Amharic, English" icon={Languages} value={language} onChange={e => setLanguage(e.target.value)} />
+        </div>
+        <OnboardingField label="Website" placeholder="https://" icon={Globe} value={website} onChange={e => setWebsite(e.target.value)} />
+        <div>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>About the business</label>
+          <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="What do you do, and what kind of creators are you looking for?" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>What are you looking for?</p>
+          <div className="flex flex-wrap gap-2">
+            {LOOKING_FOR_OPTIONS.map(l => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => toggleLookingFor(l)}
+                className="text-xs font-semibold px-3.5 py-2 rounded-full border flex items-center gap-1"
+                style={{
+                  background: lookingFor.includes(l) ? '#E0FBFF' : 'white',
+                  color: lookingFor.includes(l) ? '#036377' : '#374151',
+                  borderColor: lookingFor.includes(l) ? '#00D9FF' : '#E5E7EB'
+                }}
+              >
+                {lookingFor.includes(l) && <Check size={11} strokeWidth={3} />}
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <OnboardingField label="Typical budget range" placeholder="e.g. $200–$500 per campaign" icon={DollarSign} value={budgetRange} onChange={e => setBudgetRange(e.target.value)} />
+        <div>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>Anything else creators should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
+          <textarea value={preferences} onChange={e => setPreferences(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          style={{ background: '#E6007A' }}
+          className="text-white text-sm font-semibold px-5 py-3 rounded-lg disabled:opacity-50 self-start flex items-center gap-1.5"
+        >
+          {saving ? (uploadingAvatar || uploadingBanner ? 'Uploading…' : 'Saving…') : 'Submit page'} <ArrowRight size={15} />
+        </button>
+        {saveError && <p className="text-xs" style={{ color: '#DC2626' }}>{saveError}</p>}
+      </div>
+    </div>
+  );
+};
+
+// Figures out whether a claim token belongs to a creator or a business,
+// then hands off to the matching form — so the same NFC link format works
+// for both, and nobody has to remember which type a card was.
+const ClaimGate = ({ token }) => {
+  const [kind, setKind] = useState(null); // 'creator' | 'business' | 'not_found' | null (loading)
+
+  useEffect(() => {
+    supabase.rpc('get_claim_any', { p_token: token }).then(({ data, error }) => {
+      if (error || !data) { setKind('not_found'); return; }
+      setKind(data.kind);
+    });
+  }, [token]);
+
+  if (kind === null) {
+    return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading…</div>;
+  }
+  if (kind === 'not_found') {
+    return (
+      <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
+        <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This link isn't available</p>
+        <p className="text-xs" style={{ color: '#6B7280' }}>It may have already been finished and approved, or the link is incorrect.</p>
+      </div>
+    );
+  }
+  return kind === 'business' ? <BusinessClaimForm token={token} /> : <CreatorClaimForm token={token} />;
+};
 
 const AdminPanel = ({ session }) => {
+  const [claimType, setClaimType] = useState('creator'); // 'creator' | 'business'
   const [pageName, setPageName] = useState('');
   const [niche, setNiche] = useState(NICHES[0]);
+  const [industry, setIndustry] = useState(BUSINESS_CATEGORIES[0]);
   const [verifiedOnCreate, setVerifiedOnCreate] = useState(true);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -1686,27 +1892,30 @@ const AdminPanel = ({ session }) => {
   const [loadingRows, setLoadingRows] = useState(true);
   const [busyId, setBusyId] = useState(null);
 
-  const loadRows = () => {
+  const loadRows = async () => {
     setLoadingRows(true);
-    supabase
-      .from('creator_profiles')
-      .select('id, page_name, username, city, bio, primary_niche, verified, approved, onboarded, claimed, claim_token, created_at')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => { setRows(data || []); setLoadingRows(false); });
+    const [{ data: creators }, { data: businesses }] = await Promise.all([
+      supabase.from('creator_profiles').select('id, page_name, username, city, bio, primary_niche, verified, approved, onboarded, claimed, claim_token, created_at'),
+      supabase.from('business_profiles').select('id, business_name, username, city, bio, industry, verified, approved, onboarded, claimed, claim_token, created_at'),
+    ]);
+    const tagged = [
+      ...(creators || []).map(r => ({ ...r, kind: 'creator', displayName: r.page_name, displayTag: r.primary_niche })),
+      ...(businesses || []).map(r => ({ ...r, kind: 'business', displayName: r.business_name, displayTag: r.industry })),
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    setRows(tagged);
+    setLoadingRows(false);
   };
 
   useEffect(() => { loadRows(); }, []);
 
   const handleCreate = async () => {
-    if (!pageName.trim()) { setCreateError('Enter a page name first.'); return; }
+    if (!pageName.trim()) { setCreateError('Enter a name first.'); return; }
     setCreating(true);
     setCreateError('');
     setNewLink('');
-    const { data, error } = await supabase.rpc('admin_create_claim', {
-      p_page_name: pageName,
-      p_primary_niche: niche,
-      p_verified: verifiedOnCreate,
-    });
+    const { data, error } = claimType === 'creator'
+      ? await supabase.rpc('admin_create_claim', { p_page_name: pageName, p_primary_niche: niche, p_verified: verifiedOnCreate })
+      : await supabase.rpc('admin_create_business_claim', { p_business_name: pageName, p_industry: industry, p_verified: verifiedOnCreate });
     setCreating(false);
     if (error) { setCreateError(error.message); return; }
     setNewLink(`${window.location.origin}/?claim=${data}`);
@@ -1722,7 +1931,8 @@ const AdminPanel = ({ session }) => {
 
   const toggleField = async (row, field) => {
     setBusyId(row.id + field);
-    await supabase.from('creator_profiles').update({ [field]: !row[field] }).eq('id', row.id);
+    const table = row.kind === 'business' ? 'business_profiles' : 'creator_profiles';
+    await supabase.from(table).update({ [field]: !row[field] }).eq('id', row.id);
     setBusyId(null);
     loadRows();
   };
@@ -1731,15 +1941,25 @@ const AdminPanel = ({ session }) => {
   const live = rows.filter(r => r.onboarded && r.approved);
   const waiting = rows.filter(r => !r.onboarded);
 
+  const KindTag = ({ kind }) => (
+    <span
+      className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide"
+      style={kind === 'business' ? { background: '#F3E8FF', color: '#7C3AED' } : { background: '#FDE7F1', color: '#99154F' }}
+    >
+      {kind}
+    </span>
+  );
+
   const RowCard = ({ r }) => (
     <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
           <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#111827' }}>
-            {r.page_name || <span style={{ color: '#9CA3AF' }}>Unnamed</span>}
+            {r.displayName || <span style={{ color: '#9CA3AF' }}>Unnamed</span>}
             {r.verified && <VerifiedBadge />}
+            <KindTag kind={r.kind} />
           </p>
-          <p className="text-xs" style={{ color: '#6B7280' }}>{r.username ? `@${r.username}` : ''} {r.primary_niche ? `· ${r.primary_niche}` : ''} {r.city ? `· ${r.city}` : ''}</p>
+          <p className="text-xs" style={{ color: '#6B7280' }}>{r.username ? `@${r.username}` : ''} {r.displayTag ? `· ${r.displayTag}` : ''} {r.city ? `· ${r.city}` : ''}</p>
         </div>
         {!r.onboarded && r.claim_token && (
           <button onClick={() => copyLink(`${window.location.origin}/?claim=${r.claim_token}`)} className="text-[11px] font-semibold shrink-0" style={{ color: '#036377' }}>
@@ -1790,15 +2010,35 @@ const AdminPanel = ({ session }) => {
 
       <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
         <p className="text-sm font-semibold mb-4" style={{ color: '#111827' }}>Create a claim link (for a new NFC card)</p>
+
+        <div className="flex border rounded-lg p-1 mb-4 w-fit" style={{ borderColor: '#E5E7EB' }}>
+          {['creator', 'business'].map(t => (
+            <button
+              key={t}
+              onClick={() => { setClaimType(t); setNewLink(''); setCreateError(''); }}
+              className="text-sm font-semibold px-4 py-1.5 rounded-md capitalize"
+              style={{ background: claimType === t ? '#111827' : 'transparent', color: claimType === t ? 'white' : '#374151' }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <input value={pageName} onChange={e => setPageName(e.target.value)} placeholder="Page name" className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
-          <select value={niche} onChange={e => setNiche(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
-            {NICHES.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
+          <input value={pageName} onChange={e => setPageName(e.target.value)} placeholder={claimType === 'creator' ? 'Page name' : 'Business name'} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+          {claimType === 'creator' ? (
+            <select value={niche} onChange={e => setNiche(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
+              {NICHES.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
+            <select value={industry} onChange={e => setIndustry(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
+              {BUSINESS_CATEGORIES.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          )}
         </div>
         <label className="flex items-center gap-2 text-sm mb-4" style={{ color: '#374151' }}>
           <input type="checkbox" checked={verifiedOnCreate} onChange={e => setVerifiedOnCreate(e.target.checked)} />
-          Mark verified right away (you already know this person)
+          Mark verified right away (you already know this {claimType})
         </label>
         <button onClick={handleCreate} disabled={creating} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {creating ? 'Creating…' : 'Create claim link'}
@@ -1878,7 +2118,7 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
         <FontLoader />
-        <ClaimProfile token={claimToken} />
+        <ClaimGate token={claimToken} />
       </div>
     );
   }
