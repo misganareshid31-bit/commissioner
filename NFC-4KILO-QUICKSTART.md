@@ -7,7 +7,6 @@
    - Before the creator claims the card: the NFC URL opens the profile setup page.
    - After the creator submits and the admin approves the profile: the **same NFC URL** opens the public profile.
 3. Adds a public creator/business profile renderer for approved NFC-linked profiles.
-4. Adds an Admin shortcut: **Prepare 4Kilo Entertainment card**.
 5. The Admin screen now shows **Copy NFC URL** and **Open** for the generated card link.
 
 ## Supabase requirement
@@ -21,7 +20,7 @@ The public profile fallback relies on the existing RLS policies that allow appro
 1. Deploy this package to the existing Commissioner Vercel project.
 2. Sign in with the Commissioner admin account.
 3. Open **Admin**.
-4. Click **Prepare 4Kilo Entertainment card**.
+4. Create the gift profile from the Admin page.
 5. Click **Create claim link**.
 6. Click **Copy NFC URL**.
 7. Write that URL to the NFC tag using any standard NFC-writing app/device.

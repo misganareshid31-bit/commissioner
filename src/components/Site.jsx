@@ -92,7 +92,7 @@ function firstNonEmpty(obj, keys) {
 async function fetchLiveCreators(limit = 48) {
   const { data, error } = await supabase
     .from('creator_profiles')
-    .select('id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified')
+    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified')
     .eq('onboarded', true)
     .eq('approved', true)
     .order('created_at', { ascending: false })
@@ -115,6 +115,7 @@ async function fetchLiveCreators(limit = 48) {
       platforms: platformKeys.map(p => p.toLowerCase()),
       verified: !!row.verified,
       response: null,
+      authUserId: row.auth_user_id,
       tone: i,
       avatarUrl: row.avatar_url,
     };
@@ -149,13 +150,36 @@ const PlatformIcon = ({ p, size = 14 }) => {
   return <span className="cm-display" style={{ fontSize: size, fontWeight: 700, lineHeight: 1 }}>♪</span>;
 };
 
+const VerifiedIcon = ({ size = 14, label = 'Verified by Commissioner' }) => (
+  <span
+    role="img"
+    aria-label={label}
+    title={label}
+    style={{
+      width: size,
+      height: size,
+      minWidth: size,
+      borderRadius: '50%',
+      background: '#0095F6',
+      color: '#FFFFFF',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      verticalAlign: 'middle',
+      boxShadow: '0 0 0 1px rgba(0,149,246,0.08)',
+    }}
+  >
+    <Check size={size * 0.62} strokeWidth={3.2} />
+  </span>
+);
+
 const VerifiedBadge = ({ label = 'Verified by Commissioner' }) => (
   <span
     title={label}
     style={{ background: '#E0FBFF', color: '#036377' }}
     className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
   >
-    <CheckCircle2 size={12} strokeWidth={2.5} />
+    <VerifiedIcon size={12} label={label} />
     Verified
   </span>
 );
@@ -357,7 +381,7 @@ const Footer = ({ setPage }) => (
     </div>
     <div className="border-t px-5 md:px-8 py-6 flex flex-col md:flex-row justify-between gap-3" style={{ borderColor: '#1F2937' }}>
       <p className="text-xs" style={{ color: '#6B7280' }}>© 2026 Commissioner. All rights reserved.</p>
-      <p className="text-xs" style={{ color: '#6B7280' }}>Prototype preview — mock data</p>
+      <p className="text-xs" style={{ color: '#6B7280' }}>Profiles and messaging are powered by Supabase.</p>
     </div>
   </footer>
 );
@@ -375,7 +399,7 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
         <div>
           <div className="flex items-center gap-1.5">
             <p className="font-semibold text-sm" style={{ color: '#111827' }}>{c.name}</p>
-            {c.verified && <CheckCircle2 size={14} style={{ color: '#00A8CC' }} strokeWidth={2.5} />}
+            {c.verified && <VerifiedIcon size={14} />}
           </div>
           <p className="cm-mono text-xs" style={{ color: '#6B7280' }}>{c.handle}</p>
         </div>
@@ -423,7 +447,7 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
         <p className="text-[11px]" style={{ color: '#6B7280' }}>Starting price</p>
       </div>
       <button onClick={() => onHire(c)} style={{ background: '#E6007A' }} className="text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:opacity-90">
-        Hire
+        Message
       </button>
     </div>
   </div>
@@ -743,91 +767,139 @@ const Campaigns = ({ session, setPage, appliedIds, onApply }) => (
   </div>
 );
 
-const Messages = () => {
+const Messages = ({ session, initialRecipientId = null }) => {
+  const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
-  const activeConvo = CONVERSATIONS.find(c => c.id === active);
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+
+  const loadConversations = async () => {
+    if (!session?.user?.id) { setConversations([]); setLoading(false); return; }
+    setLoading(true); setError('');
+    const { data, error: rpcError } = await supabase.rpc('list_my_conversations');
+    if (rpcError) {
+      setError(rpcError.message || 'Could not load your messages.');
+      setConversations([]);
+    } else {
+      setConversations(Array.isArray(data) ? data : []);
+    }
+    setLoading(false);
+  };
+
+  const loadThread = async (conversationId) => {
+    if (!conversationId) return;
+    setThreadLoading(true); setError('');
+    const { data, error: rpcError } = await supabase.rpc('get_conversation_messages', { p_conversation_id: conversationId });
+    if (rpcError) setError(rpcError.message || 'Could not load this conversation.');
+    else setMessages(Array.isArray(data) ? data : []);
+    await supabase.rpc('mark_conversation_read', { p_conversation_id: conversationId });
+    setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
+    setThreadLoading(false);
+  };
+
+  useEffect(() => { loadConversations(); }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return undefined;
+    const channel = supabase
+      .channel(`messages:${session.user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        const row = payload.new;
+        await loadConversations();
+        if (active === row.conversation_id) await loadThread(row.conversation_id);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id, active]);
+
+  useEffect(() => {
+    if (!initialRecipientId || !session?.user?.id || initialRecipientId === session.user.id) return;
+    (async () => {
+      const { data, error: rpcError } = await supabase.rpc('start_conversation', {
+        p_other_user_id: initialRecipientId,
+        p_initial_message: null,
+      });
+      if (rpcError) { setError(rpcError.message || 'Could not start the conversation.'); return; }
+      await loadConversations();
+      setActive(data);
+      await loadThread(data);
+    })();
+  }, [initialRecipientId, session?.user?.id]);
+
+  const selectConversation = async (id) => { setActive(id); await loadThread(id); };
+  const activeConvo = conversations.find(c => c.id === active);
+  const filtered = conversations.filter(c => (c.other_name || '').toLowerCase().includes(search.toLowerCase()));
+
+  const send = async () => {
+    const body = draft.trim();
+    if (!body || !active || sending) return;
+    setSending(true); setError('');
+    const { data, error: rpcError } = await supabase.rpc('send_message', {
+      p_conversation_id: active,
+      p_body: body,
+    });
+    if (rpcError) setError(rpcError.message || 'Could not send the message.');
+    else {
+      setDraft('');
+      if (data) setMessages(prev => [...prev, data]);
+      await loadConversations();
+    }
+    setSending(false);
+  };
+
+  if (!session) {
+    return (
+      <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 text-center">
+        <MessageSquare size={32} className="mx-auto mb-3" style={{ color: '#00A8CC' }} />
+        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#111827' }}>Messages</h1>
+        <p className="text-sm" style={{ color: '#6B7280' }}>Sign in to message creators and businesses.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-8">
-      <h1 className="cm-display font-bold text-2xl md:text-3xl mb-6" style={{ color: '#111827' }}>Messages</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>Messages</h1><p className="text-xs mt-1" style={{ color: '#6B7280' }}>Private conversations between Commissioner members.</p></div>
+        {error && <span className="text-xs max-w-sm text-right" style={{ color: '#B42318' }}>{error}</span>}
+      </div>
       <div className="bg-white border rounded-2xl overflow-hidden flex flex-col md:flex-row" style={{ borderColor: '#E5E7EB', height: '600px' }}>
-
-        {/* conversation list */}
         <div className="w-full md:w-80 border-b md:border-b-0 md:border-r flex flex-col shrink-0" style={{ borderColor: '#E5E7EB' }}>
           <div className="p-3 border-b" style={{ borderColor: '#E5E7EB' }}>
             <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2" style={{ borderColor: '#E5E7EB', background: '#F8FAFC' }}>
-              <Search size={14} style={{ color: '#6B7280' }} />
-              <input placeholder="Search messages" className="flex-1 outline-none text-xs bg-transparent" />
+              <Search size={14} style={{ color: '#6B7280' }} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search messages" className="flex-1 outline-none text-xs bg-transparent" />
             </div>
           </div>
           <div className="overflow-y-auto cm-scroll flex-1">
-            {CONVERSATIONS.length === 0 ? (
-              <div className="p-6 text-center">
-                <MessageSquare size={22} className="mx-auto mb-2" style={{ color: '#D1D5DB' }} />
-                <p className="text-xs" style={{ color: '#6B7280' }}>No conversations yet. Messages from creators and businesses you contact will show up here.</p>
-              </div>
-            ) : CONVERSATIONS.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setActive(c.id)}
-                className="w-full text-left flex items-center gap-3 px-4 py-3 border-b"
-                style={{ borderColor: '#F3F4F6', background: active === c.id ? '#FDE7F1' : 'white' }}
-              >
-                <div className="relative shrink-0">
-                  <Avatar name={c.name} size={40} tone={c.tone} />
-                  {c.online && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white" style={{ background: '#0E7A3B' }} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.name}</p>
-                    <span className="text-[11px] shrink-0" style={{ color: '#9CA3AF' }}>{c.time}</span>
-                  </div>
-                  <p className="text-xs truncate" style={{ color: c.unread ? '#111827' : '#6B7280', fontWeight: c.unread ? 600 : 400 }}>{c.preview}</p>
-                </div>
-                {c.unread > 0 && (
-                  <span style={{ background: '#E6007A' }} className="w-4.5 h-4.5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" >
-                    {c.unread}
-                  </span>
-                )}
+            {loading ? <p className="p-6 text-center text-xs" style={{ color: '#6B7280' }}>Loading conversations…</p> : filtered.length === 0 ? (
+              <div className="p-6 text-center"><MessageSquare size={22} className="mx-auto mb-2" style={{ color: '#D1D5DB' }} /><p className="text-xs" style={{ color: '#6B7280' }}>No conversations yet. Open a creator profile and choose Message to start one.</p></div>
+            ) : filtered.map(c => (
+              <button key={c.id} onClick={() => selectConversation(c.id)} className="w-full text-left flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: '#F3F4F6', background: active === c.id ? '#FDE7F1' : 'white' }}>
+                <Avatar name={c.other_name || 'Member'} size={40} tone={c.tone || 0} src={c.other_avatar_url} />
+                <div className="flex-1 min-w-0"><div className="flex items-center justify-between"><p className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.other_name || 'Commissioner member'}</p><span className="text-[11px] shrink-0" style={{ color: '#9CA3AF' }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleDateString() : ''}</span></div><p className="text-xs truncate" style={{ color: c.unread_count ? '#111827' : '#6B7280', fontWeight: c.unread_count ? 600 : 400 }}>{c.last_message || 'No messages yet'}</p></div>
+                {c.unread_count > 0 && <span style={{ background: '#E6007A' }} className="min-w-5 h-5 px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0">{c.unread_count}</span>}
               </button>
             ))}
           </div>
         </div>
-
-        {/* thread */}
         {!activeConvo ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6">
-            <MessageSquare size={28} style={{ color: '#D1D5DB' }} />
-            <p className="text-sm font-semibold" style={{ color: '#111827' }}>No conversation selected</p>
-            <p className="text-xs" style={{ color: '#6B7280' }}>Message a creator or business from their profile to start a conversation.</p>
-          </div>
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6"><MessageSquare size={28} style={{ color: '#D1D5DB' }} /><p className="text-sm font-semibold" style={{ color: '#111827' }}>No conversation selected</p><p className="text-xs" style={{ color: '#6B7280' }}>Message a creator or business from their profile to start a conversation.</p></div>
         ) : (
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#E5E7EB' }}>
-            <div className="flex items-center gap-3">
-              <Avatar name={activeConvo.name} size={36} tone={activeConvo.tone} />
-              <div>
-                <p className="text-sm font-semibold" style={{ color: '#111827' }}>{activeConvo.name}</p>
-                <p className="text-[11px]" style={{ color: activeConvo.online ? '#0E7A3B' : '#9CA3AF' }}>{activeConvo.online ? 'Online' : 'Offline'}</p>
-              </div>
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#E5E7EB' }}><div className="flex items-center gap-3"><Avatar name={activeConvo.other_name || 'Member'} size={36} tone={activeConvo.tone || 0} src={activeConvo.other_avatar_url} /><div><p className="text-sm font-semibold" style={{ color: '#111827' }}>{activeConvo.other_name || 'Commissioner member'}</p><p className="text-[11px]" style={{ color: '#6B7280' }}>{activeConvo.other_type === 'business' ? 'Business' : 'Creator'}</p></div></div><button style={{ background: '#E0FBFF', color: '#036377' }} className="text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"><Briefcase size={13} /> Campaign workspace</button></div>
+            <div className="flex-1 overflow-y-auto cm-scroll px-5 py-5 flex flex-col gap-3" style={{ background: '#F8FAFC' }}>
+              {threadLoading ? <p className="text-center text-xs" style={{ color: '#6B7280' }}>Loading…</p> : messages.map(m => {
+                const mine = m.sender_id === session.user.id;
+                return <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[78%] px-4 py-2.5 rounded-2xl text-sm" style={{ background: mine ? '#E6007A' : 'white', color: mine ? 'white' : '#111827', border: mine ? 'none' : '1px solid #E5E7EB', borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6 }}><p className="whitespace-pre-wrap break-words">{m.body}</p><p className="text-[10px] mt-1 opacity-70 text-right">{new Date(m.created_at).toLocaleString()}</p></div></div>;
+              })}
             </div>
-            <button style={{ background: '#E0FBFF', color: '#036377' }} className="text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5">
-              <Briefcase size={13} /> Campaign workspace
-            </button>
+            <form onSubmit={e => { e.preventDefault(); send(); }} className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }}><button type="button" style={{ color: '#00A8CC' }} title="Attachments are coming next"><Paperclip size={18} /></button><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message" className="flex-1 outline-none text-sm px-2" maxLength={4000} /><button type="submit" disabled={sending || !draft.trim()} style={{ background: '#E6007A', opacity: sending || !draft.trim() ? .5 : 1 }} className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0"><Send size={15} /></button></form>
           </div>
-
-          <div className="flex-1 overflow-y-auto cm-scroll px-5 py-5 flex flex-col gap-3" style={{ background: '#F8FAFC' }}>
-          </div>
-
-          <div className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }}>
-            <button style={{ color: '#00A8CC' }}><Paperclip size={18} /></button>
-            <button style={{ color: '#00A8CC' }}><Mic size={18} /></button>
-            <input placeholder="Write a message" className="flex-1 outline-none text-sm px-2" />
-            <button style={{ background: '#E6007A' }} className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0">
-              <Send size={15} />
-            </button>
-          </div>
-        </div>
         )}
       </div>
     </div>
@@ -998,7 +1070,7 @@ const Spotlight = () => (
             <div className="flex items-center gap-1.5 mb-1">
               <Avatar name={v.creator} size={20} tone={v.tone} />
               <p className="text-xs font-semibold truncate" style={{ color: '#111827' }}>{v.creator}</p>
-              {v.verified && <CheckCircle2 size={12} style={{ color: '#00A8CC' }} strokeWidth={2.5} />}
+              {v.verified && <VerifiedIcon size={12} />}
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[11px]" style={{ color: '#6B7280' }}>{v.niche}</span>
@@ -1901,11 +1973,23 @@ const PublicCreatorProfile = ({ profile }) => {
           </div>
           <div className="px-5 md:px-8 pb-8">
             <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
-              <Avatar name={profile.page_name || profile.username || 'Creator'} size={96} ring src={profile.avatar_url} />
+              <div className="relative shrink-0 w-fit">
+                <Avatar name={profile.page_name || profile.username || 'Creator'} size={96} ring src={profile.avatar_url} />
+                {profile.verified && (
+                  <span
+                    className="absolute -right-1 -bottom-1 w-7 h-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm"
+                    style={{ background: '#0095F6', color: '#FFFFFF' }}
+                    role="img"
+                    aria-label="Verified by Commissioner"
+                    title="Verified by Commissioner"
+                  >
+                    <Check size={14} strokeWidth={3.2} />
+                  </span>
+                )}
+              </div>
               <div className="pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.page_name || profile.username || 'Creator'}</h1>
-                  {profile.verified && <VerifiedBadge />}
                 </div>
                 <p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
               </div>
@@ -1959,8 +2043,21 @@ const PublicBusinessProfile = ({ profile }) => (
         </div>
         <div className="px-5 md:px-8 pb-8">
           <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
-            <Avatar name={profile.business_name || profile.username || 'Business'} size={96} ring src={profile.avatar_url} />
-            <div className="pb-1"><div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.business_name || profile.username || 'Business'}</h1>{profile.verified && <VerifiedBadge />}</div><p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p></div>
+            <div className="relative shrink-0 w-fit">
+              <Avatar name={profile.business_name || profile.username || 'Business'} size={96} ring src={profile.avatar_url} />
+              {profile.verified && (
+                <span
+                  className="absolute -right-1 -bottom-1 w-7 h-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm"
+                  style={{ background: '#0095F6', color: '#FFFFFF' }}
+                  role="img"
+                  aria-label="Verified by Commissioner"
+                  title="Verified by Commissioner"
+                >
+                  <Check size={14} strokeWidth={3.2} />
+                </span>
+              )}
+            </div>
+            <div className="pb-1"><div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.business_name || profile.username || 'Business'}</h1></div><p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p></div>
           </div>
           {profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
           {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#374151' }}>{profile.bio}</p>}
@@ -2019,6 +2116,8 @@ const AdminPanel = ({ session }) => {
   const [copied, setCopied] = useState(false);
   const [nfcWriting, setNfcWriting] = useState(false);
   const [nfcMessage, setNfcMessage] = useState('');
+  const [setupStatus, setSetupStatus] = useState('checking');
+  const [setupError, setSetupError] = useState('');
 
   const [rows, setRows] = useState([]);
   const [loadingRows, setLoadingRows] = useState(true);
@@ -2041,10 +2140,42 @@ const AdminPanel = ({ session }) => {
   };
 
   useEffect(() => {
-    if (isAdmin) loadRows();
+    if (!isAdmin) return;
+
+    let cancelled = false;
+    const checkSetup = async () => {
+      setSetupStatus('checking');
+      setSetupError('');
+      const { data, error } = await supabase.rpc('admin_check_setup');
+      if (cancelled) return;
+
+      if (error) {
+        const missing = error.code === 'PGRST202' || /could not find the function/i.test(error.message || '');
+        setSetupStatus('missing');
+        setSetupError(
+          missing
+            ? 'The Supabase admin migration has not been applied. The Admin page cannot create gift profiles until admin_check_setup and the admin_create_claim functions are installed.'
+            : `Supabase setup check failed: ${error.message}`
+        );
+        return;
+      }
+
+      setSetupStatus(data?.ready ? 'ready' : 'missing');
+      if (!data?.ready) {
+        setSetupError('The Supabase admin migration is incomplete. Apply the latest supabase-schema.sql, then refresh this page.');
+      }
+    };
+
+    checkSetup();
+    loadRows();
+    return () => { cancelled = true; };
   }, [isAdmin]);
 
   const handleCreate = async () => {
+    if (setupStatus !== 'ready') {
+      setCreateError('Admin setup is not ready. Apply the latest Supabase migration shown above, then refresh the page.');
+      return;
+    }
     // A gift card may intentionally start blank. The recipient fills the
     // profile after tapping the NFC card.
     const effectiveName = pageName.trim() || (giftMode ? 'Gifted profile' : '');
@@ -2067,7 +2198,16 @@ const AdminPanel = ({ session }) => {
         });
 
     setCreating(false);
-    if (error) { setCreateError(error.message); return; }
+    if (error) {
+      const missing = error.code === 'PGRST202' || /could not find the function/i.test(error.message || '');
+      setSetupStatus(missing ? 'missing' : setupStatus);
+      setCreateError(
+        missing
+          ? 'The Supabase admin_create_claim function is missing. Apply the latest Supabase migration shown in the Admin setup panel, then refresh the page.'
+          : error.message
+      );
+      return;
+    }
 
     const link = `${window.location.origin}/?claim=${data}`;
     setNewLink(link);
@@ -2202,6 +2342,38 @@ const AdminPanel = ({ session }) => {
         </span>
       </div>
 
+      {setupStatus === 'checking' && (
+        <div className="border rounded-2xl p-4 mb-6" style={{ borderColor: '#BAE6FD', background: '#F0F9FF' }}>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full cm-live-dot" style={{ background: '#0284C7' }} />
+            <p className="text-sm font-semibold" style={{ color: '#075985' }}>Checking Supabase admin setup…</p>
+          </div>
+          <p className="text-xs mt-1" style={{ color: '#0369A1' }}>The page is verifying that the gift-profile and NFC claim functions are installed.</p>
+        </div>
+      )}
+
+      {setupStatus === 'missing' && (
+        <div className="border rounded-2xl p-5 mb-6" style={{ borderColor: '#F59E0B', background: '#FFFBEB' }}>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5" style={{ color: '#B45309' }}><Shield size={18} /></div>
+            <div className="flex-1">
+              <p className="text-sm font-bold" style={{ color: '#92400E' }}>Supabase admin setup required</p>
+              <p className="text-xs mt-1 leading-5" style={{ color: '#78350F' }}>{setupError}</p>
+              <div className="mt-3 p-3 rounded-lg border cm-mono text-[11px] whitespace-pre-wrap overflow-auto" style={{ borderColor: '#FCD34D', background: '#FFFFFF', color: '#92400E' }}>
+                Run the latest <b>supabase-schema.sql</b> in Supabase → SQL Editor.
+                Then click Refresh / reload this page.
+
+                Required functions:
+                • public.admin_check_setup()
+                • public.admin_create_claim(text, text, boolean)
+                • public.admin_create_business_claim(text, text, boolean)
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: '#92400E' }}>No profile will be created while setup is incomplete.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
         <div className="mb-4">
           <p className="text-sm font-semibold" style={{ color: '#111827' }}>Create a gift profile + NFC card</p>
@@ -2231,14 +2403,6 @@ const AdminPanel = ({ session }) => {
             style={{ borderColor: '#E6007A', color: '#99154F', background: '#FDE7F1' }}
           >
             <Award size={13} /> New open-ended gift profile
-          </button>
-          <button
-            type="button"
-            onClick={() => { setClaimType('creator'); setPageName('4Kilo Entertainment'); setNiche('Entertainment'); setGiftMode(false); setVerifiedOnCreate(true); setNewLink(''); setCreateError(''); }}
-            className="text-xs font-semibold px-3 py-2 rounded-lg border flex items-center gap-1.5"
-            style={{ borderColor: '#E5E7EB', color: '#374151', background: 'white' }}
-          >
-            <Award size={13} /> Prepare 4Kilo Entertainment card
           </button>
         </div>
 
@@ -2274,7 +2438,7 @@ const AdminPanel = ({ session }) => {
           Mark verified right away
         </label>
 
-        <button onClick={handleCreate} disabled={creating} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
+        <button onClick={handleCreate} disabled={creating || setupStatus !== 'ready'} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {creating ? 'Creating…' : 'Create claim link'}
         </button>
 
@@ -2345,10 +2509,12 @@ export default function Commissioner() {
   const [claimToken] = useState(() => new URLSearchParams(window.location.search).get('claim'));
 
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
-  const onHire = (creator) => {
+  const [messageRecipientId, setMessageRecipientId] = useState(null);
+  const onHire = async (creator) => {
     if (!session) { setPage('auth'); return; }
-    setToast(`Message sent to ${creator.name} — they typically respond in ${creator.response}.`);
-    setTimeout(() => setToast(''), 3000);
+    if (!creator.authUserId) { setToast('This creator has not connected a messaging account yet.'); setTimeout(() => setToast(''), 3000); return; }
+    setMessageRecipientId(creator.authUserId);
+    setPage('messages');
   };
   const onApply = (campaign) => {
     if (!session) { setPage('auth'); return; }
@@ -2383,7 +2549,7 @@ export default function Commissioner() {
       {page === 'creators' && <Creators session={session} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} />}
       {page === 'campaigns' && <Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} />}
       {page === 'spotlight' && <Spotlight />}
-      {page === 'messages' && <Messages />}
+      {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} />}
       {page === 'pricing' && <Pricing />}
       {page === 'dashboard' && <Dashboard session={session} />}
       {page === 'onboarding' && <Onboarding session={session} setPage={setPage} />}

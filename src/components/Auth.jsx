@@ -79,11 +79,46 @@ export default function Auth({ onAuthenticated }) {
 
   const handleGoogle = async () => {
     setError('');
-    const { error } = await supabase.auth.signInWithOAuth({
+    setLoading(true);
+
+    // Supabase requires this exact URL to be present in
+    // Authentication → URL Configuration → Redirect URLs.
+    // Keep it simple for this Vite SPA: return to the same page after OAuth.
+    const redirectTo = `${window.location.origin}/`;
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account',
+        },
+      },
     });
-    if (error) setError(error.message);
+
+    if (error) {
+      setLoading(false);
+      const message = error.message || 'Google sign-in could not be started.';
+      const lower = message.toLowerCase();
+
+      if (lower.includes('provider') && (lower.includes('not enabled') || lower.includes('unsupported'))) {
+        setError('Google sign-in is not enabled in Supabase yet. Enable Google under Authentication → Providers, then add your Google OAuth Client ID and Client Secret.');
+      } else if (lower.includes('redirect') || lower.includes('url')) {
+        setError(`Google sign-in was blocked by the redirect URL configuration. Add ${redirectTo} to Supabase Authentication → URL Configuration → Redirect URLs.`);
+      } else {
+        setError(`Google sign-in failed: ${message}`);
+      }
+      return;
+    }
+
+    // signInWithOAuth normally redirects immediately. If a browser blocks
+    // the redirect for any reason, surface a useful message instead of
+    // leaving the button apparently frozen.
+    if (!data?.url) {
+      setLoading(false);
+      setError('Supabase did not return a Google authorization URL. Check that the Google provider is enabled and configured.');
+    }
   };
 
   const handleSignUp = async (e) => {
