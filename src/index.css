@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
+.cm-display { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+.cm-mono { font-family: 'IBM Plex Mono', monospace; letter-spacing: -0.01em; }
+.cm-beam { background: linear-gradient(90deg, #E6007A 0%, #00D9FF 100%); }
+body { font-family: 'Inter', sans-serif; }
