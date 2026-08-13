@@ -106,8 +106,8 @@ function CreatorDashboard({ session }) {
 
       <Card className="flex flex-col gap-5 mb-6">
         <p className="text-sm font-semibold" style={{ color: '#111827' }}>Basic info</p>
-        <Input label="Username (your public URL — commissioner.app/creator/username)" value={profile.username || ''} onChange={e => update('username', e.target.value)} placeholder="e.g. amara-eats" />
-        <Input label="Page name" value={profile.page_name || ''} onChange={e => update('page_name', e.target.value)} placeholder="e.g. Amara Eats" />
+        <Input label="Username (your public URL — commissioner.app/creator/username)" value={profile.username || ''} onChange={e => update('username', e.target.value)} placeholder="e.g. taste-and-tell" />
+        <Input label="Page name" value={profile.page_name || ''} onChange={e => update('page_name', e.target.value)} placeholder="e.g. Taste & Tell" />
         <div className="grid grid-cols-2 gap-4">
           <Input label="City" value={profile.city || ''} onChange={e => update('city', e.target.value)} />
           <Input label="Language" value={profile.language || ''} onChange={e => update('language', e.target.value)} />
