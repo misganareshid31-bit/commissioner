@@ -2248,8 +2248,31 @@ const AdminPanel = ({ session }) => {
   const toggleField = async (row, field) => {
     setBusyId(row.id + field);
     const table = row.kind === 'business' ? 'business_profiles' : 'creator_profiles';
-    await supabase.from(table).update({ [field]: !row[field] }).eq('id', row.id);
+    const { error } = await supabase.from(table).update({ [field]: !row[field] }).eq('id', row.id);
     setBusyId(null);
+    if (error) setCreateError(error.message);
+    loadRows();
+  };
+
+  const deletePage = async (row) => {
+    const label = row.displayName || 'this page';
+    const confirmed = window.confirm(`Delete ${label}?\n\nThis will permanently delete the page and its claim link. This action cannot be undone.`);
+    if (!confirmed) return;
+
+    setBusyId(row.id + 'delete');
+    setCreateError('');
+    const { error } = row.kind === 'business'
+      ? await supabase.rpc('admin_delete_business_page', { p_page_id: row.id })
+      : await supabase.rpc('admin_delete_creator_page', { p_page_id: row.id });
+    setBusyId(null);
+
+    if (error) {
+      const missing = error.code === 'PGRST202' || /could not find the function/i.test(error.message || '');
+      setCreateError(missing
+        ? 'The page-delete migration is not installed yet. Run the latest supabase-schema.sql in Supabase → SQL Editor.'
+        : error.message);
+      return;
+    }
     loadRows();
   };
 
@@ -2316,6 +2339,14 @@ const AdminPanel = ({ session }) => {
           >
             {r.verified ? 'Verified ✓' : 'Mark verified'}
           </button>
+          <button
+            onClick={() => deletePage(r)}
+            disabled={busyId === r.id + 'delete'}
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
+            style={{ background: '#FEF2F2', color: '#B91C1C', borderColor: '#FECACA' }}
+          >
+            {busyId === r.id + 'delete' ? 'Deleting…' : 'Delete page'}
+          </button>
         </div>
       </div>
     );
@@ -2335,7 +2366,7 @@ const AdminPanel = ({ session }) => {
       <div className="flex items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="cm-display font-bold text-2xl" style={{ color: '#111827' }}>Admin</h1>
-          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Create gift profiles, prepare NFC cards, and approve published profiles.</p>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Create gift profiles, manage NFC cards, approve published profiles, and delete pages.</p>
         </div>
         <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>
           <Zap size={12} /> NTAG215 ready
@@ -2367,6 +2398,8 @@ const AdminPanel = ({ session }) => {
                 • public.admin_check_setup()
                 • public.admin_create_claim(text, text, boolean)
                 • public.admin_create_business_claim(text, text, boolean)
+                • public.admin_delete_creator_page(uuid)
+                • public.admin_delete_business_page(uuid)
               </div>
               <p className="text-[11px] mt-2" style={{ color: '#92400E' }}>No profile will be created while setup is incomplete.</p>
             </div>

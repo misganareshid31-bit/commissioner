@@ -247,7 +247,7 @@ begin
   end if;
   return jsonb_build_object(
     'ready', true,
-    'version', 'admin-gift-nfc-2026-08-13'
+    'version', 'admin-gift-nfc-delete-page-2026-08-13'
   );
 end;
 $$ language plpgsql security definer;
@@ -272,6 +272,34 @@ begin
 end;
 $$ language plpgsql security definer;
 grant execute on function public.admin_create_claim(text, text, boolean) to authenticated;
+
+-- Admin-only page deletion. These RPCs are intentionally separate from the
+-- normal client delete path so the UI cannot be bypassed by a non-admin user.
+create or replace function public.admin_delete_creator_page(p_page_id uuid)
+returns boolean as $$
+begin
+  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+    raise exception 'not authorized';
+  end if;
+
+  delete from creator_profiles where id = p_page_id;
+  return found;
+end;
+$$ language plpgsql security definer;
+grant execute on function public.admin_delete_creator_page(uuid) to authenticated;
+
+create or replace function public.admin_delete_business_page(p_page_id uuid)
+returns boolean as $$
+begin
+  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+    raise exception 'not authorized';
+  end if;
+
+  delete from business_profiles where id = p_page_id;
+  return found;
+end;
+$$ language plpgsql security definer;
+grant execute on function public.admin_delete_business_page(uuid) to authenticated;
 
 -- 5. Storage buckets for profile photo + banner (public read, owner write)
 insert into storage.buckets (id, name, public)
