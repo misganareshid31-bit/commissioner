@@ -1262,6 +1262,42 @@ const Onboarding = ({ session, setPage }) => {
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
 
+  // When opening the builder from the public profile, load the existing profile
+  // so Edit Profile edits the current record instead of creating/replacing it.
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('creator_profiles')
+        .select('page_name, username, city, language, bio, avatar_url, banner_url, platforms, primary_niche, secondary_niches, audience, services, portfolio_link, availability, professional_preferences, onboarded')
+        .eq('auth_user_id', session.user.id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setPageName(data.page_name || '');
+      setUsername(data.username || '');
+      setLocation(data.city || '');
+      setLanguage(data.language || '');
+      setBio(data.bio || '');
+      setAvatarPreview(data.avatar_url || '');
+      setBannerPreview(data.banner_url || '');
+      setSocials(data.platforms && typeof data.platforms === 'object' ? data.platforms : {});
+      setPrimaryNiche(data.primary_niche || '');
+      setSecondary(Array.isArray(data.secondary_niches) ? data.secondary_niches : []);
+      const aud = data.audience && typeof data.audience === 'object' ? data.audience : {};
+      setAudienceAge(aud.age || '');
+      setAudienceGender(aud.gender || '');
+      setAudienceLocation(aud.location || '');
+      setAvgViews(aud.avg_views || '');
+      setAvgReach(aud.avg_reach || '');
+      setPricing(data.services && typeof data.services === 'object' ? { tiktok: '', reel: '', story: '', youtube: '', monthly: '', ugc: '', ...data.services } : { tiktok: '', reel: '', story: '', youtube: '', monthly: '', ugc: '' });
+      setPortfolioLink(data.portfolio_link || '');
+      setAvailability(data.availability || 'Available now');
+      setPreferences(data.professional_preferences || '');
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user?.id]);
+
   const finishSetup = async () => {
     if (!session) { setPage('auth'); return; }
     setSaving(true);
@@ -1956,7 +1992,7 @@ const BusinessClaimForm = ({ token }) => {
   );
 };
 
-const PublicCreatorProfile = ({ profile }) => {
+const PublicCreatorProfile = ({ profile, canEdit = false, onEdit }) => {
   const socials = profile.platforms && typeof profile.platforms === 'object' ? profile.platforms : {};
   const socialEntries = Object.entries(socials).filter(([, value]) => value && (value.handle || value.url));
   const services = profile.services && typeof profile.services === 'object' ? profile.services : {};
@@ -2028,6 +2064,17 @@ const PublicCreatorProfile = ({ profile }) => {
             {profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#111827' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15} /></a>}
           </div>
         </div>
+        {canEdit && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border text-sm font-semibold bg-white hover:bg-gray-50 transition-colors"
+              style={{ borderColor: '#E5E7EB', color: '#111827' }}
+            >
+              <Settings size={16} /> Edit Profile
+            </button>
+          </div>
+        )}
         <div className="text-center mt-5 text-xs" style={{ color: '#9CA3AF' }}>Verified creator profile powered by Commissioner</div>
       </div>
     </div>
@@ -2092,20 +2139,13 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
     (async () => {
       const { data, error } = await supabase
         .from('creator_profiles')
-        .select('id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, approved, onboarded')
+        .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, approved, onboarded')
         .eq('id', id)
         .maybeSingle();
       if (cancelled) return;
       if (error || !data) { setLoading(false); return; }
       setProfile(data);
-      if (session?.user?.id) {
-        const { data: own } = await supabase
-          .from('creator_profiles')
-          .select('auth_user_id')
-          .eq('id', id)
-          .maybeSingle();
-        if (!cancelled) setOwner(own?.auth_user_id === session.user.id);
-      }
+      if (!cancelled) setOwner(!!session?.user?.id && data.auth_user_id === session.user.id);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -2116,24 +2156,17 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
 
   return (
     <>
-      {owner && (
-        <div className="max-w-5xl mx-auto px-5 md:px-8 pt-5 flex justify-end">
-          <button onClick={() => setPage('onboarding')} className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#111827' }}>
-            Edit profile
-          </button>
-        </div>
-      )}
       {!profile.onboarded && (
         <div className="max-w-5xl mx-auto px-5 md:px-8 pt-3"><div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}>This creator is still completing their profile. The NFC card is already linked to this permanent creator page.</div></div>
       )}
-      <PublicCreatorProfile profile={profile} />
+      <PublicCreatorProfile profile={profile} canEdit={owner} onEdit={() => setPage('onboarding')} />
     </>
   );
 }
 
 // NFC links are permanent: before a profile is claimed they open the claim form;
 // once approved, the exact same NFC URL opens the public profile.
-const ClaimGate = ({ token }) => {
+const ClaimGate = ({ token, session, setPage }) => {
   const [state, setState] = useState({ kind: null, profile: null, error: '' });
 
   useEffect(() => {
@@ -2165,7 +2198,7 @@ const ClaimGate = ({ token }) => {
   }, [token]);
 
   if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading NFC profile…</div>;
-  if (state.kind === 'public_creator') return <PublicCreatorProfile profile={state.profile} />;
+  if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'public_business') return <PublicBusinessProfile profile={state.profile} />;
   if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#6B7280' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
   if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#6B7280' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest supabase-schema.sql migration, then try again.</p></div>;
@@ -2797,7 +2830,7 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
         <FontLoader />
-        <ClaimGate token={claimToken} />
+        <ClaimGate token={claimToken} session={session} setPage={setPage} />
       </div>
     );
   }
