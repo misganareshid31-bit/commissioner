@@ -2116,8 +2116,22 @@ const ClaimGate = ({ token }) => {
 const AdminPanel = ({ session }) => {
   const [claimType, setClaimType] = useState('creator'); // 'creator' | 'business'
   const [pageName, setPageName] = useState('');
+  const [username, setUsername] = useState('');
+  const [location, setLocation] = useState('');
+  const [language, setLanguage] = useState('');
+  const [bio, setBio] = useState('');
   const [niche, setNiche] = useState(NICHES[0]);
   const [industry, setIndustry] = useState(BUSINESS_CATEGORIES[0]);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState('');
+  const [socials, setSocials] = useState({});
+  const [audience, setAudience] = useState({ age: '', gender: '', location: '', avg_views: '', avg_reach: '' });
+  const [pricing, setPricing] = useState({ tiktok: '', reel: '', story: '', youtube: '', monthly: '', ugc: '' });
+  const [portfolioLink, setPortfolioLink] = useState('');
+  const [availability, setAvailability] = useState('Available now');
+  const [preferences, setPreferences] = useState('');
   const [verifiedOnCreate, setVerifiedOnCreate] = useState(true);
   const [giftMode, setGiftMode] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -2181,6 +2195,29 @@ const AdminPanel = ({ session }) => {
     return () => { cancelled = true; };
   }, [isAdmin]);
 
+  const updateSocial = (platform, field, value) => setSocials(prev => ({ ...prev, [platform]: { ...prev[platform], [field]: value } }));
+  const handleAdminImage = (file, kind) => {
+    if (!file) return;
+    if (kind === 'avatar') { setAvatarFile(file); setAvatarPreview(URL.createObjectURL(file)); }
+    else { setBannerFile(file); setBannerPreview(URL.createObjectURL(file)); }
+  };
+  const uploadAdminImage = async (file, bucket, token) => {
+    if (!file) return null;
+    const ext = file.name.split('.').pop();
+    const path = `claim/${token}/admin-${bucket}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+    if (error) throw error;
+    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  };
+
+  const resetBuilder = () => {
+    setPageName(''); setUsername(''); setLocation(''); setLanguage(''); setBio('');
+    setAvatarFile(null); setAvatarPreview(''); setBannerFile(null); setBannerPreview('');
+    setSocials({}); setAudience({ age: '', gender: '', location: '', avg_views: '', avg_reach: '' });
+    setPricing({ tiktok: '', reel: '', story: '', youtube: '', monthly: '', ugc: '' });
+    setPortfolioLink(''); setAvailability('Available now'); setPreferences('');
+  };
+
   const handleCreate = async () => {
     if (setupStatus !== 'ready') {
       setCreateError('Admin setup is not ready. Apply the latest Supabase migration shown above, then refresh the page.');
@@ -2219,9 +2256,24 @@ const AdminPanel = ({ session }) => {
       return;
     }
 
-    const link = `${window.location.origin}/?claim=${data}`;
+    const token = data;
+    try {
+      const table = claimType === 'creator' ? 'creator_profiles' : 'business_profiles';
+      const avatarUrl = claimType === 'creator' ? await uploadAdminImage(avatarFile, 'avatars', token) : null;
+      const bannerUrl = await uploadAdminImage(bannerFile, 'banners', token);
+      const update = claimType === 'creator'
+        ? { page_name: effectiveName, username: username.trim() || null, city: location.trim() || null, language: language.trim() || null, bio: bio.trim() || null, primary_niche: giftMode ? null : niche, avatar_url: avatarUrl, banner_url: bannerUrl, platforms: socials, audience, services: pricing, portfolio_link: portfolioLink.trim() || null, availability, professional_preferences: preferences.trim() || null, onboarded: true }
+        : { business_name: effectiveName, username: username.trim() || null, city: location.trim() || null, language: language.trim() || null, bio: bio.trim() || null, industry: giftMode ? null : industry, avatar_url: avatarUrl, banner_url: bannerUrl, onboarded: true };
+      const { data: found, error: findError } = await supabase.from(table).select('id').eq('claim_token', token).single();
+      if (findError) throw findError;
+      const { error: updateError } = await supabase.from(table).update(update).eq('id', found.id);
+      if (updateError) throw updateError;
+    } catch (err) {
+      setCreateError(`The page was created, but some profile details could not be saved: ${err.message}`);
+    }
+    const link = `${window.location.origin}/?claim=${token}`;
     setNewLink(link);
-    setPageName('');
+    resetBuilder();
     loadRows();
   };
 
@@ -2237,19 +2289,27 @@ const AdminPanel = ({ session }) => {
 
   const writeNfc = async (link) => {
     setNfcMessage('');
+    if (!link) {
+      setNfcMessage('Create a gift page first so there is an NFC URL to write.');
+      return;
+    }
+    // Web NFC is not exposed by Safari/iOS, including iPhone 7 on iOS 15.
+    // Do not pretend the browser can write the tag. Keep the button useful by
+    // copying the permanent URL and giving a precise device instruction.
     if (!('NDEFReader' in window)) {
-      setNfcMessage('NFC writing is not available in this browser. Use Chrome on an NFC-enabled Android phone over HTTPS.');
+      try {
+        await navigator.clipboard?.writeText(link);
+      } catch {}
+      setNfcMessage('This iPhone/browser cannot write NFC tags. The permanent NFC URL was copied if your browser allowed it. To write the NTAG215, use Chrome on an NFC-capable Android phone over HTTPS or a USB NFC writer on your PC.');
       return;
     }
     setNfcWriting(true);
     try {
       const ndef = new window.NDEFReader();
-      await ndef.write({
-        records: [{ recordType: 'url', data: link }]
-      });
-      setNfcMessage('Success — the URL was written to the NFC tag. Tap the NTAG215 card with a phone to test it.');
+      await ndef.write({ records: [{ recordType: 'url', data: link }] });
+      setNfcMessage('Success — the URL was written to the NFC tag. Tap the card with a phone to test it.');
     } catch (error) {
-      setNfcMessage(error?.message || 'NFC write failed. Make sure the NTAG215 is close to the phone and writable.');
+      setNfcMessage(error?.message || 'NFC write failed. Make sure NFC is enabled, the tag is close to the phone, and the tag is writable.');
     } finally {
       setNfcWriting(false);
     }
@@ -2326,13 +2386,13 @@ const AdminPanel = ({ session }) => {
               {r.username ? `@${r.username}` : ''} {r.displayTag ? `· ${r.displayTag}` : ''} {r.city ? `· ${r.city}` : ''}
             </p>
           </div>
-          {!r.onboarded && rowLink && (
-            <div className="flex gap-2 shrink-0">
+          {rowLink && (
+            <div className="flex gap-2 shrink-0 flex-wrap justify-end">
               <button onClick={() => copyLink(rowLink)} className="text-[11px] font-semibold" style={{ color: '#036377' }}>
-                {copied === rowLink ? 'Copied!' : 'Copy link'}
+                {copied === rowLink ? 'Copied!' : 'Copy NFC link'}
               </button>
-              <button onClick={() => writeNfc(rowLink)} className="text-[11px] font-semibold" style={{ color: '#99154F' }}>
-                Write NFC
+              <button onClick={() => writeNfc(rowLink)} disabled={nfcWriting} className="text-[11px] font-semibold disabled:opacity-50" style={{ color: '#99154F' }}>
+                {nfcWriting ? 'Writing…' : 'Write NFC'}
               </button>
             </div>
           )}
@@ -2485,6 +2545,51 @@ const AdminPanel = ({ session }) => {
               {BUSINESS_CATEGORIES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           )}
+        </div>
+
+        <div className="border rounded-xl p-4 mb-4" style={{ borderColor: '#E5E7EB', background: '#FAFAFA' }}>
+          <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Full gift page details</p>
+          <p className="text-xs mb-4" style={{ color: '#6B7280' }}>This is the same full information set available in the normal creator setup. You can prepare the page completely for the recipient before giving them the NFC card.</p>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <OnboardingField label="Username" placeholder="@username" value={username} onChange={e => setUsername(e.target.value)} />
+            <OnboardingField label="Location" placeholder="Addis Ababa, Ethiopia" icon={MapPin} value={location} onChange={e => setLocation(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <OnboardingField label="Language" placeholder="Amharic, English" icon={Languages} value={language} onChange={e => setLanguage(e.target.value)} />
+            <OnboardingField label="Portfolio link" placeholder="https://..." icon={Link2} value={portfolioLink} onChange={e => setPortfolioLink(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <ImageUploadTile label="Profile photo" shape="circle" previewUrl={avatarPreview} onFile={f => handleAdminImage(f, 'avatar')} />
+            <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={f => handleAdminImage(f, 'banner')} />
+          </div>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>Bio</label>
+          <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell people about this person and what they do" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none mb-4" style={{ borderColor: '#E5E7EB' }} />
+          {claimType === 'creator' && <>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#374151' }}>Social platforms</p>
+            <div className="flex flex-col gap-2 mb-4">
+              {PLATFORM_LIST.map(row => <div key={row.p} className="grid grid-cols-3 gap-2">
+                <input placeholder={`${row.p} handle`} value={socials[row.p]?.handle || ''} onChange={e => updateSocial(row.p, 'handle', e.target.value)} className="border rounded-lg px-3 py-2 text-xs outline-none" style={{ borderColor: '#E5E7EB' }} />
+                <input placeholder="Followers" value={socials[row.p]?.followers || ''} onChange={e => updateSocial(row.p, 'followers', e.target.value)} className="border rounded-lg px-3 py-2 text-xs outline-none" style={{ borderColor: '#E5E7EB' }} />
+                <input placeholder="Engagement %" value={socials[row.p]?.engagement || ''} onChange={e => updateSocial(row.p, 'engagement', e.target.value)} className="border rounded-lg px-3 py-2 text-xs outline-none" style={{ borderColor: '#E5E7EB' }} />
+              </div>)}
+            </div>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#374151' }}>Audience & metrics</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <input placeholder="Audience age" value={audience.age} onChange={e => setAudience(a => ({...a, age:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
+              <input placeholder="Audience gender" value={audience.gender} onChange={e => setAudience(a => ({...a, gender:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
+              <input placeholder="Audience location" value={audience.location} onChange={e => setAudience(a => ({...a, location:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
+              <input placeholder="Average views" value={audience.avg_views} onChange={e => setAudience(a => ({...a, avg_views:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
+              <input placeholder="Average reach" value={audience.avg_reach} onChange={e => setAudience(a => ({...a, avg_reach:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
+            </div>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#374151' }}>Services & pricing</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {Object.keys(pricing).map(k => <input key={k} placeholder={k.replace('_',' ')} value={pricing[k]} onChange={e => setPricing(p => ({...p,[k]:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />)}
+            </div>
+          </>}
+          <div className="grid grid-cols-2 gap-4">
+            <select value={availability} onChange={e => setAvailability(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option>Available now</option><option>Limited availability</option><option>Not currently available</option></select>
+            <input value={preferences} onChange={e => setPreferences(e.target.value)} placeholder="Professional preferences" className="border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+          </div>
         </div>
 
         <label className="flex items-center gap-2 text-sm mb-4" style={{ color: '#374151' }}>
