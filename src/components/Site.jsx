@@ -2071,6 +2071,66 @@ const PublicBusinessProfile = ({ profile }) => (
   </div>
 );
 
+const OfficialBusinessPage = ({ id }) => {
+  const [profile, setProfile] = useState(null);
+  useEffect(() => {
+    supabase.from('business_profiles').select('id, business_name, username, avatar_url, banner_url, city, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => setProfile(data || null));
+  }, [id]);
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading business profile…</div>;
+  return <PublicBusinessProfile profile={profile} />;
+};
+
+// Official creator pages use a stable profile ID. The NFC card points here, so the
+// physical tag never needs to be rewritten when the creator edits their profile.
+const OfficialCreatorPage = ({ id, session, setPage }) => {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [owner, setOwner] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('creator_profiles')
+        .select('id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, approved, onboarded')
+        .eq('id', id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) { setLoading(false); return; }
+      setProfile(data);
+      if (session?.user?.id) {
+        const { data: own } = await supabase
+          .from('creator_profiles')
+          .select('auth_user_id')
+          .eq('id', id)
+          .maybeSingle();
+        if (!cancelled) setOwner(own?.auth_user_id === session.user.id);
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [id, session?.user?.id]);
+
+  if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading creator profile…</div>;
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#111827' }}>Creator profile not found</p></div>;
+
+  return (
+    <>
+      {owner && (
+        <div className="max-w-5xl mx-auto px-5 md:px-8 pt-5 flex justify-end">
+          <button onClick={() => setPage('onboarding')} className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#111827' }}>
+            Edit profile
+          </button>
+        </div>
+      )}
+      {!profile.onboarded && (
+        <div className="max-w-5xl mx-auto px-5 md:px-8 pt-3"><div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}>This creator is still completing their profile. The NFC card is already linked to this permanent creator page.</div></div>
+      )}
+      <PublicCreatorProfile profile={profile} />
+    </>
+  );
+}
+
 // NFC links are permanent: before a profile is claimed they open the claim form;
 // once approved, the exact same NFC URL opens the public profile.
 const ClaimGate = ({ token }) => {
@@ -2137,6 +2197,7 @@ const AdminPanel = ({ session }) => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [newLink, setNewLink] = useState('');
+  const [setupLink, setSetupLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [nfcWriting, setNfcWriting] = useState(false);
   const [nfcMessage, setNfcMessage] = useState('');
@@ -2230,6 +2291,7 @@ const AdminPanel = ({ session }) => {
     setCreating(true);
     setCreateError('');
     setNewLink('');
+    setSetupLink('');
     setNfcMessage('');
 
     const { data, error } = claimType === 'creator'
@@ -2271,8 +2333,20 @@ const AdminPanel = ({ session }) => {
     } catch (err) {
       setCreateError(`The page was created, but some profile details could not be saved: ${err.message}`);
     }
-    const link = `${window.location.origin}/?claim=${token}`;
+    const { data: createdRow, error: createdRowError } = await supabase
+      .from(claimType === 'creator' ? 'creator_profiles' : 'business_profiles')
+      .select('id')
+      .eq('claim_token', token)
+      .single();
+    if (createdRowError || !createdRow) {
+      setCreateError(createdRowError?.message || 'Page created, but its permanent profile URL could not be generated.');
+      return;
+    }
+    const officialPath = claimType === 'creator' ? `/creator/${createdRow.id}` : `/business/${createdRow.id}`;
+    const link = `${window.location.origin}${officialPath}`;
+    const setup = `${window.location.origin}/?claim=${token}`;
     setNewLink(link);
+    setSetupLink(setup);
     resetBuilder();
     loadRows();
   };
@@ -2372,7 +2446,8 @@ const AdminPanel = ({ session }) => {
   );
 
   const RowCard = ({ r }) => {
-    const rowLink = r.claim_token ? `${window.location.origin}/?claim=${r.claim_token}` : '';
+    const rowLink = r.id ? `${window.location.origin}/${r.kind === 'creator' ? 'creator' : 'business'}/${r.id}` : '';
+    const rowSetupLink = r.claim_token ? `${window.location.origin}/?claim=${r.claim_token}` : '';
     return (
       <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
         <div className="flex items-start justify-between gap-3 mb-2">
@@ -2394,6 +2469,7 @@ const AdminPanel = ({ session }) => {
               <button onClick={() => writeNfc(rowLink)} disabled={nfcWriting} className="text-[11px] font-semibold disabled:opacity-50" style={{ color: '#99154F' }}>
                 {nfcWriting ? 'Writing…' : 'Write NFC'}
               </button>
+              {rowSetupLink && <button onClick={() => copyLink(rowSetupLink)} className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>Copy setup link</button>}
             </div>
           )}
         </div>
@@ -2598,14 +2674,14 @@ const AdminPanel = ({ session }) => {
         </label>
 
         <button onClick={handleCreate} disabled={creating || setupStatus !== 'ready'} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
-          {creating ? 'Creating…' : 'Create claim link'}
+          {creating ? 'Creating…' : 'Create gift page'}
         </button>
 
         {createError && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{createError}</p>}
 
         {newLink && (
           <div className="mt-4 border rounded-xl p-4" style={{ borderColor: '#00D9FF', background: '#E0FBFF' }}>
-            <p className="text-xs font-semibold mb-2" style={{ color: '#036377' }}>NFC URL for this gift card</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#036377' }}>Official creator page — write this URL to the NFC card</p>
             <div className="flex items-center gap-2">
               <p className="text-xs flex-1 truncate cm-mono" style={{ color: '#036377' }}>{newLink}</p>
               <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#111827' }}>Open</button>
@@ -2625,6 +2701,13 @@ const AdminPanel = ({ session }) => {
               <span className="text-[11px]" style={{ color: '#036377' }}>NTAG215 has enough NDEF capacity for this URL.</span>
             </div>
             {nfcMessage && <p className="text-xs mt-3" style={{ color: nfcMessage.startsWith('Success') ? '#0E7A3B' : '#9A4A0C' }}>{nfcMessage}</p>}
+            {setupLink && <div className="mt-4 pt-3 border-t" style={{ borderColor: '#BFEFF5' }}>
+              <p className="text-[11px] font-semibold mb-1" style={{ color: '#036377' }}>Private setup link (give this to the recipient)</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] flex-1 truncate cm-mono" style={{ color: '#6B7280' }}>{setupLink}</p>
+                <button onClick={() => copyLink(setupLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>{copied === setupLink ? 'Copied!' : 'Copy setup link'}</button>
+              </div>
+            </div>}
           </div>
         )}
       </div>
@@ -2666,6 +2749,9 @@ export default function Commissioner() {
   const [appliedIds, setAppliedIds] = useState([]);
   const [toast, setToast] = useState('');
   const [claimToken] = useState(() => new URLSearchParams(window.location.search).get('claim'));
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const officialType = pathParts[0] || '';
+  const officialId = pathParts[1] || '';
 
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const [messageRecipientId, setMessageRecipientId] = useState(null);
@@ -2691,6 +2777,22 @@ export default function Commissioner() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  if (officialType === 'creator' && officialId) {
+    return (
+      <div className="cm-root min-h-screen bg-white">
+        <FontLoader />
+        <OfficialCreatorPage id={officialId} session={session} setPage={setPage} />
+      </div>
+    );
+  }
+  if (officialType === 'business' && officialId) {
+    return (
+      <div className="cm-root min-h-screen bg-white">
+        <FontLoader />
+        <OfficialBusinessPage id={officialId} />
+      </div>
+    );
+  }
   if (claimToken) {
     return (
       <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
