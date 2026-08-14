@@ -2145,7 +2145,10 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
       if (cancelled) return;
       if (error || !data) { setLoading(false); return; }
       setProfile(data);
-      if (!cancelled) setOwner(!!session?.user?.id && data.auth_user_id === session.user.id);
+      // Ownership is tied to the Supabase auth user, never to the public URL.
+      // Re-evaluate whenever the auth session changes so the button appears
+      // immediately after sign-in.
+      if (!cancelled) setOwner(Boolean(session?.user?.id && data.auth_user_id === session.user.id));
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -2159,7 +2162,20 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
       {!profile.onboarded && (
         <div className="max-w-5xl mx-auto px-5 md:px-8 pt-3"><div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}>This creator is still completing their profile. The NFC card is already linked to this permanent creator page.</div></div>
       )}
-      <PublicCreatorProfile profile={profile} canEdit={owner} onEdit={() => setPage('onboarding')} />
+      <PublicCreatorProfile
+        profile={profile}
+        canEdit={owner}
+        onEdit={() => {
+          if (!session?.user?.id) {
+            // The official profile is a standalone route, so send unauthenticated
+            // owners through the normal auth page and remember where to return.
+            const returnTo = `/creator/${encodeURIComponent(id)}`;
+            window.location.href = `/?auth=1&returnTo=${encodeURIComponent(returnTo)}`;
+            return;
+          }
+          setPage('onboarding');
+        }}
+      />
     </>
   );
 }
@@ -2782,6 +2798,10 @@ export default function Commissioner() {
   const [appliedIds, setAppliedIds] = useState([]);
   const [toast, setToast] = useState('');
   const [claimToken] = useState(() => new URLSearchParams(window.location.search).get('claim'));
+  const [authRedirect] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('auth') === '1' ? (params.get('returnTo') || '/') : null;
+  });
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const officialType = pathParts[0] || '';
   const officialId = pathParts[1] || '';
@@ -2805,6 +2825,11 @@ export default function Commissioner() {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
+      if (sess && authRedirect) {
+        window.history.replaceState({}, '', authRedirect);
+        window.location.reload();
+        return;
+      }
       if (sess) setPage(p => (p === 'auth' ? 'dashboard' : p));
     });
     return () => listener.subscription.unsubscribe();
@@ -2839,7 +2864,8 @@ export default function Commissioner() {
     <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
       <FontLoader />
       <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} />
-      {page === 'home' && <Home setPage={setPage} />}
+      {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
+      {!authRedirect && page === 'home' && <Home setPage={setPage} />}
       {page === 'creators' && <Creators session={session} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} />}
       {page === 'campaigns' && <Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} />}
       {page === 'spotlight' && <Spotlight />}
