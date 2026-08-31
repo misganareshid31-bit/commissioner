@@ -9,7 +9,7 @@ import {
   Calendar, ImageIcon, FileText, MoreHorizontal, Wallet, Award,
   UserCheck, Building2, Sparkles, ArrowRight, Flame, Camera, Globe,
   Phone, Upload, ChevronLeft, Check, Video, Link2, Languages,
-  LogOut, Settings, ImagePlus, AtSign, ShoppingBag
+  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -202,6 +202,8 @@ const StatusPill = ({ status }) => {
 
 const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [joinMenuOpen, setJoinMenuOpen] = useState(false);
+  const isBusiness = session?.user?.user_metadata?.role === 'business';
   const links = [
     { id: 'home', label: 'Home' },
     { id: 'creators', label: 'Creators' },
@@ -278,13 +280,31 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
           >
             Hire creators
           </button>
-          <button
-            onClick={() => setPage(session ? 'onboarding' : 'auth')}
-            style={{ borderColor: '#00D9FF', color: '#036377' }}
-            className="border-2 text-sm font-semibold px-3.5 py-1.5 rounded-lg"
-          >
-            Join as a creator
-          </button>
+          {session ? (
+            <button
+              onClick={() => setPage('onboarding')}
+              style={{ borderColor: '#00D9FF', color: '#036377' }}
+              className="border-2 text-sm font-semibold px-3.5 py-1.5 rounded-lg"
+            >
+              {isBusiness ? 'Edit business profile' : 'Edit creator profile'}
+            </button>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={() => setJoinMenuOpen(o => !o)}
+                style={{ borderColor: '#00D9FF', color: '#036377' }}
+                className="border-2 text-sm font-semibold px-3.5 py-1.5 rounded-lg flex items-center gap-1"
+              >
+                Join Commissioner <ChevronDown size={14} />
+              </button>
+              {joinMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
+                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('auth'); setJoinMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Join as a creator</button>
+                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('auth'); setJoinMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Join as a business</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <button className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>
@@ -344,16 +364,38 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                 <button onClick={() => { setPage('auth'); setMenuOpen(false); }} className="w-full text-left px-3 py-3 rounded-xl text-sm font-semibold" style={{ color: '#E6007A', background: '#FDE7F1' }}>Sign in</button>
               )}
             </div>
-            <div className="p-4 border-t shrink-0" style={{ borderColor: '#E5E7EB' }}>
-              <button onClick={() => { setPage(session ? 'onboarding' : 'auth'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
-                {session ? 'Edit creator profile' : 'Join as a creator'}
-              </button>
+            <div className="p-4 border-t shrink-0 flex flex-col gap-2" style={{ borderColor: '#E5E7EB' }}>
+              {session ? (
+                <button onClick={() => { setPage('onboarding'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
+                  {isBusiness ? 'Edit business profile' : 'Edit creator profile'}
+                </button>
+              ) : (
+                <>
+                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('auth'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
+                    Join as a creator
+                  </button>
+                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('auth'); setMenuOpen(false); }} style={{ borderColor: '#00D9FF', color: '#036377' }} className="w-full border-2 text-sm font-semibold px-4 py-3 rounded-xl">
+                    Join as a business
+                  </button>
+                </>
+              )}
             </div>
           </aside>
         </>
       )}
     </header>
   );
+};
+
+const FOOTER_LINK_PAGES = {
+  'Discover creators': 'creators',
+  'Discover businesses': 'businesses',
+  'Campaigns': 'campaigns',
+  'Spotlight': 'spotlight',
+  'About': 'about',
+  'Contact': 'about',
+  'Pricing': 'pricing',
+  'Trust & safety': 'trust',
 };
 
 const Footer = ({ setPage }) => (
@@ -366,7 +408,29 @@ const Footer = ({ setPage }) => (
           </div>
           <span className="cm-display font-bold text-lg">Commissioner</span>
         </div>
-        <p className="text-sm max-w-xs" style={{ color: '#9CA3AF' }}>Where creators and businesses connect professionally.</p>
+        <p className="text-sm max-w-xs mb-4" style={{ color: '#9CA3AF' }}>Where creators and businesses connect professionally.</p>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://www.facebook.com/profile.php?id=61593362057721"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Commissioner on Facebook"
+            className="w-8 h-8 rounded-lg flex items-center justify-center border hover:opacity-80"
+            style={{ borderColor: '#1F2937' }}
+          >
+            <Facebook size={14} style={{ color: '#9CA3AF' }} />
+          </a>
+          <a
+            href="https://www.instagram.com/commissioner.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Commissioner on Instagram"
+            className="w-8 h-8 rounded-lg flex items-center justify-center border hover:opacity-80"
+            style={{ borderColor: '#1F2937' }}
+          >
+            <Instagram size={14} style={{ color: '#9CA3AF' }} />
+          </a>
+        </div>
       </div>
       {[
         { h: 'Platform', items: ['Discover creators', 'Discover businesses', 'Campaigns', 'Spotlight'] },
@@ -376,7 +440,21 @@ const Footer = ({ setPage }) => (
         <div key={col.h}>
           <p className="text-sm font-semibold mb-4">{col.h}</p>
           <ul className="space-y-2.5">
-            {col.items.map(i => <li key={i} className="text-sm" style={{ color: '#9CA3AF' }}>{i}</li>)}
+            {col.items.map(i => (
+              <li key={i}>
+                {FOOTER_LINK_PAGES[i] ? (
+                  <button
+                    onClick={() => setPage(FOOTER_LINK_PAGES[i])}
+                    className="text-sm text-left hover:text-white transition-colors"
+                    style={{ color: '#9CA3AF' }}
+                  >
+                    {i}
+                  </button>
+                ) : (
+                  <span className="text-sm" style={{ color: '#9CA3AF' }}>{i}</span>
+                )}
+              </li>
+            ))}
           </ul>
         </div>
       ))}
@@ -466,18 +544,21 @@ const Home = ({ setPage }) => (
           <Sparkles size={13} /> Now in early access
         </span>
         <h1 className="cm-display font-bold leading-[1.05] mb-6" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.75rem)', color: '#111827' }}>
-          Find the right creator for your business.
+          Where creators and businesses build real partnerships.
         </h1>
         <p className="text-lg mb-8 max-w-xl" style={{ color: '#374151' }}>
-          Commissioner connects vetted creators with businesses for campaigns, UGC, and brand partnerships — built for people who take the work seriously.
+          Commissioner connects vetted creators with businesses for campaigns, UGC, and brand partnerships — whether you're looking to hire or looking for your next deal.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 mb-10">
           <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2">
             Hire creators <ArrowRight size={16} />
           </button>
-          <button onClick={() => setPage('onboarding')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-cyan-50">
+          <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('onboarding'); }} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-cyan-50">
             Join as a creator
+          </button>
+          <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('onboarding'); }} style={{ borderColor: '#7C3AED', color: '#7C3AED' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-purple-50">
+            Join as a business
           </button>
         </div>
 
@@ -522,7 +603,8 @@ const Home = ({ setPage }) => (
           <p className="text-sm mb-7" style={{ color: '#9CA3AF' }}>Commissioner is in early access — be one of the first creators or businesses on the platform.</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3 rounded-xl">Hire creators</button>
-            <button onClick={() => setPage('onboarding')} style={{ borderColor: '#00D9FF', color: '#00D9FF' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a creator</button>
+            <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('onboarding'); }} style={{ borderColor: '#00D9FF', color: '#00D9FF' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a creator</button>
+            <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('onboarding'); }} style={{ borderColor: '#7C3AED', color: '#A78BFA' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a business</button>
           </div>
         </div>
       </div>
@@ -1228,6 +1310,92 @@ const Pricing = () => {
     </div>
   );
 };
+
+const AboutUs = () => (
+  <div className="max-w-5xl mx-auto px-5 md:px-8 py-14">
+    <div className="text-center mb-14">
+      <h1 className="cm-display font-bold text-3xl md:text-4xl mb-4" style={{ color: '#111827' }}>About Commissioner</h1>
+      <p className="text-sm md:text-base max-w-xl mx-auto" style={{ color: '#6B7280' }}>
+        Commissioner is a marketplace built to connect creators and businesses professionally — with verified profiles,
+        transparent pricing, and real accountability on both sides.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+      <div className="rounded-2xl border p-7 bg-white" style={{ borderColor: '#E5E7EB' }}>
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: '#FDE7F1' }}>
+          <Heart size={20} style={{ color: '#E6007A' }} />
+        </div>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>Our mission</h2>
+        <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+          We're building the trust layer creators and brands have been missing — real audience verification, clear pricing,
+          and a marketplace where a badge actually means something.
+        </p>
+      </div>
+      <div className="rounded-2xl border p-7 bg-white" style={{ borderColor: '#E5E7EB' }}>
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: '#E0FBFF' }}>
+          <Shield size={20} style={{ color: '#036377' }} />
+        </div>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>How we work</h2>
+        <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+          Every verified creator on Commissioner goes through account-ownership and audience checks before the badge appears —
+          nothing is just self-declared.
+        </p>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 rounded-2xl border p-8 md:p-10" style={{ borderColor: '#E5E7EB', background: '#F8FAFC' }}>
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Mail size={18} style={{ color: '#E6007A' }} />
+          <h2 className="font-semibold text-base" style={{ color: '#111827' }}>Contact us</h2>
+        </div>
+        <p className="text-sm leading-relaxed mb-4" style={{ color: '#6B7280' }}>
+          Have a question, partnership idea, or press inquiry? Reach out and a real person from the Commissioner team
+          will get back to you.
+        </p>
+        <a href="mailto:commissionerformylord@gmail.com" className="text-sm font-semibold inline-flex items-center gap-2 mb-4" style={{ color: '#E6007A' }}>
+          <Mail size={14} /> commissionerformylord@gmail.com
+        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://www.facebook.com/profile.php?id=61593362057721"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Commissioner on Facebook"
+            className="w-9 h-9 rounded-lg flex items-center justify-center border hover:opacity-80"
+            style={{ borderColor: '#E5E7EB' }}
+          >
+            <Facebook size={16} style={{ color: '#1877F2' }} />
+          </a>
+          <a
+            href="https://www.instagram.com/commissioner.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Commissioner on Instagram"
+            className="w-9 h-9 rounded-lg flex items-center justify-center border hover:opacity-80"
+            style={{ borderColor: '#E5E7EB' }}
+          >
+            <Instagram size={16} style={{ color: '#E6007A' }} />
+          </a>
+        </div>
+      </div>
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <HelpCircle size={18} style={{ color: '#036377' }} />
+          <h2 className="font-semibold text-base" style={{ color: '#111827' }}>Customer support</h2>
+        </div>
+        <p className="text-sm leading-relaxed mb-4" style={{ color: '#6B7280' }}>
+          Running into an issue with your account, a payment, or a verification application? Our support team is here to
+          help creators and businesses sort it out quickly — email us and we'll follow up as soon as we can.
+        </p>
+        <a href="mailto:commissionerformylord@gmail.com" className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: '#036377' }}>
+          <Mail size={14} /> commissionerformylord@gmail.com
+        </a>
+      </div>
+    </div>
+  </div>
+);
 
 const OnboardingField = ({ label, placeholder, icon: Icon, value, onChange, type = 'text' }) => (
   <div>
@@ -3026,6 +3194,60 @@ const AdminPanel = ({ session }) => {
   );
 };
 
+const ResetPasswordPage = ({ onDone }) => {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (newPassword.length < 8) { setError('Password should be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setError('Passwords don\'t match.'); return; }
+    setSaving(true);
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (updateError) { setError(updateError.message || 'Could not update your password.'); return; }
+    setDone(true);
+    // Clear the recovery token out of the address bar and hand back to the app.
+    window.history.replaceState({}, '', '/');
+    setTimeout(() => onDone(), 1500);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-5" style={{ background: '#F8FAFC' }}>
+      <div className="max-w-sm w-full bg-white border rounded-2xl p-6" style={{ borderColor: '#E5E7EB' }}>
+        {done ? (
+          <div className="text-center">
+            <CheckCircle2 size={28} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
+            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Password updated</p>
+            <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Taking you back in…</p>
+          </div>
+        ) : (
+          <form onSubmit={submit}>
+            <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Set a new password</p>
+            <p className="text-xs mb-5" style={{ color: '#6B7280' }}>You followed a password reset link — choose a new password to finish.</p>
+            <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 mb-3" style={{ borderColor: '#E5E7EB' }}>
+              <Lock size={15} style={{ color: '#6B7280' }} />
+              <input required type="password" minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password" className="flex-1 outline-none text-sm" />
+            </div>
+            <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5" style={{ borderColor: '#E5E7EB' }}>
+              <Lock size={15} style={{ color: '#6B7280' }} />
+              <input required type="password" minLength={8} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="flex-1 outline-none text-sm" />
+            </div>
+            {error && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{error}</p>}
+            <button disabled={saving} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg mt-4 disabled:opacity-50">
+              {saving ? 'Saving…' : 'Update password'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function Commissioner() {
   const [page, setPage] = useState('home');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -3060,8 +3282,16 @@ export default function Commissioner() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
+      if (event === 'PASSWORD_RECOVERY') {
+        // The user followed a "reset your password" email link. Supabase has
+        // already exchanged the token in the URL for a temporary session —
+        // send them straight to the "set a new password" screen instead of
+        // silently dropping them on the homepage still logged in.
+        setPage('reset-password');
+        return;
+      }
       if (sess && authRedirect) {
         window.history.replaceState({}, '', authRedirect);
         window.location.reload();
@@ -3071,6 +3301,15 @@ export default function Commissioner() {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  if (page === 'reset-password') {
+    return (
+      <div className="cm-root min-h-screen bg-white">
+        <FontLoader />
+        <ResetPasswordPage onDone={() => setPage(session ? 'dashboard' : 'auth')} />
+      </div>
+    );
+  }
 
   if (officialType === 'creator' && officialId) {
     return (
@@ -3112,6 +3351,7 @@ export default function Commissioner() {
       {page === 'spotlight' && <Spotlight />}
       {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} />}
       {page === 'pricing' && <Pricing />}
+      {page === 'about' && <AboutUs />}
       {page === 'dashboard' && <Dashboard session={session} />}
       {page === 'onboarding' && (session?.user?.user_metadata?.role === 'business' ? <BusinessOnboarding session={session} setPage={setPage} /> : <Onboarding session={session} setPage={setPage} />)}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} /> : <Auth onAuthenticated={() => setPage('account')} />)}
