@@ -9,7 +9,7 @@ import {
   Calendar, ImageIcon, FileText, MoreHorizontal, Wallet, Award,
   UserCheck, Building2, Sparkles, ArrowRight, Flame, Camera, Globe,
   Phone, Upload, ChevronLeft, Check, Video, Link2, Languages,
-  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart
+  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -396,6 +396,7 @@ const FOOTER_LINK_PAGES = {
   'Contact': 'about',
   'Pricing': 'pricing',
   'Trust & safety': 'trust',
+  'Terms of Service': 'terms',
 };
 
 const Footer = ({ setPage }) => (
@@ -434,7 +435,7 @@ const Footer = ({ setPage }) => (
       </div>
       {[
         { h: 'Platform', items: ['Discover creators', 'Discover businesses', 'Campaigns', 'Spotlight'] },
-        { h: 'Company', items: ['About', 'Contact', 'Pricing', 'Trust & safety'] },
+        { h: 'Company', items: ['About', 'Contact', 'Pricing', 'Trust & safety', 'Terms of Service'] },
         { h: 'Resources', items: ['Help center', 'NFC & QR cards', 'API status', 'Community'] },
       ].map(col => (
         <div key={col.h}>
@@ -861,6 +862,8 @@ const Messages = ({ session, initialRecipientId = null }) => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
 
   const loadConversations = async () => {
     if (!session?.user?.id) { setConversations([]); setLoading(false); return; }
@@ -936,6 +939,16 @@ const Messages = ({ session, initialRecipientId = null }) => {
     setSending(false);
   };
 
+  const blockActive = async () => {
+    if (!activeConvo?.other_user_id) return;
+    if (!window.confirm(`Block ${activeConvo.other_name || 'this person'}? They won't be able to message you again.`)) return;
+    const { error: blockError } = await supabase.rpc('block_user', { p_user_id: activeConvo.other_user_id });
+    setThreadMenuOpen(false);
+    if (blockError) { setError(blockError.message || 'Could not block this user.'); return; }
+    setActive(null);
+    await loadConversations();
+  };
+
   if (!session) {
     return (
       <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 text-center">
@@ -975,7 +988,21 @@ const Messages = ({ session, initialRecipientId = null }) => {
           <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6"><MessageSquare size={28} style={{ color: '#D1D5DB' }} /><p className="text-sm font-semibold" style={{ color: '#111827' }}>No conversation selected</p><p className="text-xs" style={{ color: '#6B7280' }}>Message a creator or business from their profile to start a conversation.</p></div>
         ) : (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#E5E7EB' }}><div className="flex items-center gap-3"><Avatar name={activeConvo.other_name || 'Member'} size={36} tone={activeConvo.tone || 0} src={activeConvo.other_avatar_url} /><div><p className="text-sm font-semibold" style={{ color: '#111827' }}>{activeConvo.other_name || 'Commissioner member'}</p><p className="text-[11px]" style={{ color: '#6B7280' }}>{activeConvo.other_type === 'business' ? 'Business' : 'Creator'}</p></div></div><button style={{ background: '#E0FBFF', color: '#036377' }} className="text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"><Briefcase size={13} /> Campaign workspace</button></div>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#E5E7EB' }}>
+              <div className="flex items-center gap-3"><Avatar name={activeConvo.other_name || 'Member'} size={36} tone={activeConvo.tone || 0} src={activeConvo.other_avatar_url} /><div><p className="text-sm font-semibold" style={{ color: '#111827' }}>{activeConvo.other_name || 'Commissioner member'}</p><p className="text-[11px]" style={{ color: '#6B7280' }}>{activeConvo.other_type === 'business' ? 'Business' : 'Creator'}</p></div></div>
+              <div className="flex items-center gap-2">
+                <button style={{ background: '#E0FBFF', color: '#036377' }} className="text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"><Briefcase size={13} /> Campaign workspace</button>
+                <div className="relative">
+                  <button onClick={() => setThreadMenuOpen(o => !o)} className="w-8 h-8 rounded-lg flex items-center justify-center border" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}><MoreHorizontal size={15} /></button>
+                  {threadMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1 w-40 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
+                      <button onClick={() => { setReportOpen(true); setThreadMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-50" style={{ color: '#374151' }}><Flag size={14} /> Report</button>
+                      <button onClick={blockActive} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-50" style={{ color: '#DC2626' }}><UserX size={14} /> Block</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="flex-1 overflow-y-auto cm-scroll px-5 py-5 flex flex-col gap-3" style={{ background: '#F8FAFC' }}>
               {threadLoading ? <p className="text-center text-xs" style={{ color: '#6B7280' }}>Loading…</p> : messages.map(m => {
                 const mine = m.sender_id === session.user.id;
@@ -986,6 +1013,9 @@ const Messages = ({ session, initialRecipientId = null }) => {
           </div>
         )}
       </div>
+      {reportOpen && activeConvo?.other_user_id && (
+        <ReportModal targetUserId={activeConvo.other_user_id} conversationId={active} onClose={() => setReportOpen(false)} />
+      )}
     </div>
   );
 };
@@ -1042,6 +1072,12 @@ const CreatorInquiryInbox = ({ profile }) => {
 
 const CreatorDashboard = ({ session }) => {
   const [profile, setProfile] = useState(null);
+  const [ratingSummary, setRatingSummary] = useState(null);
+
+  useEffect(() => {
+    if (!session) return;
+    supabase.rpc('get_rating_summary', { p_user_id: session.user.id }).then(({ data }) => setRatingSummary(data));
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -1107,7 +1143,7 @@ const CreatorDashboard = ({ session }) => {
       <StatCard icon={ShoppingBag} label="Marketplace listings" value="Manage" />
       <StatCard icon={MessageSquare} label="Unread messages" value="0" />
       <StatCard icon={Briefcase} label="B2B opportunities" value="Connect" />
-      <StatCard icon={Award} label="Avg. rating" value="Not yet rated" />
+      <StatCard icon={Award} label="Avg. rating" value={ratingSummary && Number(ratingSummary.count) > 0 ? `${Number(ratingSummary.average).toFixed(1)} ★ (${ratingSummary.count})` : 'Not yet rated'} />
     </div>
 
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -1396,6 +1432,233 @@ const AboutUs = () => (
     </div>
   </div>
 );
+
+const TrustSafety = () => (
+  <div className="max-w-3xl mx-auto px-5 md:px-8 py-14">
+    <div className="text-center mb-12">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: '#E0FBFF' }}>
+        <Shield size={22} style={{ color: '#036377' }} />
+      </div>
+      <h1 className="cm-display font-bold text-3xl md:text-4xl mb-3" style={{ color: '#111827' }}>Trust & Safety</h1>
+      <p className="text-sm max-w-lg mx-auto" style={{ color: '#6B7280' }}>How Commissioner works to keep creators and businesses safe — and what you can do to protect yourself.</p>
+    </div>
+
+    <div className="rounded-2xl border p-6 mb-6" style={{ borderColor: '#E5E7EB', background: '#F8FAFC' }}>
+      <p className="text-sm font-semibold mb-2" style={{ color: '#111827' }}>What Commissioner is — and isn't</p>
+      <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+        Commissioner helps creators and businesses discover each other, message directly, and build a track record through
+        verification and reviews. Commissioner does not currently process payments between members — any payment
+        arrangement is made directly between you and the other party, so use the same judgment you would with any
+        independent deal.
+      </p>
+    </div>
+
+    {[
+      { icon: CheckCircle2, t: 'What "Verified" actually means', d: 'A blue badge means Commissioner checked account ownership and, for creators, audience size. It is not a guarantee of good conduct in a deal — always use good judgment alongside it.' },
+      { icon: Lock, t: 'Keep the conversation on Commissioner', d: 'Be cautious if someone pushes hard to move to WhatsApp or Telegram before you\'ve had any real conversation here. Off-platform requests are one of the most common scam patterns on creator marketplaces.' },
+      { icon: DollarSign, t: 'Protect yourself on payment', d: 'Businesses: avoid paying 100% upfront to an unproven creator. Creators: avoid delivering finished work in full before any payment or commitment is confirmed. Milestones and partial payments reduce risk for both sides.' },
+      { icon: Star, t: 'Reviews build the track record', d: 'Leave an honest review after working with someone — reviews are the main signal future partners use to judge reliability, so they only work if people actually leave them.' },
+      { icon: Flag, t: 'Report anything that feels wrong', d: 'Every profile and every conversation has a Report option. Use it for scams, fake profiles, harassment, or a no-show after an agreement — our team reviews every report.' },
+      { icon: UserX, t: 'Block whenever you need to', d: 'You can block anyone from a conversation at any time. Blocking stops them from messaging you again and hides you from being contacted by them.' },
+    ].map(s => (
+      <div key={s.t} className="flex items-start gap-4 py-5 border-b" style={{ borderColor: '#E5E7EB' }}>
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FDE7F1' }}>
+          <s.icon size={17} style={{ color: '#E6007A' }} />
+        </div>
+        <div>
+          <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>{s.t}</p>
+          <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{s.d}</p>
+        </div>
+      </div>
+    ))}
+
+    <div className="mt-8 text-center">
+      <p className="text-xs" style={{ color: '#9CA3AF' }}>Something happen that isn't covered here? Reach out at <a href="mailto:commissionerformylord@gmail.com" className="font-semibold" style={{ color: '#036377' }}>commissionerformylord@gmail.com</a></p>
+    </div>
+  </div>
+);
+
+const TermsOfService = () => (
+  <div className="max-w-3xl mx-auto px-5 md:px-8 py-14">
+    <h1 className="cm-display font-bold text-3xl md:text-4xl mb-2" style={{ color: '#111827' }}>Terms of Service</h1>
+    <p className="text-xs mb-10" style={{ color: '#9CA3AF' }}>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
+
+    <div className="flex flex-col gap-8 text-sm leading-relaxed" style={{ color: '#374151' }}>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>1. What Commissioner is</h2>
+        <p>Commissioner is a discovery and messaging marketplace that connects creators and businesses. Commissioner does not currently process payments, hold funds in escrow, or guarantee the outcome of any deal between members — arrangements made between a creator and a business are between those two parties.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>2. Accounts</h2>
+        <p>You're responsible for the accuracy of the information on your profile and for keeping your login secure. Impersonating another person or business, or creating a profile for someone without their permission, is not allowed.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>3. Verification</h2>
+        <p>Verification confirms account ownership and, for creators, audience size at the time of review. It does not certify a member's conduct, reliability, or the quality of their work, and can be revoked if evidence becomes invalid.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>4. Acceptable use</h2>
+        <p>You agree not to use Commissioner to scam, harass, or defraud other members; post fake statistics or content; scrape or misuse other members' data; or attempt to bypass account restrictions such as blocks or privacy settings.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>5. Reviews & reporting</h2>
+        <p>Reviews should reflect a genuine interaction with the person you're reviewing. Reports are reviewed by the Commissioner team and may result in a warning, restricted visibility, or account removal.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>6. Disputes between members</h2>
+        <p>Since Commissioner doesn't process payments, disputes over payment or deliverables are between the members involved. Commissioner can review reports and restrict accounts found to have violated these terms, but can't guarantee a refund or force delivery of work.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>7. Your data</h2>
+        <p>What we collect and how it's used is covered in our Privacy Policy. You can control who sees your profile details and who can message you from Account settings, and you can request account deletion at any time.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>8. Changes</h2>
+        <p>We may update these terms as Commissioner adds features like payments. We'll update the date at the top of this page when that happens.</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>9. Contact</h2>
+        <p>Questions about these terms — <a href="mailto:commissionerformylord@gmail.com" className="font-semibold" style={{ color: '#036377' }}>commissionerformylord@gmail.com</a>.</p>
+      </section>
+    </div>
+  </div>
+);
+
+const REPORT_REASONS = [
+  { value: 'scam_or_fraud', label: 'Scam or fraud' },
+  { value: 'fake_profile_or_stats', label: 'Fake profile or inflated stats' },
+  { value: 'no_show_after_agreement', label: "Didn't deliver / paid but ghosted" },
+  { value: 'harassment_or_abuse', label: 'Harassment or abuse' },
+  { value: 'inappropriate_content', label: 'Inappropriate content' },
+  { value: 'other', label: 'Other' },
+];
+
+const ReportModal = ({ targetUserId, conversationId = null, onClose }) => {
+  const [reason, setReason] = useState('scam_or_fraud');
+  const [details, setDetails] = useState('');
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setSending(true); setError('');
+    const { error: rpcError } = await supabase.rpc('submit_report', {
+      p_reported_user_id: targetUserId,
+      p_reason: reason,
+      p_details: details || null,
+      p_conversation_id: conversationId,
+    });
+    setSending(false);
+    if (rpcError) { setError(rpcError.message || 'Could not submit the report.'); return; }
+    setDone(true);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" style={{ background: 'rgba(17,24,39,0.5)' }} onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
+        {done ? (
+          <div className="text-center py-2">
+            <CheckCircle2 size={26} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
+            <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Report submitted</p>
+            <p className="text-xs mb-5" style={{ color: '#6B7280' }}>Thanks for flagging this — our team will review it.</p>
+            <button onClick={onClose} className="text-sm font-semibold px-4 py-2 rounded-lg" style={{ background: '#111827', color: 'white' }}>Close</button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 mb-4"><Flag size={17} style={{ color: '#DC2626' }} /><p className="text-sm font-semibold" style={{ color: '#111827' }}>Report this account</p></div>
+            <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>What's going on?</label>
+            <select value={reason} onChange={e => setReason(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm mb-3" style={{ borderColor: '#E5E7EB' }}>
+              {REPORT_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+            <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3} placeholder="Any extra detail that would help us review this (optional)" className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none" style={{ borderColor: '#E5E7EB' }} />
+            {error && <p className="text-xs mt-2" style={{ color: '#DC2626' }}>{error}</p>}
+            <div className="flex gap-2 mt-4">
+              <button onClick={onClose} className="flex-1 text-sm font-semibold py-2.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#374151' }}>Cancel</button>
+              <button onClick={submit} disabled={sending} className="flex-1 text-sm font-semibold py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#DC2626' }}>{sending ? 'Submitting…' : 'Submit report'}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const RatingSummary = ({ userId }) => {
+  const [summary, setSummary] = useState(null);
+  useEffect(() => { if (userId) supabase.rpc('get_rating_summary', { p_user_id: userId }).then(({ data }) => setSummary(data)); }, [userId]);
+  if (!summary) return null;
+  const avg = Number(summary.average) || 0;
+  const count = Number(summary.count) || 0;
+  if (count === 0) return <span className="text-xs" style={{ color: '#9CA3AF' }}>No reviews yet</span>;
+  return (
+    <span className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: '#111827' }}>
+      <Star size={14} fill="#F59E0B" style={{ color: '#F59E0B' }} /> {avg.toFixed(1)} <span className="text-xs font-normal" style={{ color: '#6B7280' }}>({count} review{count === 1 ? '' : 's'})</span>
+    </span>
+  );
+};
+
+const LeaveReviewBox = ({ targetUserId, session, onSaved }) => {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  if (!session || session.user.id === targetUserId) return null;
+
+  const submit = async () => {
+    if (!rating) { setMsg('Pick a star rating first.'); return; }
+    setSaving(true); setMsg('');
+    const { error } = await supabase.rpc('upsert_review', { p_reviewee_id: targetUserId, p_rating: rating, p_comment: comment || null });
+    setSaving(false);
+    if (error) { setMsg(error.message || 'Could not save your review.'); return; }
+    setMsg('Review saved. Thank you!');
+    if (onSaved) onSaved();
+  };
+
+  return (
+    <div className="rounded-2xl border p-5 mb-7" style={{ borderColor: '#E5E7EB' }}>
+      <p className="text-sm font-semibold mb-2" style={{ color: '#111827' }}>Leave a review</p>
+      <div className="flex items-center gap-1 mb-3">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => setRating(n)} type="button">
+            <Star size={22} fill={(hover || rating) >= n ? '#F59E0B' : 'none'} style={{ color: (hover || rating) >= n ? '#F59E0B' : '#D1D5DB' }} />
+          </button>
+        ))}
+      </div>
+      <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} placeholder="Optional — how did the collaboration go?" className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none mb-3" style={{ borderColor: '#E5E7EB' }} />
+      <button onClick={submit} disabled={saving} className="text-sm font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#111827' }}>{saving ? 'Saving…' : 'Submit review'}</button>
+      {msg && <p className="text-xs mt-2" style={{ color: msg.includes('saved') ? '#0E7A3B' : '#DC2626' }}>{msg}</p>}
+    </div>
+  );
+};
+
+const ReviewsList = ({ userId, refreshKey }) => {
+  const [reviews, setReviews] = useState([]);
+  useEffect(() => { if (userId) supabase.rpc('get_reviews_for_user', { p_user_id: userId, p_limit: 10 }).then(({ data }) => setReviews(Array.isArray(data) ? data : [])); }, [userId, refreshKey]);
+  if (reviews.length === 0) return null;
+  return (
+    <div className="mb-7">
+      <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Reviews</p>
+      <div className="flex flex-col gap-3">
+        {reviews.map(r => (
+          <div key={r.id} className="border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <Avatar name={r.reviewer_name || 'Member'} size={26} src={r.reviewer_avatar_url} />
+                <p className="text-xs font-semibold" style={{ color: '#111827' }}>{r.reviewer_name}</p>
+              </div>
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map(n => <Star key={n} size={12} fill={n <= r.rating ? '#F59E0B' : 'none'} style={{ color: n <= r.rating ? '#F59E0B' : '#D1D5DB' }} />)}
+              </div>
+            </div>
+            {r.comment && <p className="text-xs leading-relaxed" style={{ color: '#6B7280' }}>{r.comment}</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const OnboardingField = ({ label, placeholder, icon: Icon, value, onChange, type = 'text' }) => (
   <div>
@@ -1817,6 +2080,9 @@ const AccountSettings = ({ session, setPage }) => {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState('');
   const [pwError, setPwError] = useState('');
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -1836,6 +2102,14 @@ const AccountSettings = ({ session, setPage }) => {
   };
 
   const handleSignOutAll = async () => {
+    await supabase.auth.signOut({ scope: 'global' });
+    setPage('home');
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true); setDeleteError('');
+    const { error } = await supabase.rpc('request_account_deletion');
+    if (error) { setDeleteError(error.message || 'Could not process the deletion request.'); setDeleting(false); return; }
     await supabase.auth.signOut({ scope: 'global' });
     setPage('home');
   };
@@ -1878,6 +2152,26 @@ const AccountSettings = ({ session, setPage }) => {
             Sign out of all devices
           </button>
         </div>
+      </div>
+
+      <div className="border rounded-2xl p-6 mt-6" style={{ borderColor: '#FCA5A5', background: '#FEF2F2' }}>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#991B1B' }}>Delete account</p>
+        <p className="text-xs mb-4" style={{ color: '#B91C1C' }}>
+          This unpublishes your profile, removes your bio/photos/links, and hides your details from other members.
+          It signs you out of every device. Message history stays on the other person's side of any conversation.
+        </p>
+        {!deleteConfirming ? (
+          <button onClick={() => setDeleteConfirming(true)} className="text-xs font-semibold px-4 py-2.5 rounded-lg border" style={{ borderColor: '#DC2626', color: '#DC2626' }}>Delete my account</button>
+        ) : (
+          <div>
+            <p className="text-xs font-semibold mb-3" style={{ color: '#991B1B' }}>Are you sure? This can't be undone from your account.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setDeleteConfirming(false)} className="text-xs font-semibold px-4 py-2.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#374151' }}>Cancel</button>
+              <button onClick={handleDeleteAccount} disabled={deleting} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#DC2626' }}>{deleting ? 'Deleting…' : 'Yes, delete my account'}</button>
+            </div>
+          </div>
+        )}
+        {deleteError && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{deleteError}</p>}
       </div>
     </div>
   );
@@ -2266,7 +2560,9 @@ const CreatorProducts = ({ profile }) => {
   return <div className="mb-8"><div className="flex items-center gap-2 mb-3"><ShoppingBag size={17} style={{color:'#036377'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Products & services</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{products.map(p=><div key={p.id} className="border rounded-2xl overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}>{p.image_url&&<img src={p.image_url} alt="" className="w-full h-36 object-cover"/>}<div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>{p.name}</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>{p.description}</p></div><span className="text-xs font-bold whitespace-nowrap" style={{color:'#111827'}}>{p.price != null ? `${Number(p.price).toLocaleString()} ${p.currency}` : 'Contact'}</span></div>{p.purchase_url&&<a href={p.purchase_url} target="_blank" rel="noreferrer" onClick={()=>supabase.rpc('track_profile_event',{p_creator_profile_id:profile.id,p_event_type:'product_view'}).catch(()=>{})} className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#111827'}}>{p.type==='service'?'Book / enquire':'Buy / order'} <ArrowUpRight size={13}/></a>}</div></div>)}</div></div>;
 };
 
-const PublicCreatorProfile = ({ profile, canEdit = false, onEdit }) => {
+const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPage }) => {
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reviewRefresh, setReviewRefresh] = useState(0);
   const socials = profile.platforms && typeof profile.platforms === 'object' ? profile.platforms : {};
   const socialEntries = Object.entries(socials).filter(([, value]) => value && (value.handle || value.url));
   const services = profile.services && typeof profile.services === 'object' ? profile.services : {};
@@ -2302,7 +2598,13 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit }) => {
                   <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.page_name || profile.username || 'Creator'}</h1>
                 </div>
                 <p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+                <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
               </div>
+              {!canEdit && profile.auth_user_id && (
+                <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}>
+                  <Flag size={13} /> Report
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2 mb-6">
               {profile.primary_niche && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FDE7F1', color: '#99154F' }}>{profile.primary_niche}</span>}
@@ -2339,6 +2641,12 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit }) => {
               </div>
             )}
             {profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#111827' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15} /></a>}
+            {profile.auth_user_id && (
+              <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
+                <LeaveReviewBox targetUserId={profile.auth_user_id} session={session} onSaved={() => setReviewRefresh(k => k + 1)} />
+                <ReviewsList userId={profile.auth_user_id} refreshKey={reviewRefresh} />
+              </div>
+            )}
           </div>
         </div>
         {canEdit && (
@@ -2354,11 +2662,15 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit }) => {
         )}
         <div className="text-center mt-5 text-xs" style={{ color: '#9CA3AF' }}>Verified creator profile powered by Commissioner</div>
       </div>
+      {reportOpen && profile.auth_user_id && <ReportModal targetUserId={profile.auth_user_id} onClose={() => setReportOpen(false)} />}
     </div>
   );
 };
 
-const PublicBusinessProfile = ({ profile }) => (
+const PublicBusinessProfile = ({ profile, session }) => {
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reviewRefresh, setReviewRefresh] = useState(0);
+  return (
   <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
     <div className="max-w-4xl mx-auto px-5 md:px-8 py-8 md:py-12">
       <div className="bg-white border rounded-3xl overflow-hidden shadow-sm" style={{ borderColor: '#E5E7EB' }}>
@@ -2381,7 +2693,16 @@ const PublicBusinessProfile = ({ profile }) => (
                 </span>
               )}
             </div>
-            <div className="pb-1"><div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.business_name || profile.username || 'Business'}</h1></div><p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p></div>
+            <div className="pb-1">
+              <div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#111827' }}>{profile.business_name || profile.username || 'Business'}</h1></div>
+              <p className="text-sm" style={{ color: '#6B7280' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+              <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
+            </div>
+            {profile.auth_user_id && (
+              <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}>
+                <Flag size={13} /> Report
+              </button>
+            )}
           </div>
           {profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
           {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#374151' }}>{profile.bio}</p>}
@@ -2389,20 +2710,28 @@ const PublicBusinessProfile = ({ profile }) => (
           <div className="flex flex-wrap gap-3">
             {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#111827' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
+          {profile.auth_user_id && (
+            <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
+              <LeaveReviewBox targetUserId={profile.auth_user_id} session={session} onSaved={() => setReviewRefresh(k => k + 1)} />
+              <ReviewsList userId={profile.auth_user_id} refreshKey={reviewRefresh} />
+            </div>
+          )}
         </div>
       </div>
       <div className="text-center mt-5 text-xs" style={{ color: '#9CA3AF' }}>Verified business profile powered by Commissioner</div>
     </div>
+    {reportOpen && profile.auth_user_id && <ReportModal targetUserId={profile.auth_user_id} onClose={() => setReportOpen(false)} />}
   </div>
-);
+  );
+};
 
-const OfficialBusinessPage = ({ id }) => {
+const OfficialBusinessPage = ({ id, session }) => {
   const [profile, setProfile] = useState(null);
   useEffect(() => {
-    supabase.from('business_profiles').select('id, business_name, username, avatar_url, banner_url, city, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => setProfile(data || null));
+    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => setProfile(data || null));
   }, [id]);
   if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Loading business profile…</div>;
-  return <PublicBusinessProfile profile={profile} />;
+  return <PublicBusinessProfile profile={profile} session={session} />;
 };
 
 // Official creator pages use a stable profile ID. The NFC card points here, so the
@@ -2454,6 +2783,8 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
       <PublicCreatorProfile
         profile={profile}
         canEdit={owner}
+        session={session}
+        setPage={setPage}
         onEdit={() => {
           if (!session?.user?.id) {
             const returnTo = `/creator/${encodeURIComponent(id)}`;
@@ -3323,7 +3654,7 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen bg-white">
         <FontLoader />
-        <OfficialBusinessPage id={officialId} />
+        <OfficialBusinessPage id={officialId} session={session} />
       </div>
     );
   }
@@ -3352,6 +3683,8 @@ export default function Commissioner() {
       {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} />}
       {page === 'pricing' && <Pricing />}
       {page === 'about' && <AboutUs />}
+      {page === 'trust' && <TrustSafety />}
+      {page === 'terms' && <TermsOfService />}
       {page === 'dashboard' && <Dashboard session={session} />}
       {page === 'onboarding' && (session?.user?.user_metadata?.role === 'business' ? <BusinessOnboarding session={session} setPage={setPage} /> : <Onboarding session={session} setPage={setPage} />)}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} /> : <Auth onAuthenticated={() => setPage('account')} />)}
