@@ -1,8 +1,12 @@
 -- ============================================================================
 -- ADMIN ROLE MIGRATION
--- Run this LAST in the Supabase SQL editor — after supabase-schema.sql,
--- NFC-ADMIN-FIX.sql, COMMISSIONER-TRUST-MARKETPLACE-B2B.sql, and
--- TRUST-SAFETY-MIGRATION.sql. Safe to run repeatedly.
+-- Run this in the Supabase SQL editor after your other migrations.
+-- Safe to run repeatedly — and safe even if some optional migrations
+-- (TRUST-SAFETY-MIGRATION.sql, COMMISSIONER-TRUST-MARKETPLACE-B2B.sql)
+-- haven't been applied to this project yet: any policy on a table that
+-- doesn't exist is skipped automatically instead of erroring. Re-run this
+-- file again later if you add those migrations afterward, so their
+-- tables get the admin policy too.
 --
 -- WHAT THIS FIXES
 -- Every admin check in this project was previously done by comparing the
@@ -166,40 +170,62 @@ grant execute on function public.admin_delete_page(text, uuid) to authenticated;
 
 -- ----------------------------------------------------------------------------
 -- Policies — recreated with the same table/action, only the check changed.
+-- Each block is wrapped in a table-existence check, because not every
+-- optional migration (TRUST-SAFETY-MIGRATION.sql,
+-- COMMISSIONER-TRUST-MARKETPLACE-B2B.sql) may have been run on every
+-- project. Tables that don't exist yet are silently skipped instead of
+-- erroring — run this again later if you add those migrations afterward.
 -- ----------------------------------------------------------------------------
 
-drop policy if exists "Admin can view all profiles" on public.creator_profiles;
-create policy "Admin can view all profiles" on public.creator_profiles for select using (public.is_admin());
+do $$
+begin
+  if to_regclass('public.creator_profiles') is not null then
+    execute 'drop policy if exists "Admin can view all profiles" on public.creator_profiles';
+    execute 'create policy "Admin can view all profiles" on public.creator_profiles for select using (public.is_admin())';
 
-drop policy if exists "Admin can update all profiles" on public.creator_profiles;
-create policy "Admin can update all profiles" on public.creator_profiles for update using (public.is_admin());
+    execute 'drop policy if exists "Admin can update all profiles" on public.creator_profiles';
+    execute 'create policy "Admin can update all profiles" on public.creator_profiles for update using (public.is_admin())';
 
-drop policy if exists "Admin can update all creator profiles" on public.creator_profiles;
-create policy "Admin can update all creator profiles" on public.creator_profiles for update using (public.is_admin()) with check (public.is_admin());
+    execute 'drop policy if exists "Admin can update all creator profiles" on public.creator_profiles';
+    execute 'create policy "Admin can update all creator profiles" on public.creator_profiles for update using (public.is_admin()) with check (public.is_admin())';
+  end if;
 
-drop policy if exists "Admin can view all business profiles" on public.business_profiles;
-create policy "Admin can view all business profiles" on public.business_profiles for select using (public.is_admin());
+  if to_regclass('public.business_profiles') is not null then
+    execute 'drop policy if exists "Admin can view all business profiles" on public.business_profiles';
+    execute 'create policy "Admin can view all business profiles" on public.business_profiles for select using (public.is_admin())';
 
-drop policy if exists "Admin can update all business profiles" on public.business_profiles;
-create policy "Admin can update all business profiles" on public.business_profiles for update using (public.is_admin()) with check (public.is_admin());
+    execute 'drop policy if exists "Admin can update all business profiles" on public.business_profiles';
+    execute 'create policy "Admin can update all business profiles" on public.business_profiles for update using (public.is_admin()) with check (public.is_admin())';
+  end if;
 
-drop policy if exists "Admin manages creator verification claims" on public.creator_verification_claims;
-create policy "Admin manages creator verification claims" on public.creator_verification_claims for all using (public.is_admin());
+  if to_regclass('public.creator_verification_claims') is not null then
+    execute 'drop policy if exists "Admin manages creator verification claims" on public.creator_verification_claims';
+    execute 'create policy "Admin manages creator verification claims" on public.creator_verification_claims for all using (public.is_admin())';
+  end if;
 
-drop policy if exists "Admin manages business verification claims" on public.business_verification_claims;
-create policy "Admin manages business verification claims" on public.business_verification_claims for all using (public.is_admin());
+  if to_regclass('public.business_verification_claims') is not null then
+    execute 'drop policy if exists "Admin manages business verification claims" on public.business_verification_claims';
+    execute 'create policy "Admin manages business verification claims" on public.business_verification_claims for all using (public.is_admin())';
+  end if;
 
-drop policy if exists "Admins view reports" on public.profile_reports;
-create policy "Admins view reports" on public.profile_reports for select using (public.is_admin());
+  if to_regclass('public.profile_reports') is not null then
+    execute 'drop policy if exists "Admins view reports" on public.profile_reports';
+    execute 'create policy "Admins view reports" on public.profile_reports for select using (public.is_admin())';
 
-drop policy if exists "Admins update reports" on public.profile_reports;
-create policy "Admins update reports" on public.profile_reports for update using (public.is_admin());
+    execute 'drop policy if exists "Admins update reports" on public.profile_reports';
+    execute 'create policy "Admins update reports" on public.profile_reports for update using (public.is_admin())';
+  end if;
 
-drop policy if exists "Admin can view all reports" on public.user_reports;
-create policy "Admin can view all reports" on public.user_reports for select using (public.is_admin());
+  if to_regclass('public.user_reports') is not null then
+    execute 'drop policy if exists "Admin can view all reports" on public.user_reports';
+    execute 'create policy "Admin can view all reports" on public.user_reports for select using (public.is_admin())';
 
-drop policy if exists "Admin can update reports" on public.user_reports;
-create policy "Admin can update reports" on public.user_reports for update using (public.is_admin());
+    execute 'drop policy if exists "Admin can update reports" on public.user_reports';
+    execute 'create policy "Admin can update reports" on public.user_reports for update using (public.is_admin())';
+  end if;
 
-drop policy if exists "Admin can view all deletion requests" on public.account_deletion_requests;
-create policy "Admin can view all deletion requests" on public.account_deletion_requests for select using (public.is_admin());
+  if to_regclass('public.account_deletion_requests') is not null then
+    execute 'drop policy if exists "Admin can view all deletion requests" on public.account_deletion_requests';
+    execute 'create policy "Admin can view all deletion requests" on public.account_deletion_requests for select using (public.is_admin())';
+  end if;
+end $$;
