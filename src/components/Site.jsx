@@ -16,12 +16,9 @@ import {
   BarChart, Bar, CartesianGrid
 } from 'recharts';
 
-const ADMIN_EMAILS = [
-  import.meta.env.VITE_ADMIN_EMAIL,
-  'misganareshid27@gmail.com',
-  'admin@commissioner.app',
-].filter(Boolean).map(e => e.toLowerCase());
-const isAdminEmail = (email) => ADMIN_EMAILS.includes((email || '').toLowerCase());
+// Admin status is now determined server-side by the public.is_admin() RPC
+// (see ADMIN-ROLE-MIGRATION.sql), backed by a real admin_users table instead
+// of a hardcoded email allowlist. NavBar and AdminPanel each call it directly.
 
 /* ---------------------------------- fonts / tokens ---------------------------------- */
 
@@ -127,15 +124,15 @@ const BUSINESS_CATEGORIES = ['Food & Restaurants', 'Fashion & Retail', 'Beauty &
 const LOOKING_FOR_OPTIONS = ['Sponsored posts', 'Product reviews', 'Long-term ambassadorship', 'Event coverage', 'UGC content', 'Affiliate partnerships'];
 
 const CREATOR_PLANS = [
-  { id: 'basic', name: 'Basic', price: '$1', period: '/month', features: ['Profile', 'Portfolio', 'Social links', '3 Spotlight videos'], tone: 'gray' },
-  { id: 'pro', name: 'Pro', price: '$10', period: '/month', features: ['Priority listing', 'Analytics', 'QR card', '20 Spotlight videos'], tone: 'cyan', popular: true },
-  { id: 'elite', name: 'Elite NFC', price: '$20', period: '/month', features: ['NFC card', 'Premium badge', 'Unlimited videos', 'Top placement'], tone: 'magenta' },
+  { id: 'basic', name: 'Basic', price: 'ETB 1', period: '/month', features: ['Profile', 'Portfolio', 'Social links', '3 Spotlight videos'], tone: 'gray' },
+  { id: 'pro', name: 'Pro', price: 'ETB 10', period: '/month', features: ['Priority listing', 'Analytics', 'QR card', '20 Spotlight videos'], tone: 'cyan', popular: true },
+  { id: 'elite', name: 'Elite NFC', price: 'ETB 20', period: '/month', features: ['NFC card', 'Premium badge', 'Unlimited videos', 'Top placement'], tone: 'magenta' },
 ];
 
 const BUSINESS_PLANS = [
-  { id: 'starter', name: 'Starter', price: '$5', period: '/month', features: ['Profile', 'Campaign posting'], tone: 'gray' },
-  { id: 'growth', name: 'Growth', price: '$20', period: '/month', features: ['Unlimited campaigns', 'Advanced filters', 'Analytics', 'QR card'], tone: 'cyan', popular: true },
-  { id: 'enterprise', name: 'Enterprise NFC', price: '$50', period: '/month', features: ['NFC business card', 'Premium placement', 'Multiple team members'], tone: 'magenta' },
+  { id: 'starter', name: 'Starter', price: 'ETB 5', period: '/month', features: ['Profile', 'Campaign posting'], tone: 'gray' },
+  { id: 'growth', name: 'Growth', price: 'ETB 20', period: '/month', features: ['Unlimited campaigns', 'Advanced filters', 'Analytics', 'QR card'], tone: 'cyan', popular: true },
+  { id: 'enterprise', name: 'Enterprise NFC', price: 'ETB 50', period: '/month', features: ['NFC business card', 'Premium placement', 'Multiple team members'], tone: 'magenta' },
 ];
 
 const ONBOARDING_STEPS = ['Basic info', 'Social media', 'Niche (optional)', 'Audience', 'Services & pricing', 'Portfolio (optional)', 'Availability'];
@@ -201,6 +198,11 @@ const StatusPill = ({ status }) => {
 };
 
 const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); return; }
+    supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data));
+  }, [session?.user?.id]);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [joinMenuOpen, setJoinMenuOpen] = useState(false);
   const isBusiness = session?.user?.user_metadata?.role === 'business';
@@ -262,7 +264,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                 <div className="absolute right-0 top-full mt-1 w-52 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
-                  {isAdminEmail(session.user.email) && (
+                  {isAdmin && (
                     <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Admin</button>
                   )}
                   <div className="h-px my-1" style={{ background: '#E5E7EB' }} />
@@ -355,7 +357,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                   <div className="px-3 py-2 text-xs truncate" style={{ color: '#6B7280' }}>{session.user.email}</div>
                   <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
                   <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
-                  {isAdminEmail(session.user.email) && (
+                  {isAdmin && (
                     <button onClick={() => { setPage('admin'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Admin</button>
                   )}
                   <button onClick={async () => { await supabase.auth.signOut(); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold" style={{ color: '#DC2626' }}>Sign out</button>
@@ -524,7 +526,7 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 
     <div className="flex items-center justify-between pt-1">
       <div>
-        <p className="cm-mono text-base font-semibold" style={{ color: '#111827' }}>{c.price ? `$${c.price}` : 'Rate on request'}</p>
+        <p className="cm-mono text-base font-semibold" style={{ color: '#111827' }}>{c.price ? `${Number(c.price).toLocaleString()} ETB` : 'Rate on request'}</p>
         <p className="text-[11px]" style={{ color: '#6B7280' }}>Starting price</p>
       </div>
       <button onClick={() => onHire(c)} style={{ background: '#E6007A' }} className="text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:opacity-90">
@@ -674,7 +676,7 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
           />
         </div>
         <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#374151' }}>Max. price: ${filters.maxPrice}</p>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#374151' }}>Max. price: {filters.maxPrice} ETB</p>
           <input
             type="range" min="50" max="350" step="10"
             value={filters.maxPrice}
@@ -2005,12 +2007,12 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           <div className="flex flex-col gap-5">
             <p className="text-sm font-semibold" style={{ color: '#111827' }}>Services offered & pricing</p>
             <div className="grid grid-cols-2 gap-4">
-              <OnboardingField label="TikTok video" placeholder="$" value={pricing.tiktok} onChange={e => setPricing(p => ({ ...p, tiktok: e.target.value }))} />
-              <OnboardingField label="Instagram Reel" placeholder="$" value={pricing.reel} onChange={e => setPricing(p => ({ ...p, reel: e.target.value }))} />
-              <OnboardingField label="Story" placeholder="$" value={pricing.story} onChange={e => setPricing(p => ({ ...p, story: e.target.value }))} />
-              <OnboardingField label="YouTube video" placeholder="$" value={pricing.youtube} onChange={e => setPricing(p => ({ ...p, youtube: e.target.value }))} />
-              <OnboardingField label="Monthly collaboration" placeholder="$" value={pricing.monthly} onChange={e => setPricing(p => ({ ...p, monthly: e.target.value }))} />
-              <OnboardingField label="UGC content" placeholder="$" value={pricing.ugc} onChange={e => setPricing(p => ({ ...p, ugc: e.target.value }))} />
+              <OnboardingField label="TikTok video" placeholder="ETB" value={pricing.tiktok} onChange={e => setPricing(p => ({ ...p, tiktok: e.target.value }))} />
+              <OnboardingField label="Instagram Reel" placeholder="ETB" value={pricing.reel} onChange={e => setPricing(p => ({ ...p, reel: e.target.value }))} />
+              <OnboardingField label="Story" placeholder="ETB" value={pricing.story} onChange={e => setPricing(p => ({ ...p, story: e.target.value }))} />
+              <OnboardingField label="YouTube video" placeholder="ETB" value={pricing.youtube} onChange={e => setPricing(p => ({ ...p, youtube: e.target.value }))} />
+              <OnboardingField label="Monthly collaboration" placeholder="ETB" value={pricing.monthly} onChange={e => setPricing(p => ({ ...p, monthly: e.target.value }))} />
+              <OnboardingField label="UGC content" placeholder="ETB" value={pricing.ugc} onChange={e => setPricing(p => ({ ...p, ugc: e.target.value }))} />
             </div>
           </div>
         )}
@@ -2507,7 +2509,7 @@ const BusinessClaimForm = ({ token }) => {
           </div>
         </div>
 
-        <OnboardingField label="Typical budget range" placeholder="e.g. $200–$500 per campaign" icon={DollarSign} value={budgetRange} onChange={e => setBudgetRange(e.target.value)} />
+        <OnboardingField label="Typical budget range" placeholder="e.g. 5,000–15,000 ETB per campaign" icon={DollarSign} value={budgetRange} onChange={e => setBudgetRange(e.target.value)} />
         <div>
           <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>Anything else creators should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
           <textarea value={preferences} onChange={e => setPreferences(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
@@ -2990,7 +2992,12 @@ const AdminPanel = ({ session }) => {
   const [loadingRows, setLoadingRows] = useState(true);
   const [busyId, setBusyId] = useState(null);
 
-  const isAdmin = !!session && isAdminEmail(session.user.email);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); setAdminChecked(true); return; }
+    supabase.rpc('is_admin').then(({ data }) => { setIsAdmin(!!data); setAdminChecked(true); });
+  }, [session?.user?.id]);
 
   const loadRows = async () => {
     setLoadingRows(true);
@@ -3292,6 +3299,9 @@ const AdminPanel = ({ session }) => {
     );
   };
 
+  if (!adminChecked) {
+    return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#6B7280' }}>Checking access…</div>;
+  }
   if (!isAdmin) {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
@@ -3579,8 +3589,38 @@ const ResetPasswordPage = ({ onDone }) => {
   );
 };
 
+// Global "Back" button — shown on every page except Home. Tracks page
+// history automatically (via the effect below) so it works no matter which
+// of the many setPage() call sites triggered the navigation.
+const BackButton = ({ onClick, style }) => (
+  <button
+    onClick={onClick}
+    className="cm-mono inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg"
+    style={{ color: '#6B7280', background: '#fff', border: '1px solid #E5E7EB', ...style }}
+  >
+    <ChevronLeft size={14} /> Back
+  </button>
+);
+
 export default function Commissioner() {
   const [page, setPage] = useState('home');
+  const [pageHistory, setPageHistory] = useState([]);
+  const prevPageRef = React.useRef('home');
+  useEffect(() => {
+    if (prevPageRef.current !== page) {
+      setPageHistory(h => [...h, prevPageRef.current]);
+      prevPageRef.current = page;
+    }
+  }, [page]);
+  const goBack = () => {
+    setPageHistory(h => {
+      if (h.length === 0) { setPage('home'); return h; }
+      const next = [...h];
+      const last = next.pop();
+      setPage(last);
+      return next;
+    });
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [savedIds, setSavedIds] = useState([]);
@@ -3637,6 +3677,9 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen bg-white">
         <FontLoader />
+        <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
+          <BackButton onClick={() => setPage(session ? 'dashboard' : 'auth')} />
+        </div>
         <ResetPasswordPage onDone={() => setPage(session ? 'dashboard' : 'auth')} />
       </div>
     );
@@ -3646,6 +3689,9 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen bg-white">
         <FontLoader />
+        <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
+          <BackButton onClick={() => { window.history.length > 1 ? window.history.back() : (window.location.href = '/'); }} />
+        </div>
         <OfficialCreatorPage id={officialId} session={session} setPage={setPage} />
       </div>
     );
@@ -3654,6 +3700,9 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen bg-white">
         <FontLoader />
+        <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
+          <BackButton onClick={() => { window.history.length > 1 ? window.history.back() : (window.location.href = '/'); }} />
+        </div>
         <OfficialBusinessPage id={officialId} session={session} />
       </div>
     );
@@ -3662,6 +3711,9 @@ export default function Commissioner() {
     return (
       <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
         <FontLoader />
+        <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
+          <BackButton onClick={() => { window.location.href = '/'; }} />
+        </div>
         <ClaimGate token={claimToken} session={session} setPage={setPage} />
       </div>
     );
@@ -3671,6 +3723,11 @@ export default function Commissioner() {
     <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
       <FontLoader />
       <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} />
+      {page !== 'home' && (
+        <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
+          <BackButton onClick={goBack} />
+        </div>
+      )}
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
       {!authRedirect && page === 'home' && <Home setPage={setPage} />}
       {page === 'creators' && <Creators session={session} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} />}
