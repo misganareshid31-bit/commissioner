@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Auth from './Auth';
+import Logo, { LogoMark } from './Logo';
 import {
   Search, MapPin, CheckCircle2, TrendingUp, Users, MessageSquare, Bell,
   Star, Play, Instagram, Youtube, Facebook, Send, Paperclip, Mic,
@@ -243,7 +244,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b" style={{ borderColor: '#E5E7EB' }}>
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <button onClick={() => setPage('home')} className="flex items-center gap-2 shrink-0">
-          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
+          <LogoMark size={32} />
           <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
         </button>
 
@@ -361,7 +362,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           >
             <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
               <div className="flex items-center gap-2">
-                <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
+                <LogoMark size={32} />
                 <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
               </div>
               <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-50">
@@ -457,7 +458,7 @@ const Footer = ({ setPage }) => (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 grid grid-cols-2 md:grid-cols-5 gap-10">
       <div className="col-span-2">
         <div className="flex items-center gap-2 mb-4">
-          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
+          <LogoMark size={32} />
           <span className="cm-display font-bold text-lg">Commissioner</span>
         </div>
         <p className="text-sm max-w-xs mb-4" style={{ color: '#9CA3AF' }}>Where creators and businesses connect professionally.</p>
@@ -589,8 +590,12 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 const Home = ({ setPage }) => (
   <div>
     {/* hero */}
-    <section className="max-w-7xl mx-auto px-5 md:px-8 pt-16 pb-10">
-      <div className="max-w-3xl">
+    <section className="max-w-7xl mx-auto px-5 md:px-8 pt-20 pb-10">
+      <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
+        <LogoMark size={64} className="mb-5" />
+        <span className="cm-display font-bold mb-3" style={{ fontSize: '1.75rem', color: '#111827' }}>
+          Commissioner
+        </span>
         <span style={{ background: '#FDE7F1', color: '#99154F' }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
           <Sparkles size={13} /> Now in early access
         </span>
@@ -601,7 +606,7 @@ const Home = ({ setPage }) => (
           Commissioner connects vetted creators with businesses for campaigns, UGC, and brand partnerships — whether you're looking to hire or looking for your next deal.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 mb-10">
+        <div className="flex flex-col sm:flex-row gap-3 mb-10 justify-center">
           <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2">
             Hire creators <ArrowRight size={16} />
           </button>
@@ -613,7 +618,7 @@ const Home = ({ setPage }) => (
           </button>
         </div>
 
-        <div className="flex items-center gap-2 bg-white border rounded-xl p-2 max-w-xl" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex items-center gap-2 bg-white border rounded-xl p-2 max-w-xl w-full" style={{ borderColor: '#E5E7EB' }}>
           <Search size={18} style={{ color: '#6B7280' }} className="ml-2" />
           <input
             placeholder="Search by niche, platform, or city — e.g. Fashion in Dubai"
