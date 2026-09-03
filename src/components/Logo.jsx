@@ -1,43 +1,23 @@
 import React from 'react';
 
+// Native pixel size of /assets/logo-mark-transparent.png — used to keep the
+// mark's true aspect ratio (it's slightly wider than tall) at any size.
+const MARK_ASPECT = 569 / 498;
+
 /**
- * LogoMark — the interlocking double-C monogram, rendered as inline SVG.
- * No background, no raster artifacts — just crisp vector paths that scale
- * to any size and drop cleanly onto light or dark surfaces.
+ * LogoMark — the real Commissioner monogram, background removed. This is a
+ * cleaned-up cutout of the original artwork (transparent PNG), not a redraw,
+ * so it drops cleanly onto light or dark surfaces with no plaque/background
+ * behind it.
  */
 export const LogoMark = ({ size = 32, className = '' }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 100 100"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
+  <img
+    src="/assets/logo-mark-transparent.png"
+    alt="Commissioner"
     className={className}
-    aria-hidden="true"
-  >
-    <defs>
-      <linearGradient id="cm-logo-outer" x1="10" y1="10" x2="70" y2="70" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="#E6007A" />
-        <stop offset="100%" stopColor="#7C3AED" />
-      </linearGradient>
-      <linearGradient id="cm-logo-inner" x1="40" y1="40" x2="90" y2="90" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="#7C3AED" />
-        <stop offset="100%" stopColor="#00D9FF" />
-      </linearGradient>
-    </defs>
-    <path
-      d="M 58.77 55.75 A 24.5 24.5 0 1 1 58.77 24.25"
-      stroke="url(#cm-logo-outer)"
-      strokeWidth="11"
-      strokeLinecap="round"
-    />
-    <path
-      d="M 71.21 69.09 A 17.25 17.25 0 1 1 71.21 46.91"
-      stroke="url(#cm-logo-inner)"
-      strokeWidth="9.5"
-      strokeLinecap="round"
-    />
-  </svg>
+    style={{ height: size, width: size * MARK_ASPECT, objectFit: 'contain', display: 'block' }}
+    draggable={false}
+  />
 );
 
 /**
