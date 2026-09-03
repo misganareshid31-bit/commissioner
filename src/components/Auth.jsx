@@ -253,14 +253,6 @@ export default function Auth({ onAuthenticated }) {
         ))}
       </div>
 
-      <GoogleButton onClick={handleGoogle} disabled={loading} />
-
-      <div className="flex items-center gap-3 my-4">
-        <div className="flex-1 h-px" style={{ background: '#E5E7EB' }} />
-        <span className="text-xs" style={{ color: '#9CA3AF' }}>or</span>
-        <div className="flex-1 h-px" style={{ background: '#E5E7EB' }} />
-      </div>
-
       {mode === 'signup' && (
         <div className="flex gap-2 mb-4">
           {[

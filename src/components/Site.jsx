@@ -9,7 +9,7 @@ import {
   Calendar, ImageIcon, FileText, MoreHorizontal, Wallet, Award,
   UserCheck, Building2, Sparkles, ArrowRight, Flame, Camera, Globe,
   Phone, Upload, ChevronLeft, Check, Video, Link2, Languages,
-  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX
+  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX, Music2
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -124,15 +124,15 @@ const BUSINESS_CATEGORIES = ['Food & Restaurants', 'Fashion & Retail', 'Beauty &
 const LOOKING_FOR_OPTIONS = ['Sponsored posts', 'Product reviews', 'Long-term ambassadorship', 'Event coverage', 'UGC content', 'Affiliate partnerships'];
 
 const CREATOR_PLANS = [
-  { id: 'basic', name: 'Basic', price: 'ETB 1', period: '/month', features: ['Profile', 'Portfolio', 'Social links', '3 Spotlight videos'], tone: 'gray' },
-  { id: 'pro', name: 'Pro', price: 'ETB 10', period: '/month', features: ['Priority listing', 'Analytics', 'QR card', '20 Spotlight videos'], tone: 'cyan', popular: true },
-  { id: 'elite', name: 'Elite NFC', price: 'ETB 20', period: '/month', features: ['NFC card', 'Premium badge', 'Unlimited videos', 'Top placement'], tone: 'magenta' },
+  { id: 'basic', name: 'Basic', price: 'ETB 163', period: '/month', features: ['Profile', 'Portfolio', 'Social links', '3 Spotlight videos'], tone: 'gray' },
+  { id: 'pro', name: 'Pro', price: 'ETB 1,633', period: '/month', features: ['Priority listing', 'Analytics', 'QR card', '20 Spotlight videos'], tone: 'cyan', popular: true },
+  { id: 'elite', name: 'Elite NFC', price: 'ETB 3,266', period: '/month', features: ['NFC card', 'Premium badge', 'Unlimited videos', 'Top placement'], tone: 'magenta' },
 ];
 
 const BUSINESS_PLANS = [
-  { id: 'starter', name: 'Starter', price: 'ETB 5', period: '/month', features: ['Profile', 'Campaign posting'], tone: 'gray' },
-  { id: 'growth', name: 'Growth', price: 'ETB 20', period: '/month', features: ['Unlimited campaigns', 'Advanced filters', 'Analytics', 'QR card'], tone: 'cyan', popular: true },
-  { id: 'enterprise', name: 'Enterprise NFC', price: 'ETB 50', period: '/month', features: ['NFC business card', 'Premium placement', 'Multiple team members'], tone: 'magenta' },
+  { id: 'starter', name: 'Starter', price: 'ETB 817', period: '/month', features: ['Profile', 'Campaign posting'], tone: 'gray' },
+  { id: 'growth', name: 'Growth', price: 'ETB 3,266', period: '/month', features: ['Unlimited campaigns', 'Advanced filters', 'Analytics', 'QR card'], tone: 'cyan', popular: true },
+  { id: 'enterprise', name: 'Enterprise NFC', price: 'ETB 8,166', period: '/month', features: ['NFC business card', 'Premium placement', 'Multiple team members'], tone: 'magenta' },
 ];
 
 const ONBOARDING_STEPS = ['Basic info', 'Social media', 'Niche (optional)', 'Audience', 'Services & pricing', 'Portfolio (optional)', 'Availability'];
@@ -140,11 +140,12 @@ const ONBOARDING_STEPS = ['Basic info', 'Social media', 'Niche (optional)', 'Aud
 /* ---------------------------------- shared bits ---------------------------------- */
 
 const PlatformIcon = ({ p, size = 14 }) => {
-  const props = { size, strokeWidth: 2 };
-  if (p === 'instagram') return <Instagram {...props} />;
-  if (p === 'youtube') return <Youtube {...props} />;
-  if (p === 'facebook') return <Facebook {...props} />;
-  return <span className="cm-display" style={{ fontSize: size, fontWeight: 700, lineHeight: 1 }}>♪</span>;
+  if (p === 'instagram') return <InstagramLogo size={size} />;
+  if (p === 'youtube') return <YouTubeLogo size={size} />;
+  if (p === 'facebook') return <FacebookLogo size={size} />;
+  if (p === 'tiktok') return <TikTokLogo size={size} />;
+  if (p === 'telegram') return <TelegramLogo size={size} />;
+  return null;
 };
 
 const VerifiedIcon = ({ size = 14, label = 'Verified by Commissioner' }) => (
@@ -197,7 +198,7 @@ const StatusPill = ({ status }) => {
   );
 };
 
-const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
+const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, hasBusiness, activeRole, setActiveRole, onProfilesChanged }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     if (!session) { setIsAdmin(false); return; }
@@ -205,7 +206,23 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
   }, [session?.user?.id]);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [joinMenuOpen, setJoinMenuOpen] = useState(false);
-  const isBusiness = session?.user?.user_metadata?.role === 'business';
+  const [addingProfile, setAddingProfile] = useState(false);
+  const isBusiness = activeRole === 'business';
+  const hasBothProfiles = hasCreator && hasBusiness;
+
+  const addOtherProfile = async () => {
+    setAddingProfile(true);
+    const otherRole = isBusiness ? 'creator' : 'business';
+    const rpcName = otherRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
+    const { error } = await supabase.rpc(rpcName);
+    setAddingProfile(false);
+    if (error) return;
+    setActiveRole?.(otherRole);
+    onProfilesChanged?.();
+    setAccountMenuOpen(false);
+    setMenuOpen(false);
+    setPage('onboarding');
+  };
   const links = [
     { id: 'home', label: 'Home' },
     { id: 'creators', label: 'Creators' },
@@ -226,9 +243,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b" style={{ borderColor: '#E5E7EB' }}>
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <button onClick={() => setPage('home')} className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-lg cm-beam flex items-center justify-center">
-            <span className="cm-display text-white font-bold text-sm">C</span>
-          </div>
+          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
           <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
         </button>
 
@@ -249,6 +264,20 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
+          {session && hasBothProfiles && (
+            <div className="flex items-center gap-0.5 border rounded-lg p-0.5" style={{ borderColor: '#E5E7EB' }}>
+              {[['creator', 'Creator'], ['business', 'Business']].map(([r, l]) => (
+                <button
+                  key={r}
+                  onClick={() => setActiveRole?.(r)}
+                  className="px-2.5 py-1.5 rounded-md text-xs font-semibold"
+                  style={{ background: activeRole === r ? '#111827' : 'transparent', color: activeRole === r ? '#fff' : '#4B5563' }}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
           {session ? (
             <div className="relative">
               <button
@@ -261,9 +290,14 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
                 <ChevronDown size={14} style={{ color: '#6B7280' }} />
               </button>
               {accountMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-52 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
+                  {!hasBothProfiles && (
+                    <button onClick={addOtherProfile} disabled={addingProfile} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
+                      {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
+                    </button>
+                  )}
                   {isAdmin && (
                     <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Admin</button>
                   )}
@@ -327,9 +361,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
           >
             <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg cm-beam flex items-center justify-center">
-                  <span className="cm-display text-white font-bold text-sm">C</span>
-                </div>
+                <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
                 <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
               </div>
               <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-50">
@@ -355,8 +387,27 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session }) => {
               {session ? (
                 <div className="flex flex-col gap-1">
                   <div className="px-3 py-2 text-xs truncate" style={{ color: '#6B7280' }}>{session.user.email}</div>
+                  {hasBothProfiles && (
+                    <div className="flex items-center gap-0.5 border rounded-lg p-0.5 mx-3 mb-1" style={{ borderColor: '#E5E7EB' }}>
+                      {[['creator', 'Creator'], ['business', 'Business']].map(([r, l]) => (
+                        <button
+                          key={r}
+                          onClick={() => setActiveRole?.(r)}
+                          className="flex-1 py-1.5 rounded-md text-xs font-semibold"
+                          style={{ background: activeRole === r ? '#111827' : 'transparent', color: activeRole === r ? '#fff' : '#4B5563' }}
+                        >
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
                   <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
+                  {!hasBothProfiles && (
+                    <button onClick={addOtherProfile} disabled={addingProfile} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
+                      {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
+                    </button>
+                  )}
                   {isAdmin && (
                     <button onClick={() => { setPage('admin'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Admin</button>
                   )}
@@ -406,9 +457,7 @@ const Footer = ({ setPage }) => (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 grid grid-cols-2 md:grid-cols-5 gap-10">
       <div className="col-span-2">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg cm-beam flex items-center justify-center">
-            <span className="cm-display text-white font-bold text-sm">C</span>
-          </div>
+          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
           <span className="cm-display font-bold text-lg">Commissioner</span>
         </div>
         <p className="text-sm max-w-xs mb-4" style={{ color: '#9CA3AF' }}>Where creators and businesses connect professionally.</p>
@@ -464,7 +513,6 @@ const Footer = ({ setPage }) => (
     </div>
     <div className="border-t px-5 md:px-8 py-6 flex flex-col md:flex-row justify-between gap-3" style={{ borderColor: '#1F2937' }}>
       <p className="text-xs" style={{ color: '#6B7280' }}>© 2026 Commissioner. All rights reserved.</p>
-      <p className="text-xs" style={{ color: '#6B7280' }}>Profiles and messaging are powered by Supabase.</p>
     </div>
   </footer>
 );
@@ -870,14 +918,20 @@ const Messages = ({ session, initialRecipientId = null }) => {
   const loadConversations = async () => {
     if (!session?.user?.id) { setConversations([]); setLoading(false); return; }
     setLoading(true); setError('');
-    const { data, error: rpcError } = await supabase.rpc('list_my_conversations');
-    if (rpcError) {
-      setError(rpcError.message || 'Could not load your messages.');
+    try {
+      const { data, error: rpcError } = await supabase.rpc('list_my_conversations');
+      if (rpcError) {
+        setError(rpcError.message || 'Could not load your messages.');
+        setConversations([]);
+      } else {
+        setConversations(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      setError('Could not load your messages. Please refresh to try again.');
       setConversations([]);
-    } else {
-      setConversations(Array.isArray(data) ? data : []);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const loadThread = async (conversationId) => {
@@ -1197,8 +1251,8 @@ const BusinessDashboard = ({ session }) => {
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>Business account</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{Math.round(completion)}%</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${completion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
 };
 
-const Dashboard = ({ session }) => {
-  const isBusiness = session?.user?.user_metadata?.role === 'business';
+const Dashboard = ({ session, activeRole }) => {
+  const isBusiness = activeRole === 'business';
   return isBusiness ? <BusinessDashboard session={session}/> : <CreatorDashboard session={session}/>;
 };
 
@@ -1672,12 +1726,52 @@ const OnboardingField = ({ label, placeholder, icon: Icon, value, onChange, type
   </div>
 );
 
+const TikTokLogo = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16.6 3c.32 1.9 1.72 3.42 3.6 3.68v2.7a6.6 6.6 0 0 1-3.6-1.13v6.4a5.15 5.15 0 1 1-4.44-5.1v2.75a2.42 2.42 0 1 0 1.7 2.31V3h2.74z" fill="#000000"/>
+    <path d="M17.05 3c.28 1.68 1.42 3.06 2.95 3.6v.28a6.5 6.5 0 0 1-2.95-.98V3z" fill="#25F4EE"/>
+    <path d="M12.16 11.85a5.14 5.14 0 0 0-2.87 9.24 5.14 5.14 0 0 1 1.53-9.9v.66z" fill="#FE2C55"/>
+  </svg>
+);
+const InstagramLogo = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="igGrad" x1="0" y1="24" x2="24" y2="0">
+        <stop offset="0" stopColor="#FFDD55" />
+        <stop offset="0.5" stopColor="#E6007A" />
+        <stop offset="1" stopColor="#7024C4" />
+      </linearGradient>
+    </defs>
+    <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="url(#igGrad)" strokeWidth="2"/>
+    <circle cx="12" cy="12" r="4.3" stroke="url(#igGrad)" strokeWidth="2"/>
+    <circle cx="17.4" cy="6.6" r="1.15" fill="#E6007A"/>
+  </svg>
+);
+const YouTubeLogo = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1.5" y="5" width="21" height="14" rx="4.5" fill="#FF0000"/>
+    <path d="M10 8.6l6.2 3.4-6.2 3.4V8.6z" fill="#fff"/>
+  </svg>
+);
+const FacebookLogo = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="10" fill="#1877F2"/>
+    <path d="M13.6 20.9v-7.2h2.4l.36-2.8h-2.76V9.1c0-.8.22-1.35 1.37-1.35h1.47V5.23c-.25-.03-1.12-.11-2.13-.11-2.1 0-3.55 1.29-3.55 3.65v2.13H8.34v2.8h2.42v7.2h2.84z" fill="#fff"/>
+  </svg>
+);
+const TelegramLogo = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="10" fill="#229ED9"/>
+    <path d="M17.6 7.4l-2.05 9.65c-.15.68-.56.85-1.13.53l-3.13-2.3-1.51 1.45c-.17.17-.31.31-.63.31l.22-3.16 5.75-5.2c.25-.22-.05-.34-.39-.13l-7.1 4.47-3.06-.96c-.66-.21-.67-.66.14-.98l11.98-4.62c.55-.2 1.03.13.86 1.04z" fill="#fff"/>
+  </svg>
+);
+
 const PLATFORM_LIST = [
-  { p: 'TikTok', icon: null },
-  { p: 'Instagram', icon: Instagram },
-  { p: 'YouTube', icon: Youtube },
-  { p: 'Facebook', icon: Facebook },
-  { p: 'Telegram', icon: null },
+  { p: 'TikTok', icon: TikTokLogo, bg: '#F3F4F6' },
+  { p: 'Instagram', icon: InstagramLogo, bg: '#FDF2F8' },
+  { p: 'YouTube', icon: YouTubeLogo, bg: '#FEE2E2' },
+  { p: 'Facebook', icon: FacebookLogo, bg: '#DBEAFE' },
+  { p: 'Telegram', icon: TelegramLogo, bg: '#E0F2FE' },
 ];
 
 const ImageUploadTile = ({ label, shape, previewUrl, onFile, uploading }) => {
@@ -1896,34 +1990,50 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 1 — Social media */}
         {step === 1 && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Which platforms are you on? <span style={{ color: '#6B7280', fontWeight: 400 }}>— add your handle, followers, and engagement rate</span></p>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: '#111827' }}>Which platforms are you on?</p>
+              <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Add your handle and stats for each. You can leave a platform blank if you're not on it.</p>
+            </div>
             {PLATFORM_LIST.map(row => (
-              <div key={row.p} className="flex items-center gap-3 border rounded-xl p-3.5" style={{ borderColor: '#E5E7EB' }}>
-                <div style={{ background: '#E0FBFF' }} className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0">
-                  {row.icon ? <row.icon size={16} style={{ color: '#036377' }} /> : <span className="cm-display font-bold" style={{ color: '#036377' }}>♪</span>}
+              <div key={row.p} className="border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div style={{ background: row.bg }} className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0">
+                    <row.icon size={18} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: '#111827' }}>{row.p}</p>
                 </div>
-                <div className="flex-1 grid grid-cols-3 gap-2">
-                  <input
-                    placeholder="@username"
-                    value={socials[row.p]?.handle || ''}
-                    onChange={e => updateSocial(row.p, 'handle', e.target.value)}
-                    className="text-sm outline-none border-b py-1" style={{ borderColor: '#F3F4F6' }}
-                  />
-                  <input
-                    placeholder="Followers"
-                    value={socials[row.p]?.followers || ''}
-                    onChange={e => updateSocial(row.p, 'followers', e.target.value)}
-                    className="text-sm outline-none border-b py-1" style={{ borderColor: '#F3F4F6' }}
-                  />
-                  <input
-                    placeholder="Engagement %"
-                    value={socials[row.p]?.engagement || ''}
-                    onChange={e => updateSocial(row.p, 'engagement', e.target.value)}
-                    className="text-sm outline-none border-b py-1" style={{ borderColor: '#F3F4F6' }}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-medium block mb-1" style={{ color: '#9CA3AF' }}>Handle</label>
+                    <input
+                      placeholder="@username"
+                      value={socials[row.p]?.handle || ''}
+                      onChange={e => updateSocial(row.p, 'handle', e.target.value)}
+                      className="w-full text-sm outline-none border rounded-lg px-2.5 py-2" style={{ borderColor: '#E5E7EB' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium block mb-1" style={{ color: '#9CA3AF' }}>Followers</label>
+                    <input
+                      placeholder="e.g. 12,000"
+                      value={socials[row.p]?.followers || ''}
+                      onChange={e => updateSocial(row.p, 'followers', e.target.value)}
+                      className="w-full text-sm outline-none border rounded-lg px-2.5 py-2" style={{ borderColor: '#E5E7EB' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium block mb-1" style={{ color: '#9CA3AF' }}>Engagement rate</label>
+                    <input
+                      placeholder="e.g. 4.5%"
+                      value={socials[row.p]?.engagement || ''}
+                      onChange={e => updateSocial(row.p, 'engagement', e.target.value)}
+                      className="w-full text-sm outline-none border rounded-lg px-2.5 py-2" style={{ borderColor: '#E5E7EB' }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
+            <p className="text-[11px]" style={{ color: '#9CA3AF' }}>These numbers are self-reported for now — you can request verification later from the Trust Center.</p>
           </div>
         )}
 
@@ -2880,36 +2990,43 @@ const VerificationDetails = ({ type, id, compact=false }) => {
   </div>;
 };
 const Businesses = ({ onConnect }) => {
-  const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true);
-  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data})=>{setItems(data||[]);setLoading(false)})},[]);
+  const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
+  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Discover businesses</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search business, industry, city…" className="flex-1 outline-none text-sm"/></div><select value={category} onChange={e=>setCategory(e.target.value)} className="border rounded-xl px-3 py-3 text-sm bg-white" style={{borderColor:'#E5E7EB'}}><option>All</option>{BUSINESS_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
     {loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#111827'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}</div><p className="text-xs" style={{color:'#6B7280'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#4B5563'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#111827'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
-    {!loading&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>No businesses found</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Try another category or search.</p></div>}
+    {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
+    {!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>No businesses found</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Try another category or search.</p></div>}
   </div>;
 };
 
 const Marketplace = ({ onMessage }) => {
-  const [tab,setTab]=useState('all'); const [q,setQ]=useState(''); const [items,setItems]=useState([]); const [loading,setLoading]=useState(true);
+  const [tab,setTab]=useState('all'); const [q,setQ]=useState(''); const [items,setItems]=useState([]); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
   useEffect(()=>{
     (async()=>{
-      const {data: listings}=await supabase.from('marketplace_listings').select('*').eq('active',true).order('created_at',{ascending:false}).limit(100);
-      const [{data: creators},{data: businesses}]=await Promise.all([
-        supabase.from('creator_profiles').select('id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(80),
-        supabase.from('business_profiles').select('id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(80)
-      ]);
-      const byId={}; (creators||[]).forEach(x=>byId[`creator:${x.id}`]={...x,type:'creator'}); (businesses||[]).forEach(x=>byId[`business:${x.id}`]={...x,type:'business'});
-      const rows=(listings||[]).map(x=>({...x,owner:byId[`${x.owner_type}:${x.owner_id}`]})).filter(x=>x.owner);
-      // Existing creator_products are also surfaced so the marketplace is useful immediately after the previous migration.
-      const {data: products}=await supabase.from('creator_products').select('*').eq('active',true).limit(80);
-      (products||[]).forEach(p=>{const owner=byId[`creator:${p.creator_profile_id}`]; if(owner) rows.push({id:`product-${p.id}`,owner_type:'creator',owner_id:p.creator_profile_id,title:p.name,description:p.description,listing_type:p.type,price_display:p.price!=null?`${Number(p.price).toLocaleString()} ${p.currency}`:'Contact',external_url:p.purchase_url,owner});});
-      setItems(rows); setLoading(false);
+      try{
+        const {data: listings}=await supabase.from('marketplace_listings').select('*').eq('active',true).order('created_at',{ascending:false}).limit(100);
+        const [{data: creators},{data: businesses}]=await Promise.all([
+          supabase.from('creator_profiles').select('id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(80),
+          supabase.from('business_profiles').select('id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(80)
+        ]);
+        const byId={}; (creators||[]).forEach(x=>byId[`creator:${x.id}`]={...x,type:'creator'}); (businesses||[]).forEach(x=>byId[`business:${x.id}`]={...x,type:'business'});
+        const rows=(listings||[]).map(x=>({...x,owner:byId[`${x.owner_type}:${x.owner_id}`]})).filter(x=>x.owner);
+        // Existing creator_products are also surfaced so the marketplace is useful immediately after the previous migration.
+        const {data: products}=await supabase.from('creator_products').select('*').eq('active',true).limit(80);
+        (products||[]).forEach(p=>{const owner=byId[`creator:${p.creator_profile_id}`]; if(owner) rows.push({id:`product-${p.id}`,owner_type:'creator',owner_id:p.creator_profile_id,title:p.name,description:p.description,listing_type:p.type,price_display:p.price!=null?`${Number(p.price).toLocaleString()} ${p.currency}`:'Contact',external_url:p.purchase_url,owner});});
+        setItems(rows);
+      }catch(e){
+        setLoadError(true); setItems([]);
+      }finally{
+        setLoading(false);
+      }
     })();
   },[]);
   const filtered=items.filter(x=>(tab==='all'||x.owner_type===tab||x.listing_type===tab)&&`${x.title} ${x.description} ${x.category} ${x.owner?.page_name||x.owner?.business_name||''}`.toLowerCase().includes(q.toLowerCase()));
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Products, services & collaborations</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Discover offers from verified creators and businesses. Commissioner connects you; transactions happen directly between parties.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#111827':'transparent',color:tab===v?'#fff':'#4B5563'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#111827'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#6B7280'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:'#E6007A'}}>{x.listing_type}</span><h3 className="cm-display font-bold text-base mt-1" style={{color:'#111827'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#4B5563'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#111827'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#E6007A'}}>Contact</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}</div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Products, services & collaborations</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Discover offers from verified creators and businesses. Commissioner connects you; transactions happen directly between parties.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#111827':'transparent',color:tab===v?'#fff':'#4B5563'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#111827'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#6B7280'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:'#E6007A'}}>{x.listing_type}</span><h3 className="cm-display font-bold text-base mt-1" style={{color:'#111827'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#4B5563'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#111827'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#E6007A'}}>Contact</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}</div>;
 };
 
 const TrustCenter = ({ session }) => {
@@ -3602,6 +3719,44 @@ const BackButton = ({ onClick, style }) => (
   </button>
 );
 
+// Tracks which profile types (creator / business) the signed-in user
+// already has, and which one they're currently viewing/acting as.
+// A user can have both — this is what lets someone switch between
+// "posting as Creator" and "posting as Business" without a second account.
+function useMyProfiles(session) {
+  const [hasCreator, setHasCreator] = useState(false);
+  const [hasBusiness, setHasBusiness] = useState(false);
+  const [activeRole, setActiveRoleState] = useState('creator');
+
+  const refresh = React.useCallback(() => {
+    if (!session?.user?.id) { setHasCreator(false); setHasBusiness(false); return; }
+    supabase.rpc('get_my_profile_types').then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data;
+      const hc = !!row?.has_creator, hb = !!row?.has_business;
+      setHasCreator(hc);
+      setHasBusiness(hb);
+      const storageKey = `commissioner_active_role_${session.user.id}`;
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+      let next = stored;
+      if (!next || (next === 'creator' && !hc) || (next === 'business' && !hb)) {
+        next = hc ? 'creator' : (hb ? 'business' : (session.user.user_metadata?.role === 'business' ? 'business' : 'creator'));
+      }
+      setActiveRoleState(next);
+    });
+  }, [session?.user?.id]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const setActiveRole = (role) => {
+    setActiveRoleState(role);
+    if (session?.user?.id && typeof window !== 'undefined') {
+      localStorage.setItem(`commissioner_active_role_${session.user.id}`, role);
+    }
+  };
+
+  return { hasCreator, hasBusiness, activeRole, setActiveRole, refresh };
+}
+
 export default function Commissioner() {
   const [page, setPage] = useState('home');
   const [pageHistory, setPageHistory] = useState([]);
@@ -3623,6 +3778,7 @@ export default function Commissioner() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [session, setSession] = useState(null);
+  const { hasCreator, hasBusiness, activeRole, setActiveRole, refresh: refreshMyProfiles } = useMyProfiles(session);
   const [savedIds, setSavedIds] = useState([]);
   const [appliedIds, setAppliedIds] = useState([]);
   const [toast, setToast] = useState('');
@@ -3722,7 +3878,7 @@ export default function Commissioner() {
   return (
     <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
       <FontLoader />
-      <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} />
+      <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} />
       {page !== 'home' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
           <BackButton onClick={goBack} />
@@ -3742,8 +3898,8 @@ export default function Commissioner() {
       {page === 'about' && <AboutUs />}
       {page === 'trust' && <TrustSafety />}
       {page === 'terms' && <TermsOfService />}
-      {page === 'dashboard' && <Dashboard session={session} />}
-      {page === 'onboarding' && (session?.user?.user_metadata?.role === 'business' ? <BusinessOnboarding session={session} setPage={setPage} /> : <Onboarding session={session} setPage={setPage} />)}
+      {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} />}
+      {page === 'onboarding' && (activeRole === 'business' ? <BusinessOnboarding session={session} setPage={setPage} /> : <Onboarding session={session} setPage={setPage} />)}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
