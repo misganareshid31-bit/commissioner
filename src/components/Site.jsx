@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Auth from './Auth';
-import Logo, { LogoMark } from './Logo';
 import {
   Search, MapPin, CheckCircle2, TrendingUp, Users, MessageSquare, Bell,
   Star, Play, Instagram, Youtube, Facebook, Send, Paperclip, Mic,
@@ -222,6 +221,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     onProfilesChanged?.();
     setAccountMenuOpen(false);
     setMenuOpen(false);
+    window.history.pushState({}, '', `/join/${otherRole}`);
     setPage('onboarding');
   };
   const links = [
@@ -244,7 +244,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b" style={{ borderColor: '#E5E7EB' }}>
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <button onClick={() => setPage('home')} className="flex items-center gap-2 shrink-0">
-          <LogoMark size={32} />
+          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
           <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
         </button>
 
@@ -252,6 +252,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           {links.map(l => (
             <button
               key={l.id}
+              data-tour={`nav-${l.id}`}
               onClick={() => setPage(l.id)}
               className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors"
               style={{
@@ -282,6 +283,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           {session ? (
             <div className="relative">
               <button
+                data-tour="nav-account"
                 onClick={() => setAccountMenuOpen(o => !o)}
                 className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg"
                 style={{ color: '#111827', background: accountMenuOpen ? '#F8FAFC' : 'transparent' }}
@@ -311,6 +313,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
             <button onClick={() => setPage('auth')} className="text-sm font-medium px-3 py-2" style={{ color: '#111827' }}>Sign in</button>
           )}
           <button
+            data-tour="nav-hire"
             onClick={() => setPage('creators')}
             style={{ background: '#E6007A' }}
             className="text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
@@ -319,7 +322,8 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           </button>
           {session ? (
             <button
-              onClick={() => setPage('onboarding')}
+              data-tour="nav-edit-profile"
+              onClick={() => { window.history.pushState({}, '', `/join/${isBusiness ? 'business' : 'creator'}`); setPage('onboarding'); }}
               style={{ borderColor: '#00D9FF', color: '#036377' }}
               className="border-2 text-sm font-semibold px-3.5 py-1.5 rounded-lg"
             >
@@ -362,7 +366,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           >
             <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
               <div className="flex items-center gap-2">
-                <LogoMark size={32} />
+                <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
                 <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
               </div>
               <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-50">
@@ -420,7 +424,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
             </div>
             <div className="p-4 border-t shrink-0 flex flex-col gap-2" style={{ borderColor: '#E5E7EB' }}>
               {session ? (
-                <button onClick={() => { setPage('onboarding'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
+                <button onClick={() => { window.history.pushState({}, '', `/join/${isBusiness ? 'business' : 'creator'}`); setPage('onboarding'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
                   {isBusiness ? 'Edit business profile' : 'Edit creator profile'}
                 </button>
               ) : (
@@ -458,7 +462,7 @@ const Footer = ({ setPage }) => (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 grid grid-cols-2 md:grid-cols-5 gap-10">
       <div className="col-span-2">
         <div className="flex items-center gap-2 mb-4">
-          <LogoMark size={32} />
+          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
           <span className="cm-display font-bold text-lg">Commissioner</span>
         </div>
         <p className="text-sm max-w-xs mb-4" style={{ color: '#9CA3AF' }}>Where creators and businesses connect professionally.</p>
@@ -587,15 +591,11 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 
 /* ---------------------------------- pages ---------------------------------- */
 
-const Home = ({ setPage }) => (
+const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => (
   <div>
     {/* hero */}
-    <section className="max-w-7xl mx-auto px-5 md:px-8 pt-20 pb-10">
-      <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
-        <LogoMark size={64} className="mb-5" />
-        <span className="cm-display font-bold mb-3" style={{ fontSize: '1.75rem', color: '#111827' }}>
-          Commissioner
-        </span>
+    <section className="max-w-7xl mx-auto px-5 md:px-8 pt-16 pb-10">
+      <div className="max-w-3xl">
         <span style={{ background: '#FDE7F1', color: '#99154F' }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
           <Sparkles size={13} /> Now in early access
         </span>
@@ -606,19 +606,23 @@ const Home = ({ setPage }) => (
           Commissioner connects vetted creators with businesses for campaigns, UGC, and brand partnerships — whether you're looking to hire or looking for your next deal.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 mb-10 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 mb-10">
           <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2">
             Hire creators <ArrowRight size={16} />
           </button>
-          <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('onboarding'); }} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-cyan-50">
-            Join as a creator
-          </button>
-          <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('onboarding'); }} style={{ borderColor: '#7C3AED', color: '#7C3AED' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-purple-50">
-            Join as a business
-          </button>
+          {!session && (
+            <>
+              <button onClick={() => joinAs?.('creator')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-cyan-50">
+                Join as a creator
+              </button>
+              <button onClick={() => joinAs?.('business')} style={{ borderColor: '#7C3AED', color: '#7C3AED' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-purple-50">
+                Join as a business
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 bg-white border rounded-xl p-2 max-w-xl w-full" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex items-center gap-2 bg-white border rounded-xl p-2 max-w-xl" style={{ borderColor: '#E5E7EB' }}>
           <Search size={18} style={{ color: '#6B7280' }} className="ml-2" />
           <input
             placeholder="Search by niche, platform, or city — e.g. Fashion in Dubai"
@@ -659,8 +663,12 @@ const Home = ({ setPage }) => (
           <p className="text-sm mb-7" style={{ color: '#9CA3AF' }}>Commissioner is in early access — be one of the first creators or businesses on the platform.</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3 rounded-xl">Hire creators</button>
-            <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('onboarding'); }} style={{ borderColor: '#00D9FF', color: '#00D9FF' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a creator</button>
-            <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('onboarding'); }} style={{ borderColor: '#7C3AED', color: '#A78BFA' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a business</button>
+            {!session && (
+              <>
+                <button onClick={() => joinAs?.('creator')} style={{ borderColor: '#00D9FF', color: '#00D9FF' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a creator</button>
+                <button onClick={() => joinAs?.('business')} style={{ borderColor: '#7C3AED', color: '#A78BFA' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a business</button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -2192,7 +2200,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
 
 /* ---------------------------------- app ---------------------------------- */
 
-const AccountSettings = ({ session, setPage }) => {
+const AccountSettings = ({ session, setPage, activeRole }) => {
   const [newPassword, setNewPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState('');
@@ -2242,8 +2250,8 @@ const AccountSettings = ({ session, setPage }) => {
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold" style={{ color: '#111827' }}>Creator profile</p>
-          <button onClick={() => setPage('onboarding')} className="text-xs font-semibold" style={{ color: '#036377' }}>Edit profile</button>
+          <p className="text-sm font-semibold" style={{ color: '#111827' }}>{activeRole === 'business' ? 'Business profile' : 'Creator profile'}</p>
+          <button onClick={() => { window.history.pushState({}, '', `/join/${activeRole === 'business' ? 'business' : 'creator'}`); setPage('onboarding'); }} className="text-xs font-semibold" style={{ color: '#036377' }}>Edit profile</button>
         </div>
       </div>
 
@@ -3762,8 +3770,96 @@ function useMyProfiles(session) {
   return { hasCreator, hasBusiness, activeRole, setActiveRole, refresh };
 }
 
+// A short, one-time guided tour: a handful of tooltips that point at real
+// nav elements (found via their data-tour attribute) so a new user can see
+// where things are without reading anything. Degrades gracefully — any step
+// whose target isn't on screen (e.g. narrow/mobile viewport where the
+// desktop nav is hidden) is simply skipped rather than shown broken.
+const TOUR_STEPS = [
+  { target: 'nav-creators', title: 'Discover creators', body: 'Browse and filter creators by platform, niche, city, and followers.' },
+  { target: 'nav-businesses', title: 'Discover businesses', body: 'See registered, Commissioner-verified businesses.' },
+  { target: 'nav-marketplace', title: 'Marketplace', body: 'Products, services, and collaborations from creators and businesses.' },
+  { target: 'nav-network', title: 'B2B network', body: 'Make direct professional connections, one request at a time.' },
+  { target: 'nav-trust', title: 'Trust Center', body: 'Verify specific claims about yourself so others know what to trust.' },
+  { target: 'nav-messages', title: 'Messages', body: 'Chat directly with anyone you connect with on Commissioner.' },
+  { target: 'nav-pricing', title: 'Pricing', body: 'See the available plans for creators and businesses.' },
+  { target: 'nav-edit-profile', title: 'Your profile', body: 'Keep this current — it\'s what everyone else on Commissioner sees.' },
+  { target: 'nav-account', title: 'Account menu', body: 'Manage your account, switch roles, or add a second profile from here.' },
+];
+
+const NavTour = ({ onDone }) => {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [validSteps, setValidSteps] = useState(null);
+  const [rect, setRect] = useState(null);
+
+  useEffect(() => {
+    setValidSteps(TOUR_STEPS.filter(s => document.querySelector(`[data-tour="${s.target}"]`)));
+  }, []);
+
+  useEffect(() => {
+    if (!validSteps || !validSteps[stepIndex]) return;
+    const el = document.querySelector(`[data-tour="${validSteps[stepIndex].target}"]`);
+    if (!el) return;
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true); };
+  }, [stepIndex, validSteps]);
+
+  if (!validSteps || validSteps.length === 0 || !rect) return null;
+
+  const step = validSteps[stepIndex];
+  const isLast = stepIndex === validSteps.length - 1;
+  const tooltipTop = Math.min(rect.bottom + 12, window.innerHeight - 160);
+  const tooltipLeft = Math.min(Math.max(rect.left, 16), window.innerWidth - 296);
+
+  return (
+    <div className="fixed inset-0 z-[100]">
+      <div
+        style={{
+          position: 'fixed',
+          top: rect.top - 6,
+          left: rect.left - 6,
+          width: rect.width + 12,
+          height: rect.height + 12,
+          borderRadius: 10,
+          boxShadow: '0 0 0 3px #00D9FF, 0 0 0 9999px rgba(17,24,39,0.55)',
+          pointerEvents: 'none',
+          transition: 'all 0.2s ease',
+        }}
+      />
+      <div style={{ position: 'fixed', top: tooltipTop, left: tooltipLeft, width: 280 }} className="bg-white rounded-xl shadow-2xl p-4">
+        <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#00A8C4' }}>Step {stepIndex + 1} of {validSteps.length}</p>
+        <p className="text-sm font-bold mb-1" style={{ color: '#111827' }}>{step.title}</p>
+        <p className="text-xs mb-3 leading-relaxed" style={{ color: '#6B7280' }}>{step.body}</p>
+        <div className="flex items-center justify-between">
+          <button onClick={onDone} className="text-xs font-semibold" style={{ color: '#9CA3AF' }}>Skip tour</button>
+          <button
+            onClick={() => (isLast ? onDone() : setStepIndex(i => i + 1))}
+            className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+            style={{ background: '#111827' }}
+          >
+            {isLast ? 'Done' : 'Next'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Commissioner() {
-  const [page, setPage] = useState('home');
+  // Lets /join/creator and /join/business work as real, bookmarkable,
+  // shareable URLs that drop a visitor straight into that onboarding flow
+  // (or into sign-in first, if they're not logged in yet) — not just an
+  // internal state you can only reach by clicking a button in-app.
+  const initialJoinRole = (() => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'join' && (parts[1] === 'creator' || parts[1] === 'business')) return parts[1];
+    return null;
+  })();
+  const [page, setPage] = useState(initialJoinRole ? 'onboarding' : 'home');
   const [pageHistory, setPageHistory] = useState([]);
   const prevPageRef = React.useRef('home');
   useEffect(() => {
@@ -3784,6 +3880,38 @@ export default function Commissioner() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [session, setSession] = useState(null);
   const { hasCreator, hasBusiness, activeRole, setActiveRole, refresh: refreshMyProfiles } = useMyProfiles(session);
+
+  const [tourSeen, setTourSeen] = useState(true);
+  useEffect(() => {
+    if (!session?.user?.id) { setTourSeen(true); return; }
+    setTourSeen(!!localStorage.getItem(`commissioner_tour_seen_${session.user.id}`));
+  }, [session?.user?.id]);
+  const dismissTour = () => {
+    if (session?.user?.id) localStorage.setItem(`commissioner_tour_seen_${session.user.id}`, '1');
+    setTourSeen(true);
+  };
+
+  // Used by every "Join as a creator / Join as a business" button on the
+  // site (hero, CTA section, side panel). Handles three cases correctly:
+  // logged out -> normal signup; logged in without that profile yet ->
+  // create it and switch to it; logged in and already has it -> just switch.
+  const joinAs = async (role) => {
+    if (!session) {
+      sessionStorage.setItem('commissioner_intended_role', role);
+      window.history.pushState({}, '', `/join/${role}`);
+      setPage('auth');
+      return;
+    }
+    const already = role === 'creator' ? hasCreator : hasBusiness;
+    if (!already) {
+      const rpcName = role === 'creator' ? 'add_creator_profile' : 'add_business_profile';
+      await supabase.rpc(rpcName);
+      refreshMyProfiles();
+    }
+    setActiveRole(role);
+    window.history.pushState({}, '', `/join/${role}`);
+    setPage('onboarding');
+  };
   const [savedIds, setSavedIds] = useState([]);
   const [appliedIds, setAppliedIds] = useState([]);
   const [toast, setToast] = useState('');
@@ -3813,7 +3941,30 @@ export default function Commissioner() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (initialJoinRole) {
+        if (data.session) {
+          // Already logged in and landed on /join/creator or /join/business
+          // directly (bookmark, shared link, refresh). Make sure that
+          // profile exists, then make it the active one.
+          localStorage.setItem(`commissioner_active_role_${data.session.user.id}`, initialJoinRole);
+          const rpcName = initialJoinRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
+          supabase.rpc(rpcName).then(() => refreshMyProfiles());
+        } else {
+          // Not logged in yet — remember the intent, send them to sign in
+          // first, then Auth will carry them back into onboarding.
+          sessionStorage.setItem('commissioner_intended_role', initialJoinRole);
+          setPage('auth');
+        }
+      } else if (data.session) {
+        // Already signed in (session restored from a previous visit) and
+        // just landed on the plain homepage — send them to their Dashboard
+        // instead of the marketing page. Only on this first load: it won't
+        // fight with someone deliberately clicking "Home" later in the session.
+        setPage(p => (p === 'home' ? 'dashboard' : p));
+      }
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
       if (event === 'PASSWORD_RECOVERY') {
@@ -3890,7 +4041,7 @@ export default function Commissioner() {
         </div>
       )}
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
-      {!authRedirect && page === 'home' && <Home setPage={setPage} />}
+      {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
       {page === 'creators' && <Creators session={session} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} />}
       {page === 'businesses' && <Businesses onConnect={(b) => { if (!session) setPage('auth'); else { setSelectedBusiness(b); setPage('network'); } }} />}
       {page === 'marketplace' && <Marketplace onMessage={(owner) => onHire(owner && owner.auth_user_id ? {authUserId: owner.auth_user_id} : owner)} />}
@@ -3904,12 +4055,26 @@ export default function Commissioner() {
       {page === 'trust' && <TrustSafety />}
       {page === 'terms' && <TermsOfService />}
       {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} />}
+      {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
       {page === 'onboarding' && (activeRole === 'business' ? <BusinessOnboarding session={session} setPage={setPage} /> : <Onboarding session={session} setPage={setPage} />)}
-      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} /> : <Auth onAuthenticated={() => setPage('account')} />)}
+      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 py-16">
-          <Auth onAuthenticated={() => setPage('dashboard')} />
+          <Auth onAuthenticated={(sess, intendedRole) => {
+            if (intendedRole && sess?.user?.id) {
+              localStorage.setItem(`commissioner_active_role_${sess.user.id}`, intendedRole);
+              const rpcName = intendedRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
+              supabase.rpc(rpcName).then(() => {
+                refreshMyProfiles();
+                setActiveRole(intendedRole);
+                window.history.pushState({}, '', `/join/${intendedRole}`);
+                setPage('onboarding');
+              });
+            } else {
+              setPage('dashboard');
+            }
+          }} />
         </div>
       )}
       {page !== 'messages' && page !== 'onboarding' && page !== 'auth' && page !== 'account' && <Footer setPage={setPage} />}

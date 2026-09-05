@@ -59,8 +59,9 @@ const GoogleButton = ({ onClick, disabled }) => (
 /* -------------------- main component -------------------- */
 
 export default function Auth({ onAuthenticated }) {
-  const [mode, setMode] = useState(() => (sessionStorage.getItem('commissioner_intended_role') ? 'signup' : 'signin'));
-  const [role, setRole] = useState(() => (sessionStorage.getItem('commissioner_intended_role') === 'business' ? 'business' : 'creator'));
+  const [intendedRole] = useState(() => sessionStorage.getItem('commissioner_intended_role'));
+  const [mode, setMode] = useState(() => (intendedRole ? 'signup' : 'signin'));
+  const [role, setRole] = useState(() => (intendedRole === 'business' ? 'business' : 'creator'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -73,7 +74,7 @@ export default function Auth({ onAuthenticated }) {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
-      if (sess && onAuthenticated) onAuthenticated(sess);
+      if (sess && onAuthenticated) onAuthenticated(sess, intendedRole ? role : undefined);
     });
     return () => listener.subscription.unsubscribe();
   }, [onAuthenticated]);
