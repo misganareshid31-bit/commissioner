@@ -68,6 +68,7 @@ export default function Auth({ onAuthenticated }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [session, setSession] = useState(null);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     sessionStorage.removeItem('commissioner_intended_role');
@@ -167,13 +168,37 @@ export default function Auth({ onAuthenticated }) {
   const handleResetRequest = async (e) => {
     e.preventDefault();
     setError('');
+    setResetSent(false);
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError('Enter the email address you used for Commissioner.');
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+    const redirectTo = `${window.location.origin}/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo,
     });
     setLoading(false);
-    if (error) setError(error.message);
-    else setMode('check-email');
+
+    if (error) {
+      const message = error.message || 'We could not send the reset email.';
+      const lower = message.toLowerCase();
+      if (lower.includes('redirect') || lower.includes('url')) {
+        setError(`Password reset is blocked by Supabase redirect settings. Add ${redirectTo} to Authentication → URL Configuration → Redirect URLs.`);
+      } else if (lower.includes('rate limit') || lower.includes('too many')) {
+        setError('Too many reset requests. Please wait a few minutes and try again.');
+      } else {
+        setError(message);
+      }
+      return;
+    }
+
+    setEmail(normalizedEmail);
+    setResetSent(true);
+    setMode('check-email');
   };
 
   const handleSignOut = async () => {
@@ -210,10 +235,18 @@ export default function Auth({ onAuthenticated }) {
       <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6 text-center" style={{ borderColor: '#E5E7EB' }}>
         <Mail size={28} className="mx-auto mb-3" style={{ color: '#00A8CC' }} />
         <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Check your email</p>
-        <p className="text-xs" style={{ color: '#6B7280' }}>We sent a link to {email}. Click it to continue.</p>
-        <button onClick={() => setMode('signin')} className="text-xs font-semibold mt-4" style={{ color: '#E6007A' }}>
-          Back to sign in
-        </button>
+        <p className="text-xs" style={{ color: '#6B7280' }}>
+          {resetSent ? <>We sent a password-reset link to <strong>{email}</strong>.</> : <>Check <strong>{email}</strong> for your Commissioner link.</>}
+        </p>
+        <p className="text-xs mt-2" style={{ color: '#6B7280' }}>If you don't see it, check Spam/Junk and make sure this is the email on your Commissioner account.</p>
+        <div className="flex gap-2 mt-4">
+          <button type="button" onClick={() => { setMode('reset'); setError(''); }} className="flex-1 text-xs font-semibold border rounded-lg py-2.5" style={{ borderColor: '#E5E7EB', color: '#374151' }}>
+            Try again
+          </button>
+          <button type="button" onClick={() => { setMode('signin'); setError(''); }} className="flex-1 text-xs font-semibold rounded-lg py-2.5 text-white" style={{ background: '#E6007A' }}>
+            Back to sign in
+          </button>
+        </div>
       </div>
     );
   }

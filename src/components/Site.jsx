@@ -234,13 +234,13 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   // menu, since it's now where logged-in users land by default.
   const links = session
     ? [
-        { id: 'dashboard', label: 'Dashboard' },
-        isBusiness ? { id: 'creators', label: 'Creators' } : { id: 'businesses', label: 'Businesses' },
-        { id: 'marketplace', label: 'Marketplace' },
-        { id: 'network', label: 'B2B network' },
-        { id: 'trust', label: 'Trust' },
+        { id: 'dashboard', label: isBusiness ? 'Business dashboard' : 'Creator dashboard' },
+        isBusiness ? { id: 'creators', label: 'Find creators' } : { id: 'businesses', label: 'Find businesses' },
+        { id: 'marketplace', label: isBusiness ? 'Business marketplace' : 'Creator marketplace' },
+        { id: 'network', label: isBusiness ? 'Business network' : 'Creator network' },
         { id: 'messages', label: 'Messages' },
-        { id: 'pricing', label: 'Pricing' },
+        { id: 'trust', label: 'Trust & verification' },
+        { id: 'pricing', label: 'Plans' },
       ]
     : [
         { id: 'home', label: 'Home' },
@@ -809,7 +809,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire }) => {
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
       <div className="mb-7">
-        <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#111827' }}>Discover creators</h1>
+        <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#111827' }}>Find creators</h1>
         <p className="text-sm" style={{ color: '#6B7280' }}>{loading ? 'Loading…' : `${filtered.length} creators match your search`}</p>
       </div>
 
@@ -1287,7 +1287,26 @@ const BusinessDashboard = ({ session }) => {
 
 const Dashboard = ({ session, activeRole }) => {
   const isBusiness = activeRole === 'business';
-  return isBusiness ? <BusinessDashboard session={session}/> : <CreatorDashboard session={session}/>;
+  return (
+    <div>
+      <div className="max-w-7xl mx-auto px-5 md:px-8 pt-8">
+        <div className="border rounded-2xl px-4 py-3 flex items-center justify-between gap-4" style={{borderColor: isBusiness ? '#DDD6FE' : '#BAE6FD', background: isBusiness ? '#FAF5FF' : '#F0F9FF'}}>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider" style={{color: isBusiness ? '#7C3AED' : '#036377'}}>
+              {isBusiness ? 'Business workspace' : 'Creator workspace'}
+            </p>
+            <p className="text-xs mt-0.5" style={{color:'#4B5563'}}>
+              {isBusiness ? 'Manage your company identity, find creators and build partnerships.' : 'Manage your personal creator identity, discover businesses and grow partnerships.'}
+            </p>
+          </div>
+          <span className="hidden sm:inline-flex text-[11px] font-semibold px-2.5 py-1.5 rounded-full" style={{background:'#fff', color: isBusiness ? '#7C3AED' : '#036377'}}>
+            {isBusiness ? 'Business' : 'Creator'}
+          </span>
+        </div>
+      </div>
+      {isBusiness ? <BusinessDashboard session={session}/> : <CreatorDashboard session={session}/>}
+    </div>
+  );
 };
 
 const BusinessOnboarding = ({ session, setPage }) => {
@@ -3028,7 +3047,7 @@ const Businesses = ({ onConnect }) => {
   useEffect(()=>{supabase.from('business_profiles_ranked').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan').eq('approved',true).eq('onboarded',true).order('effective_plan_rank',{ascending:false}).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
-    <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Discover businesses</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
+    <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Find businesses</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search business, industry, city…" className="flex-1 outline-none text-sm"/></div><select value={category} onChange={e=>setCategory(e.target.value)} className="border rounded-xl px-3 py-3 text-sm bg-white" style={{borderColor:'#E5E7EB'}}><option>All</option>{BUSINESS_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
     {loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#111827'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.plan==='enterprise'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#111827',color:'#00D9FF'}}>Enterprise</span>}{b.plan==='growth'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Growth</span>}</div><p className="text-xs" style={{color:'#6B7280'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#4B5563'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#111827'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
     {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
@@ -3905,8 +3924,17 @@ const NavTour = ({ onDone }) => {
         <div className="flex items-center justify-between">
           <button onClick={onDone} className="text-xs font-semibold" style={{ color: '#9CA3AF' }}>Skip tour</button>
           <button
-            onClick={() => (isLast ? onDone() : setStepIndex(i => i + 1))}
-            className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isLast) {
+                onDone();
+              } else {
+                setStepIndex(i => i + 1);
+              }
+            }}
+            className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg cursor-pointer"
             style={{ background: '#111827' }}
           >
             {isLast ? 'Done' : 'Next'}
@@ -3955,7 +3983,15 @@ export default function Commissioner() {
     setTourSeen(!!localStorage.getItem(`commissioner_tour_seen_${session.user.id}`));
   }, [session?.user?.id]);
   const dismissTour = () => {
-    if (session?.user?.id) localStorage.setItem(`commissioner_tour_seen_${session.user.id}`, '1');
+    // Persist immediately so the Done/Skip action stays dismissed after a
+    // refresh, and update state immediately so the overlay disappears.
+    if (session?.user?.id) {
+      try {
+        localStorage.setItem(`commissioner_tour_seen_${session.user.id}`, '1');
+      } catch (e) {
+        // Private/restricted browser storage should not prevent dismissal.
+      }
+    }
     setTourSeen(true);
   };
 
@@ -4120,7 +4156,6 @@ export default function Commissioner() {
       {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} />}
       {page === 'pricing' && <Pricing />}
       {page === 'about' && <AboutUs />}
-      {page === 'trust' && <TrustSafety />}
       {page === 'terms' && <TermsOfService />}
       {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} />}
       {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
