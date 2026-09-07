@@ -88,10 +88,11 @@ function firstNonEmpty(obj, keys) {
 // render an empty state rather than assume data is present.
 async function fetchLiveCreators(limit = 48) {
   const { data, error } = await supabase
-    .from('creator_profiles')
-    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified')
+    .from('creator_profiles_ranked')
+    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified, plan')
     .eq('onboarded', true)
     .eq('approved', true)
+    .order('effective_plan_rank', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
@@ -115,6 +116,7 @@ async function fetchLiveCreators(limit = 48) {
       authUserId: row.auth_user_id,
       tone: i,
       avatarUrl: row.avatar_url,
+      plan: row.plan || 'basic',
     };
   });
 }
@@ -224,16 +226,31 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     window.history.pushState({}, '', `/join/${otherRole}`);
     setPage('onboarding');
   };
-  const links = [
-    { id: 'home', label: 'Home' },
-    { id: 'creators', label: 'Creators' },
-    { id: 'businesses', label: 'Businesses' },
-    { id: 'marketplace', label: 'Marketplace' },
-    { id: 'network', label: 'B2B network' },
-    { id: 'trust', label: 'Trust' },
-    { id: 'messages', label: 'Messages' },
-    { id: 'pricing', label: 'Pricing' },
-  ];
+  // Logged-out visitors see the full discovery set. Once someone's signed
+  // in, the nav narrows to what's actually relevant to their role — a
+  // business's main reason for being here is finding creators (so
+  // "Businesses" drops out), and vice versa for a creator — and Dashboard
+  // becomes a first-class nav item instead of being buried in the account
+  // menu, since it's now where logged-in users land by default.
+  const links = session
+    ? [
+        { id: 'dashboard', label: 'Dashboard' },
+        isBusiness ? { id: 'creators', label: 'Creators' } : { id: 'businesses', label: 'Businesses' },
+        { id: 'marketplace', label: 'Marketplace' },
+        { id: 'network', label: 'B2B network' },
+        { id: 'trust', label: 'Trust' },
+        { id: 'messages', label: 'Messages' },
+        { id: 'pricing', label: 'Pricing' },
+      ]
+    : [
+        { id: 'home', label: 'Home' },
+        { id: 'creators', label: 'Creators' },
+        { id: 'businesses', label: 'Businesses' },
+        { id: 'marketplace', label: 'Marketplace' },
+        { id: 'network', label: 'B2B network' },
+        { id: 'trust', label: 'Trust' },
+        { id: 'pricing', label: 'Pricing' },
+      ];
 
   const handleSignOut = async () => {
     setAccountMenuOpen(false);
@@ -536,6 +553,8 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
           <div className="flex items-center gap-1.5">
             <p className="font-semibold text-sm" style={{ color: '#111827' }}>{c.name}</p>
             {c.verified && <VerifiedIcon size={14} />}
+            {c.plan === 'elite' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#111827', color: '#00D9FF' }}>Elite</span>}
+            {c.plan === 'pro' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#E0FBFF', color: '#036377' }}>Pro</span>}
           </div>
           <p className="cm-mono text-xs" style={{ color: '#6B7280' }}>{c.handle}</p>
         </div>
@@ -1152,7 +1171,7 @@ const CreatorDashboard = ({ session }) => {
     if (!session) return;
     supabase
       .from('creator_profiles')
-      .select('id, page_name, username, avatar_url, city, language, bio, verified, primary_niche, availability, onboarded, approved')
+      .select('id, page_name, username, avatar_url, city, language, bio, verified, primary_niche, availability, onboarded, approved, plan, plan_expires_at')
       .eq('auth_user_id', session.user.id)
       .single()
       .then(({ data }) => setProfile(data));
@@ -1175,7 +1194,9 @@ const CreatorDashboard = ({ session }) => {
         </div>
       </div>
       <span style={{ background: '#111827' }} className="text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 w-fit">
-        <Zap size={13} style={{ color: '#00D9FF' }} /> Basic plan
+        <Zap size={13} style={{ color: '#00D9FF' }} />
+        {profile?.plan === 'elite' ? 'Elite plan' : profile?.plan === 'pro' ? 'Pro plan' : 'Basic plan'}
+        {profile?.plan_expires_at && ` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`}
       </span>
     </div>
 
@@ -1261,7 +1282,7 @@ const BusinessDashboard = ({ session }) => {
   const [profile,setProfile]=useState(null);
   useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>setProfile(data||null))},[session?.user?.id]);
   const completion=[profile?.business_name,profile?.username,profile?.avatar_url,profile?.city,profile?.bio,profile?.industry,profile?.website].filter(Boolean).length/7*100;
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>Business account</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{Math.round(completion)}%</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${completion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>{profile?.plan==='enterprise'?'Enterprise plan':profile?.plan==='growth'?'Growth plan':'Starter plan'}{profile?.plan_expires_at?` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`:''}</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{Math.round(completion)}%</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${completion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
 };
 
 const Dashboard = ({ session, activeRole }) => {
@@ -3004,12 +3025,12 @@ const VerificationDetails = ({ type, id, compact=false }) => {
 };
 const Businesses = ({ onConnect }) => {
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
-  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
+  useEffect(()=>{supabase.from('business_profiles_ranked').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan').eq('approved',true).eq('onboarded',true).order('effective_plan_rank',{ascending:false}).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Discover businesses</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search business, industry, city…" className="flex-1 outline-none text-sm"/></div><select value={category} onChange={e=>setCategory(e.target.value)} className="border rounded-xl px-3 py-3 text-sm bg-white" style={{borderColor:'#E5E7EB'}}><option>All</option>{BUSINESS_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
-    {loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#111827'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}</div><p className="text-xs" style={{color:'#6B7280'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#4B5563'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#111827'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
+    {loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#111827'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.plan==='enterprise'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#111827',color:'#00D9FF'}}>Enterprise</span>}{b.plan==='growth'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Growth</span>}</div><p className="text-xs" style={{color:'#6B7280'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#4B5563'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#111827'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
     {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
     {!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>No businesses found</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Try another category or search.</p></div>}
   </div>;
@@ -3132,8 +3153,8 @@ const AdminPanel = ({ session }) => {
   const loadRows = async () => {
     setLoadingRows(true);
     const [{ data: creators }, { data: businesses }] = await Promise.all([
-      supabase.from('creator_profiles').select('id, page_name, username, city, bio, primary_niche, verified, approved, onboarded, claimed, claim_token, created_at'),
-      supabase.from('business_profiles').select('id, business_name, username, city, bio, industry, verified, approved, onboarded, claimed, claim_token, created_at'),
+      supabase.from('creator_profiles').select('id, page_name, username, city, bio, primary_niche, verified, approved, onboarded, claimed, claim_token, created_at, plan, plan_expires_at'),
+      supabase.from('business_profiles').select('id, business_name, username, city, bio, industry, verified, approved, onboarded, claimed, claim_token, created_at, plan, plan_expires_at'),
     ]);
     const tagged = [
       ...(creators || []).map(r => ({ ...r, kind: 'creator', displayName: r.page_name, displayTag: r.primary_niche })),
@@ -3320,6 +3341,18 @@ const AdminPanel = ({ session }) => {
     loadRows();
   };
 
+  const setPlan = async (row, plan, expiresAt) => {
+    setBusyId(row.id + 'plan');
+    const table = row.kind === 'business' ? 'business_profiles' : 'creator_profiles';
+    const { error } = await supabase.from(table).update({ plan, plan_expires_at: expiresAt || null }).eq('id', row.id);
+    setBusyId(null);
+    if (error) {
+      setCreateError(`Could not update plan: ${error.message}`);
+      return;
+    }
+    loadRows();
+  };
+
   const deletePage = async (row) => {
     const name = row.displayName || 'this page';
     const confirmed = window.confirm(`Delete ${name}?\n\nThis permanently deletes the gift/profile page and its claim link. This cannot be undone.`);
@@ -3424,6 +3457,40 @@ const AdminPanel = ({ session }) => {
           >
             {r.verified ? 'Verified ✓' : 'Mark verified'}
           </button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t" style={{ borderColor: '#F3F4F6' }}>
+          <span className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>Plan:</span>
+          <select
+            value={r.plan || (r.kind === 'business' ? 'starter' : 'basic')}
+            disabled={busyId === r.id + 'plan'}
+            onChange={e => setPlan(r, e.target.value, r.plan_expires_at)}
+            className="text-[11px] font-semibold border rounded-lg px-2 py-1"
+            style={{ borderColor: '#E5E7EB' }}
+          >
+            {r.kind === 'business' ? (
+              <>
+                <option value="starter">Starter</option>
+                <option value="growth">Growth</option>
+                <option value="enterprise">Enterprise</option>
+              </>
+            ) : (
+              <>
+                <option value="basic">Basic</option>
+                <option value="pro">Pro</option>
+                <option value="elite">Elite</option>
+              </>
+            )}
+          </select>
+          <input
+            type="date"
+            value={r.plan_expires_at ? r.plan_expires_at.slice(0, 10) : ''}
+            disabled={busyId === r.id + 'plan'}
+            onChange={e => setPlan(r, r.plan || (r.kind === 'business' ? 'starter' : 'basic'), e.target.value ? new Date(e.target.value).toISOString() : null)}
+            className="text-[11px] border rounded-lg px-2 py-1"
+            style={{ borderColor: '#E5E7EB', color: '#374151' }}
+            title="Plan expires on (leave blank for no expiry)"
+          />
+          {r.plan_expires_at && <span className="text-[10px]" style={{ color: '#9CA3AF' }}>expires {new Date(r.plan_expires_at).toLocaleDateString()}</span>}
         </div>
       </div>
     );
@@ -3776,6 +3843,7 @@ function useMyProfiles(session) {
 // whose target isn't on screen (e.g. narrow/mobile viewport where the
 // desktop nav is hidden) is simply skipped rather than shown broken.
 const TOUR_STEPS = [
+  { target: 'nav-dashboard', title: 'Your Dashboard', body: 'This is home base — your profile status, plan, and quick links live here.' },
   { target: 'nav-creators', title: 'Discover creators', body: 'Browse and filter creators by platform, niche, city, and followers.' },
   { target: 'nav-businesses', title: 'Discover businesses', body: 'See registered, Commissioner-verified businesses.' },
   { target: 'nav-marketplace', title: 'Marketplace', body: 'Products, services, and collaborations from creators and businesses.' },
