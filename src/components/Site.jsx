@@ -1320,20 +1320,15 @@ const Dashboard = ({ session, activeRole }) => {
 };
 
 const BusinessOnboarding = ({ session, setPage }) => {
-  const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''}); const [saving,setSaving]=useState(false); const [error,setError]=useState('');
-  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>data&&setForm({...form,...data}))},[session?.user?.id]);
-  const save=async()=>{
-    if(!session?.user?.id){setError('Please sign in again before creating a business profile.');return;}
-    if(!form.business_name.trim()){setError('Enter your business name to continue.');return;}
-    setSaving(true);setError('');
-    const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,onboarded:true,claimed:true};
-    const {error}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'});
-    setSaving(false);
-    if(error){
-      setError(error.code==='23505'?'That username is already in use. Please choose another one.':`Could not save your business profile. ${error.message}`);
-    } else setPage('dashboard');
-  };
-  return <div className="max-w-2xl mx-auto px-5 md:px-8 py-12"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business setup</p><h1 className="cm-display font-bold text-2xl mt-1" style={{color:'#111827'}}>Build your business identity</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Add the public information partners and customers need to make an informed decision.</p></div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB'}}><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><OnboardingField label="Business name" placeholder="Registered / public name" value={form.business_name} onChange={e=>setForm(f=>({...f,business_name:e.target.value}))}/><OnboardingField label="Username" placeholder="@company" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/><OnboardingField label="City" placeholder="Addis Ababa" value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}/><OnboardingField label="Language" placeholder="English, Amharic…" value={form.language} onChange={e=>setForm(f=>({...f,language:e.target.value}))}/><OnboardingField label="Industry" placeholder="Retail, technology…" value={form.industry} onChange={e=>setForm(f=>({...f,industry:e.target.value}))}/><OnboardingField label="Official website" placeholder="https://" value={form.website} onChange={e=>setForm(f=>({...f,website:e.target.value}))}/></div><textarea value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))} rows={4} placeholder="Describe what the business does." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none mt-4" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-5"><p className="text-xs" style={{color:'#B42318'}}>{error}</p><button onClick={save} disabled={saving||!form.business_name.trim()} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#7C3AED'}}>{saving?'Saving…':'Save business profile'}</button></div></div></div>;
+  const [step,setStep]=useState(1);
+  const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''});
+  const [saving,setSaving]=useState(false); const [error,setError]=useState('');
+  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>data&&setForm(f=>({...f,...data})))},[session?.user?.id]);
+  const update=(key,value)=>setForm(f=>({...f,[key]:value}));
+  const next=()=>{setError(''); if(step===1&&!form.business_name.trim()){setError('Enter your business name to continue.');return;} if(step===2&&!form.industry.trim()){setError('Choose or enter your industry.');return;} setStep(s=>Math.min(3,s+1));};
+  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;} setSaving(true);setError(''); const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,onboarded:true,claimed:true}; const {error}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}); setSaving(false); if(error){setError(error.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');} else setPage('dashboard');};
+  const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Business onboarding</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>Create a business presence people trust.</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Set up your public business profile in a few simple steps. You can edit everything later.</p></div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}{field('City','city','Addis Ababa')}{field('Language','language','English, Amharic…')}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business</span><textarea value={form.bio} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Preview</p><h2 className="text-xl font-bold mt-2" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location not added'}</p><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description of your business.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>You can edit your profile after publishing. Your business profile will be linked to this login.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?'Creating profile…':'Create business profile'}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -1981,7 +1976,8 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
       if (bannerFile) { setUploadingBanner(true); bannerUrl = await uploadImage(bannerFile, 'banners'); setUploadingBanner(false); }
       const { error } = await supabase
         .from('creator_profiles')
-        .update({
+        .upsert({
+          auth_user_id: session.user.id,
           page_name: pageName,
           username,
           city: location,
@@ -1998,8 +1994,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           availability,
           professional_preferences: preferences,
           onboarded: true,
-        })
-        .eq('auth_user_id', session.user.id);
+        }, { onConflict: 'auth_user_id' });
       if (error) throw error;
       setSaved(true);
       if (onSaved) setTimeout(() => onSaved(), 700); else setTimeout(() => setPage('dashboard'), 1200);
