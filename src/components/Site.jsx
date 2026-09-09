@@ -2284,7 +2284,23 @@ const AccountSettings = ({ session, setPage, activeRole }) => {
   const handleDeleteAccount = async () => {
     setDeleting(true); setDeleteError('');
     const { error } = await supabase.rpc('request_account_deletion');
-    if (error) { setDeleteError(error.message || 'Could not process the deletion request.'); setDeleting(false); return; }
+    if (error) {
+      const raw = error.message || '';
+      const normalized = raw.toLowerCase();
+      let message = 'We could not submit your account deletion request. Please try again.';
+      if (normalized.includes('schema cache') || normalized.includes('could not find the function')) {
+        message = 'Account deletion is temporarily unavailable because the database setup is incomplete. Please contact support and mention: request_account_deletion is missing.';
+      } else if (normalized.includes('authentication required') || normalized.includes('jwt')) {
+        message = 'Your session has expired. Please sign in again, then retry account deletion.';
+      } else if (normalized.includes('account_deletion_requests')) {
+        message = 'Account deletion is temporarily unavailable because the deletion-request table is not configured. Please contact support.';
+      } else if (normalized.includes('permission denied') || normalized.includes('not authorized')) {
+        message = 'Your account is not authorized to submit a deletion request. Please contact support.';
+      }
+      setDeleteError(message);
+      setDeleting(false);
+      return;
+    }
     await supabase.auth.signOut({ scope: 'global' });
     setPage('home');
   };
