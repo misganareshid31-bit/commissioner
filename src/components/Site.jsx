@@ -313,7 +313,12 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                 <div className="absolute right-0 top-full mt-1 w-56 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
-                  {!hasBothProfiles && (
+                  {(isBusiness ? hasCreator : hasBusiness) ? (
+                    <button onClick={() => { const role = isBusiness ? 'creator' : 'business'; setActiveRole?.(role); setAccountMenuOpen(false); setMenuOpen(false); setPage('dashboard'); }}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#036377' }}>
+                      {isBusiness ? 'Open creator account' : 'Open business account'}
+                    </button>
+                  ) : (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
                       {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
                     </button>
@@ -425,7 +430,12 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                   )}
                   <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
                   <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
-                  {!hasBothProfiles && (
+                  {(isBusiness ? hasCreator : hasBusiness) ? (
+                    <button onClick={() => { const role = isBusiness ? 'creator' : 'business'; setActiveRole?.(role); setAccountMenuOpen(false); setMenuOpen(false); setPage('dashboard'); }}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#036377' }}>
+                      {isBusiness ? 'Open creator account' : 'Open business account'}
+                    </button>
+                  ) : (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
                       {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
                     </button>
