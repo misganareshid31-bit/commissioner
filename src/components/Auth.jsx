@@ -69,6 +69,8 @@ export default function Auth({ onAuthenticated }) {
   const [error, setError] = useState('');
   const [session, setSession] = useState(null);
   const [resetSent, setResetSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => { if (!cooldown) return; const t = setInterval(() => setCooldown(v => Math.max(0, v - 1)), 1000); return () => clearInterval(t); }, [cooldown]);
 
   useEffect(() => {
     sessionStorage.removeItem('commissioner_intended_role');
@@ -127,6 +129,7 @@ export default function Auth({ onAuthenticated }) {
   const handleSignUp = async (e) => {
     e.preventDefault();
     setError('');
+    if (cooldown) { setError(`Please wait ${cooldown} seconds before trying again.`); return; }
 
     const score = scorePassword(password);
     if (score < 3) {
@@ -148,7 +151,9 @@ export default function Auth({ onAuthenticated }) {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setCooldown(60);
+      const msg = error.message || 'We could not create your account.';
+      setError(msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many') ? 'Too many attempts. Please wait 1 minute and try again.' : msg);
       return;
     }
     // Supabase sends a verification email automatically when email
@@ -159,10 +164,15 @@ export default function Auth({ onAuthenticated }) {
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    if (cooldown) { setError(`Please wait ${cooldown} seconds before trying again.`); return; }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) {
+      setCooldown(60);
+      const msg = error.message || 'Sign in failed.';
+      setError(msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many') ? 'Too many attempts. Please wait 1 minute and try again.' : msg);
+    }
   };
 
   const handleResetRequest = async (e) => {
@@ -236,7 +246,7 @@ export default function Auth({ onAuthenticated }) {
         <Mail size={28} className="mx-auto mb-3" style={{ color: '#00A8CC' }} />
         <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Check your email</p>
         <p className="text-xs" style={{ color: '#6B7280' }}>
-          {resetSent ? <>We sent a password-reset link to <strong>{email}</strong>.</> : <>Check <strong>{email}</strong> for your Commissioner link.</>}
+          {resetSent ? <>We sent a password-reset link to <strong>{email}</strong>.</> : <>We sent a confirmation email to <strong>{email}</strong>. Open it to verify your account, then return here to sign in.</>}
         </p>
         <p className="text-xs mt-2" style={{ color: '#6B7280' }}>If you don't see it, check Spam/Junk and make sure this is the email on your Commissioner account.</p>
         <div className="flex gap-2 mt-4">
@@ -340,6 +350,7 @@ export default function Auth({ onAuthenticated }) {
           </button>
         )}
 
+        {cooldown > 0 && <p className="text-xs mt-3" style={{ color: '#B45309' }}>Try again in {cooldown}s.</p>}
         {error && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{error}</p>}
 
         <button disabled={loading} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg mt-4 disabled:opacity-50">
