@@ -19,3 +19,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .cm-root { overflow-x: hidden; }
   .cm-root h1 { font-size: clamp(1.8rem, 8vw, 2.5rem); }
 }
+
+/* Full professional UI upgrade */
+.cm-root { background: #f6f7fb; }
+.cm-root .cm-display { letter-spacing: -.045em; }
+.cm-root .rounded-2xl { border-radius: 20px; }
+.cm-root .rounded-3xl { border-radius: 28px; }
+.cm-root button { font-weight: 650; }
+.cm-root section:first-child { position: relative; }
+.cm-root section:first-child:before { content: ''; position: absolute; width: 420px; height: 420px; right: -140px; top: -90px; background: radial-gradient(circle, rgba(0,217,255,.14), transparent 68%); pointer-events:none; }
+.cm-root section:first-child:after { content: ''; position: absolute; width: 300px; height: 300px; left: -130px; top: 160px; background: radial-gradient(circle, rgba(230,0,122,.09), transparent 68%); pointer-events:none; }
+.cm-root section:first-child > * { position: relative; z-index: 1; }
+.cm-root .bg-white { box-shadow: 0 1px 2px rgba(15,23,42,.025), 0 10px 32px rgba(15,23,42,.035); }
+.cm-root .border { border-color: #e8ebf1 !important; }
+.cm-root .text-gray-500, .cm-root .text-gray-600 { color: #667085; }
+.cm-root input::placeholder, .cm-root textarea::placeholder { color: #98a2b3; }
+.cm-root .cm-beam { background: linear-gradient(90deg,#E6007A,#00D9FF); }
+@media (max-width: 768px) {
+  .cm-root section:first-child:before { width: 240px; height: 240px; right: -100px; }
+  .cm-root section:first-child:after { width: 200px; height: 200px; left: -100px; }
+}
