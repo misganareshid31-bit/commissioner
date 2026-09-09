@@ -1322,7 +1322,17 @@ const Dashboard = ({ session, activeRole }) => {
 const BusinessOnboarding = ({ session, setPage }) => {
   const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''}); const [saving,setSaving]=useState(false); const [error,setError]=useState('');
   useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>data&&setForm({...form,...data}))},[session?.user?.id]);
-  const save=async()=>{setSaving(true);setError('');const {error}=await supabase.from('business_profiles').update({...form,onboarded:true}).eq('auth_user_id',session.user.id);setSaving(false);if(error)setError(error.message);else setPage('dashboard')};
+  const save=async()=>{
+    if(!session?.user?.id){setError('Please sign in again before creating a business profile.');return;}
+    if(!form.business_name.trim()){setError('Enter your business name to continue.');return;}
+    setSaving(true);setError('');
+    const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,onboarded:true,claimed:true};
+    const {error}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'});
+    setSaving(false);
+    if(error){
+      setError(error.code==='23505'?'That username is already in use. Please choose another one.':`Could not save your business profile. ${error.message}`);
+    } else setPage('dashboard');
+  };
   return <div className="max-w-2xl mx-auto px-5 md:px-8 py-12"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business setup</p><h1 className="cm-display font-bold text-2xl mt-1" style={{color:'#111827'}}>Build your business identity</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Add the public information partners and customers need to make an informed decision.</p></div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB'}}><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><OnboardingField label="Business name" placeholder="Registered / public name" value={form.business_name} onChange={e=>setForm(f=>({...f,business_name:e.target.value}))}/><OnboardingField label="Username" placeholder="@company" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/><OnboardingField label="City" placeholder="Addis Ababa" value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}/><OnboardingField label="Language" placeholder="English, Amharic…" value={form.language} onChange={e=>setForm(f=>({...f,language:e.target.value}))}/><OnboardingField label="Industry" placeholder="Retail, technology…" value={form.industry} onChange={e=>setForm(f=>({...f,industry:e.target.value}))}/><OnboardingField label="Official website" placeholder="https://" value={form.website} onChange={e=>setForm(f=>({...f,website:e.target.value}))}/></div><textarea value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))} rows={4} placeholder="Describe what the business does." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none mt-4" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-5"><p className="text-xs" style={{color:'#B42318'}}>{error}</p><button onClick={save} disabled={saving||!form.business_name.trim()} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#7C3AED'}}>{saving?'Saving…':'Save business profile'}</button></div></div></div>;
 };
 
@@ -2284,23 +2294,7 @@ const AccountSettings = ({ session, setPage, activeRole }) => {
   const handleDeleteAccount = async () => {
     setDeleting(true); setDeleteError('');
     const { error } = await supabase.rpc('request_account_deletion');
-    if (error) {
-      const raw = error.message || '';
-      const normalized = raw.toLowerCase();
-      let message = 'We could not submit your account deletion request. Please try again.';
-      if (normalized.includes('schema cache') || normalized.includes('could not find the function')) {
-        message = 'Account deletion is temporarily unavailable because the database setup is incomplete. Please contact support and mention: request_account_deletion is missing.';
-      } else if (normalized.includes('authentication required') || normalized.includes('jwt')) {
-        message = 'Your session has expired. Please sign in again, then retry account deletion.';
-      } else if (normalized.includes('account_deletion_requests')) {
-        message = 'Account deletion is temporarily unavailable because the deletion-request table is not configured. Please contact support.';
-      } else if (normalized.includes('permission denied') || normalized.includes('not authorized')) {
-        message = 'Your account is not authorized to submit a deletion request. Please contact support.';
-      }
-      setDeleteError(message);
-      setDeleting(false);
-      return;
-    }
+    if (error) { setDeleteError(error.message || 'Could not process the deletion request.'); setDeleting(false); return; }
     await supabase.auth.signOut({ scope: 'global' });
     setPage('home');
   };
