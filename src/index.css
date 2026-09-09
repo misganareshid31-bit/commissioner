@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Commissioner professional polish layer */
+:root { color-scheme: light; }
+body { margin: 0; background: #f8fafc; color: #111827; -webkit-font-smoothing: antialiased; }
+button, input, textarea, select { font: inherit; }
+button { transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease; }
+button:hover { transform: translateY(-1px); }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid rgba(0,217,255,.35); outline-offset: 2px; }
+.cm-root { min-height: 100vh; background: #f8fafc; }
+.cm-root h1, .cm-root h2, .cm-root h3 { letter-spacing: -.035em; }
+.cm-root input, .cm-root textarea, .cm-root select { border-radius: 12px; border: 1px solid #e5e7eb; background: #fff; transition: border-color .16s ease, box-shadow .16s ease; }
+.cm-root input:focus, .cm-root textarea:focus, .cm-root select:focus { border-color: #00b8d9; box-shadow: 0 0 0 4px rgba(0,217,255,.10); outline: none; }
+.cm-root .shadow-sm { box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.035); }
+.cm-root .rounded-xl, .cm-root .rounded-2xl { border-color: #edf0f4; }
+@media (max-width: 768px) {
+  .cm-root { overflow-x: hidden; }
+  .cm-root h1 { font-size: clamp(1.8rem, 8vw, 2.5rem); }
+}
