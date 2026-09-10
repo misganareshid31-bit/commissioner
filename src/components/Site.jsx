@@ -1210,7 +1210,7 @@ const businessCompletionChecklist = (profile) => [
 
 const completionPercent = (items) => Math.round((items.filter(([, value]) => hasProfileValue(value)).length / items.length) * 100);
 
-const CreatorDashboard = ({ session }) => {
+const CreatorDashboard = ({ session, setPage }) => {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [ratingSummary, setRatingSummary] = useState(null);
@@ -1335,17 +1335,108 @@ const BusinessListingsManager = ({ profile }) => {
   return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Publish products, merchandise, services, or collaboration offers. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#374151'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option><option value="merch">Merchandise</option><option value="collaboration">Collaboration</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product, service, or collaboration." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#111827'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#111827'}}>{x.title}</p><p className="text-[11px]" style={{color:'#6B7280'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
 };
 
-const BusinessDashboard = ({ session }) => {
-  const [profile,setProfile]=useState(null); const [profileLoading,setProfileLoading]=useState(true);
-  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{setProfile(data||null);setProfileLoading(false)})},[session?.user?.id]);
+const BusinessDashboard = ({ session, setPage }) => {
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session) return;
+    supabase
+      .from('business_profiles')
+      .select('*')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setProfile(data || null);
+        setProfileLoading(false);
+      });
+  }, [session?.user?.id]);
+
   const businessCompletionFields = businessCompletionChecklist(profile);
   const businessCompletion = completionPercent(businessCompletionFields);
-  const businessMissing = businessCompletionFields.filter(([, value]) => !hasProfileValue(value)).map(([label]) => label);
+  const businessMissing = businessCompletionFields
+    .filter(([, value]) => !hasProfileValue(value))
+    .map(([label]) => label);
 
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>{profile?.plan==='enterprise'?'Enterprise plan':profile?.plan==='growth'?'Growth plan':'Starter plan'}{profile?.plan_expires_at?` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`:''}</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{profileLoading?'—':`${businessCompletion}%`}</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${profileLoading?0:businessCompletion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div>{!profileLoading && businessCompletion < 100 && <div className="mt-3"><p className="text-xs" style={{color:'#6B7280'}}>Finish your required setup to unlock verification. {businessMissing.length} item{businessMissing.length === 1 ? '' : 's'} remaining.</p><button onClick={()=>setPage('onboarding')} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#E6007A'}}>Continue setup</button></div>}{!profileLoading && businessCompletion === 100 && <div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs font-semibold" style={{color:'#0E7A3B'}}>Profile complete ✓ You can now request verification.</p><button onClick={()=>setPage('trust')} className="text-xs font-semibold px-3 py-2 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>Request verification</button></div>}</div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
+  return (
+    <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <Avatar name={profile?.business_name || session.user.email} size={56} ring src={profile?.avatar_url} />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="cm-display font-bold text-xl" style={{ color: '#111827' }}>
+                {profile?.business_name || 'Your business'}
+              </h1>
+              {profile?.verified && <VerifiedIcon size={15} />}
+            </div>
+            <p className="text-sm" style={{ color: '#6B7280' }}>
+              {profile?.username ? `@${profile.username.replace(/^@/, '')}` : 'Complete your business profile'}
+              {profile?.city ? ` · ${profile.city}` : ''}
+            </p>
+          </div>
+        </div>
+        <span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: '#F3E8FF', color: '#7C3AED' }}>
+          {profile?.plan === 'enterprise' ? 'Enterprise plan' : profile?.plan === 'growth' ? 'Growth plan' : 'Starter plan'}
+          {profile?.plan_expires_at ? ` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}` : ''}
+        </span>
+      </div>
+
+      <div className="bg-white border rounded-2xl p-5 mb-6" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex justify-between mb-2">
+          <p className="text-sm font-semibold" style={{ color: '#111827' }}>Business profile completion</p>
+          <p className="cm-mono text-sm font-semibold" style={{ color: '#7C3AED' }}>
+            {profileLoading ? '—' : `${businessCompletion}%`}
+          </p>
+        </div>
+        <div className="h-2 rounded-full" style={{ background: '#F3F4F6' }}>
+          <div className="h-2 rounded-full" style={{ width: `${profileLoading ? 0 : businessCompletion}%`, background: 'linear-gradient(90deg,#7C3AED,#00D9FF)' }} />
+        </div>
+        {!profileLoading && businessCompletion < 100 && (
+          <div className="mt-3">
+            <p className="text-xs" style={{ color: '#6B7280' }}>
+              Finish your required setup to unlock verification. {businessMissing.length} item{businessMissing.length === 1 ? '' : 's'} remaining.
+            </p>
+            <button onClick={() => setPage('onboarding')} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{ background: '#E6007A' }}>
+              Continue setup
+            </button>
+          </div>
+        )}
+        {!profileLoading && businessCompletion === 100 && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold" style={{ color: '#0E7A3B' }}>Profile complete ✓ You can now request verification.</p>
+            <button onClick={() => setPage('trust')} className="text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#00D9FF', color: '#036377' }}>
+              Request verification
+            </button>
+          </div>
+        )}
+      </div>
+
+      {profile && <BusinessListingsManager profile={profile} />}
+      {profile && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
+          <Briefcase size={18} style={{ color: '#7C3AED' }} />
+          <p className="text-sm font-semibold mt-3" style={{ color: '#111827' }}>B2B network</p>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Find creators, suppliers and other businesses.</p>
+        </div>
+        <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
+          <MessageSquare size={18} style={{ color: '#036377' }} />
+          <p className="text-sm font-semibold mt-3" style={{ color: '#111827' }}>Professional inbox</p>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Keep conversations and collaboration requests in one place.</p>
+        </div>
+        <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
+          <Shield size={18} style={{ color: '#0E7A3B' }} />
+          <p className="text-sm font-semibold mt-3" style={{ color: '#111827' }}>Trust information</p>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Show the facts you have verified to potential partners.</p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-const Dashboard = ({ session, activeRole }) => {
+const Dashboard = ({ session, activeRole, setPage }) => {
   const isBusiness = activeRole === 'business';
   return (
     <div>
@@ -1364,7 +1455,7 @@ const Dashboard = ({ session, activeRole }) => {
           </span>
         </div>
       </div>
-      {isBusiness ? <BusinessDashboard session={session}/> : <CreatorDashboard session={session}/>}
+      {isBusiness ? <BusinessDashboard session={session} setPage={setPage}/> : <CreatorDashboard session={session} setPage={setPage}/>}
     </div>
   );
 };
@@ -4306,7 +4397,7 @@ export default function Commissioner() {
       {page === 'pricing' && <Pricing />}
       {page === 'about' && <AboutUs />}
       {page === 'terms' && <TermsOfService />}
-      {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} />}
+      {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} setPage={setPage} />}
       {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
       {page === 'onboarding' && session && (onboardingRole === 'business'
         ? <BusinessOnboarding session={session} setPage={setPage} />
