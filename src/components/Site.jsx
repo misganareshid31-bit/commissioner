@@ -4174,7 +4174,9 @@ export default function Commissioner() {
       {page === 'terms' && <TermsOfService />}
       {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} />}
       {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
-      {page === 'onboarding' && (activeRole === 'business' ? <BusinessOnboarding session={session} setPage={setPage} /> : <Onboarding session={session} setPage={setPage} />)}
+      {page === 'onboarding' && session && (activeRole === 'business'
+        ? <BusinessOnboarding session={session} setPage={setPage} />
+        : <Onboarding session={session} setPage={setPage} />)}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (

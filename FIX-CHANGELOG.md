@@ -72,3 +72,11 @@ and in `AdminPanel` itself (the actual gate).
   edits with a bracket-balance check and traced the logic by hand, but
   you should still smoke-test signup/login, the directories, and the
   admin panel after deploying.
+
+
+## 6. Auth and role-isolated onboarding hardening
+- Normal wrong-password/validation errors no longer trigger a 60-second email cooldown; only real rate-limit responses do.
+- Confirmation resend displays a clear sending state and keeps the confirmation subject explicit.
+- Direct `/join/business` and `/join/creator` loads explicitly set the active role before rendering onboarding, preventing a stale role from opening the wrong setup form.
+- Added `FIX-PROFILE-INSERT-RLS.sql` for authenticated self-inserts into creator/business profiles.
+- Added `SUPABASE-EMAIL-SETUP.md` documenting the exact email subjects and SMTP configuration required for reliable delivery.

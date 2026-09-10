@@ -177,8 +177,11 @@ export default function Auth({ onAuthenticated }) {
     setLoading(false);
 
     if (error) {
-      setCooldown(RESEND_COOLDOWN_SECONDS);
       const msg = error.message || 'We could not create your account.';
+      // Only rate-limit email sending when Supabase actually rate-limits it.
+      // A normal validation/duplicate/configuration error should not lock the
+      // whole form for a minute.
+      if (isRateLimitMessage(msg)) setCooldown(RESEND_COOLDOWN_SECONDS);
       setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
       return;
     }
@@ -222,7 +225,10 @@ export default function Auth({ onAuthenticated }) {
         await sendConfirmationEmail(normalizedEmail, { silent: true });
         return;
       }
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+      // A wrong password is not an email-sending event. Do not make the user
+      // wait a minute after every ordinary login typo; only actual rate limits
+      // start the one-minute cooldown.
+      if (isRateLimitMessage(msg)) setCooldown(RESEND_COOLDOWN_SECONDS);
       setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
     }
   };
@@ -235,6 +241,7 @@ export default function Auth({ onAuthenticated }) {
     if (cooldown) return;
     if (!silent) { setError(''); setNotice(''); }
     setLoading(true);
+    if (silent) setNotice('Sending a fresh confirmation email…');
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: targetEmail,
