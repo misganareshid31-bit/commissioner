@@ -212,17 +212,20 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   const isBusiness = activeRole === 'business';
   const hasBothProfiles = hasCreator && hasBusiness;
 
-  const addOtherProfile = async () => {
-    setAddingProfile(true);
+  // The "+ Set up" action must open the correct setup form. Do not create
+  // the opposite profile here: the setup form is responsible for collecting
+  // the profile information and creating the record when the user finishes.
+  // This keeps Creator and Business profiles independent as specified by the
+  // independent-business profile plan.
+  const addOtherProfile = () => {
     const otherRole = isBusiness ? 'creator' : 'business';
-    const rpcName = otherRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
-    const { error } = await supabase.rpc(rpcName);
     setAddingProfile(false);
-    if (error) return;
     setActiveRole?.(otherRole);
     onProfilesChanged?.();
     setAccountMenuOpen(false);
     setMenuOpen(false);
+    sessionStorage.setItem('commissioner_intended_role', otherRole);
+    localStorage.setItem(`commissioner_active_role_${session.user.id}`, otherRole);
     window.history.pushState({}, '', `/join/${otherRole}`);
     setPage('onboarding');
   };
@@ -4042,6 +4045,12 @@ export default function Commissioner() {
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const officialType = pathParts[0] || '';
   const officialId = pathParts[1] || '';
+  // The /join/:role URL is authoritative while the onboarding screen is open.
+  // This prevents the profile hook's initial default ('creator') from briefly
+  // rendering the Creator setup when a user explicitly chose Business.
+  const onboardingRole = page === 'onboarding' && (officialType === 'join')
+    ? (officialId === 'business' || officialId === 'creator' ? officialId : activeRole)
+    : activeRole;
 
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const [messageRecipientId, setMessageRecipientId] = useState(null);
@@ -4068,8 +4077,9 @@ export default function Commissioner() {
           // directly (bookmark, shared link, refresh). Make sure that
           // profile exists, then make it the active one.
           localStorage.setItem(`commissioner_active_role_${data.session.user.id}`, initialJoinRole);
+          setActiveRole(initialJoinRole);
           const rpcName = initialJoinRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
-          supabase.rpc(rpcName).then(() => refreshMyProfiles());
+          supabase.rpc(rpcName).then(() => { refreshMyProfiles(); setActiveRole(initialJoinRole); });
         } else {
           // Not logged in yet — remember the intent, send them to sign in
           // first, then Auth will carry them back into onboarding.
@@ -4174,7 +4184,7 @@ export default function Commissioner() {
       {page === 'terms' && <TermsOfService />}
       {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} />}
       {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
-      {page === 'onboarding' && session && (activeRole === 'business'
+      {page === 'onboarding' && session && (onboardingRole === 'business'
         ? <BusinessOnboarding session={session} setPage={setPage} />
         : <Onboarding session={session} setPage={setPage} />)}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} /> : <Auth onAuthenticated={() => setPage('account')} />)}
