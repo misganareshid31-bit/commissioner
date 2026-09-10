@@ -137,7 +137,7 @@ const BUSINESS_PLANS = [
   { id: 'enterprise', name: 'Enterprise NFC', price: 'ETB 8,166', period: '/month', features: ['NFC business card', 'Premium placement', 'Multiple team members'], tone: 'magenta' },
 ];
 
-const ONBOARDING_STEPS = ['Basic info', 'Social media', 'Niche (optional)', 'Audience', 'Services & pricing', 'Portfolio (optional)', 'Availability'];
+const ONBOARDING_STEPS = ['Basic info', 'Social media', 'Niche', 'Audience', 'Services & pricing', 'Portfolio (optional)', 'Availability'];
 
 /* ---------------------------------- shared bits ---------------------------------- */
 
@@ -1171,6 +1171,45 @@ const CreatorInquiryInbox = ({ profile }) => {
   return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business inquiries</p><span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{items.length} recent</span></div><div className="flex flex-col gap-3">{items.map(i=><div key={i.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>{i.name}{i.company?` · ${i.company}`:''}</p><p className="text-xs mt-0.5" style={{color:'#6B7280'}}>{i.email}{i.budget?` · Budget: ${i.budget}`:''}</p></div><span className="text-[10px] font-semibold uppercase" style={{color:i.status==='new'?'#E6007A':'#6B7280'}}>{i.status}</span></div><p className="text-xs leading-6 mt-3" style={{color:'#374151'}}>{i.message}</p></div>)}</div></div>;
 };
 
+const hasProfileValue = (value) => {
+  if (value == null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.values(value).some(hasProfileValue);
+  return Boolean(value);
+};
+
+const creatorCompletionChecklist = (profile) => {
+  const platforms = profile?.platforms && typeof profile.platforms === 'object' ? profile.platforms : {};
+  const audience = profile?.audience && typeof profile.audience === 'object' ? profile.audience : {};
+  const services = profile?.services && typeof profile.services === 'object' ? profile.services : {};
+  return [
+    ['Creator/page name', profile?.page_name],
+    ['Username', profile?.username],
+    ['Profile photo', profile?.avatar_url],
+    ['Location', profile?.city],
+    ['Language', profile?.language],
+    ['Bio/about', profile?.bio],
+    ['At least one social account', Object.values(platforms).some(hasProfileValue)],
+    ['Primary niche', profile?.primary_niche],
+    ['Audience information', hasProfileValue(audience.age) && hasProfileValue(audience.gender) && hasProfileValue(audience.location)],
+    ['At least one service/rate', Object.values(services).some(hasProfileValue)],
+    ['Availability', profile?.availability],
+  ];
+};
+
+const businessCompletionChecklist = (profile) => [
+  ['Business name', profile?.business_name],
+  ['Username', profile?.username],
+  ['Logo', profile?.avatar_url],
+  ['City/location', profile?.city],
+  ['Language', profile?.language],
+  ['Industry', profile?.industry],
+  ['About/business description', profile?.bio],
+];
+
+const completionPercent = (items) => Math.round((items.filter(([, value]) => hasProfileValue(value)).length / items.length) * 100);
+
 const CreatorDashboard = ({ session }) => {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -1192,29 +1231,10 @@ const CreatorDashboard = ({ session }) => {
   }, [session]);
 
   const displayName = profile?.page_name || session?.user?.email || 'Your profile';
-  // Completion is based on the information the creator setup actually collects.
-  // Do not depend on only the five basic fields: most of the setup lives in
-  // JSON columns (platforms, audience, services), so those must be counted too.
-  const hasValue = (value) => {
-    if (value == null) return false;
-    if (typeof value === 'string') return value.trim().length > 0;
-    if (Array.isArray(value)) return value.length > 0;
-    if (typeof value === 'object') return Object.values(value).some(hasValue);
-    return Boolean(value);
-  };
-  const socialValues = profile?.platforms && typeof profile.platforms === 'object' ? Object.values(profile.platforms) : [];
-  const hasSocial = socialValues.some(hasValue);
-  const audienceValues = profile?.audience && typeof profile.audience === 'object' ? Object.values(profile.audience) : [];
-  const hasAudience = audienceValues.some(hasValue);
-  const serviceValues = profile?.services && typeof profile.services === 'object' ? Object.values(profile.services) : [];
-  const hasServices = serviceValues.some(hasValue);
-  const completionFields = [
-    ['Page name', profile?.page_name], ['Username', profile?.username], ['Profile photo', profile?.avatar_url],
-    ['Location', profile?.city], ['Language', profile?.language], ['Bio', profile?.bio], ['Social accounts', hasSocial],
-    ['Primary niche', profile?.primary_niche], ['Audience', hasAudience], ['Services & pricing', hasServices],
-    ['Portfolio', profile?.portfolio_link], ['Availability', profile?.availability], ['Preferences', profile?.professional_preferences]
-  ];
-  const completion = Math.min(100, Math.round((completionFields.filter(([, value]) => hasValue(value)).length / completionFields.length) * 100));
+  const completionFields = creatorCompletionChecklist(profile);
+  const completion = completionPercent(completionFields);
+  const missingCompletion = completionFields.filter(([, value]) => !hasProfileValue(value)).map(([label]) => label);
+
 
   return (
   <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
@@ -1258,7 +1278,8 @@ const CreatorDashboard = ({ session }) => {
       <div className="h-2 rounded-full w-full" style={{ background: '#F3F4F6' }}>
         <div className="h-2 rounded-full cm-beam" style={{ width: `${profileLoading ? 0 : completion}%` }} />
       </div>
-      {completion < 100 && <p className="text-xs mt-2" style={{ color: '#6B7280' }}>Finish your profile to improve your discovery ranking.</p>}
+      {!profileLoading && completion < 100 && <div className="mt-3"><p className="text-xs" style={{ color: '#6B7280' }}>Finish your required setup to unlock verification. {missingCompletion.length} item{missingCompletion.length === 1 ? '' : 's'} remaining.</p><button onClick={() => setPage('onboarding')} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#E6007A'}}>Continue setup</button></div>}
+      {!profileLoading && completion === 100 && <div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs font-semibold" style={{ color: '#0E7A3B' }}>Profile complete ✓ You can now request verification.</p><button onClick={() => setPage('trust')} className="text-xs font-semibold px-3 py-2 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>Request verification</button></div>}
     </div>
 
     {profile && <CreatorAnalytics profile={{...profile, id: profile.id}} />}
@@ -1317,25 +1338,11 @@ const BusinessListingsManager = ({ profile }) => {
 const BusinessDashboard = ({ session }) => {
   const [profile,setProfile]=useState(null); const [profileLoading,setProfileLoading]=useState(true);
   useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{setProfile(data||null);setProfileLoading(false)})},[session?.user?.id]);
-  // Business completion mirrors the fields available in BusinessOnboarding.
-  // It is recalculated from the loaded database record so it stays accurate
-  // after a profile is created or edited.
-  const businessHasValue = (value) => {
-    if (value == null) return false;
-    if (typeof value === 'string') return value.trim().length > 0;
-    if (Array.isArray(value)) return value.length > 0;
-    if (typeof value === 'object') return Object.values(value).some(businessHasValue);
-    return Boolean(value);
-  };
-  const businessCompletionFields = [
-    ['Business name', profile?.business_name], ['Username', profile?.username], ['Logo', profile?.avatar_url],
-    ['City', profile?.city], ['Language', profile?.language], ['Industry', profile?.industry],
-    ['Website', profile?.website], ['About', profile?.bio]
-  ];
-  const businessCompletion = Math.min(100, Math.round(
-    (businessCompletionFields.filter(([, value]) => businessHasValue(value)).length / businessCompletionFields.length) * 100
-  ));
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>{profile?.plan==='enterprise'?'Enterprise plan':profile?.plan==='growth'?'Growth plan':'Starter plan'}{profile?.plan_expires_at?` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`:''}</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{profileLoading?'—':`${businessCompletion}%`}</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${profileLoading?0:businessCompletion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
+  const businessCompletionFields = businessCompletionChecklist(profile);
+  const businessCompletion = completionPercent(businessCompletionFields);
+  const businessMissing = businessCompletionFields.filter(([, value]) => !hasProfileValue(value)).map(([label]) => label);
+
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>{profile?.plan==='enterprise'?'Enterprise plan':profile?.plan==='growth'?'Growth plan':'Starter plan'}{profile?.plan_expires_at?` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`:''}</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{profileLoading?'—':`${businessCompletion}%`}</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${profileLoading?0:businessCompletion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div>{!profileLoading && businessCompletion < 100 && <div className="mt-3"><p className="text-xs" style={{color:'#6B7280'}}>Finish your required setup to unlock verification. {businessMissing.length} item{businessMissing.length === 1 ? '' : 's'} remaining.</p><button onClick={()=>setPage('onboarding')} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#E6007A'}}>Continue setup</button></div>}{!profileLoading && businessCompletion === 100 && <div className="mt-3 flex items-center justify-between gap-3"><p className="text-xs font-semibold" style={{color:'#0E7A3B'}}>Profile complete ✓ You can now request verification.</p><button onClick={()=>setPage('trust')} className="text-xs font-semibold px-3 py-2 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>Request verification</button></div>}</div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
 };
 
 const Dashboard = ({ session, activeRole }) => {
@@ -1365,13 +1372,15 @@ const Dashboard = ({ session, activeRole }) => {
 const BusinessOnboarding = ({ session, setPage }) => {
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''});
-  const [saving,setSaving]=useState(false); const [error,setError]=useState('');
-  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>data&&setForm(f=>({...f,...data})))},[session?.user?.id]);
+  const [logoFile,setLogoFile]=useState(null); const [logoPreview,setLogoPreview]=useState('');
+  const [saving,setSaving]=useState(false); const [uploadingLogo,setUploadingLogo]=useState(false); const [error,setError]=useState('');
+  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website,avatar_url').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{if(data){setForm(f=>({...f,...data}));setLogoPreview(data.avatar_url||'')}})},[session?.user?.id]);
   const update=(key,value)=>setForm(f=>({...f,[key]:value}));
-  const next=()=>{setError(''); if(step===1&&!form.business_name.trim()){setError('Enter your business name to continue.');return;} if(step===2&&!form.industry.trim()){setError('Choose or enter your industry.');return;} setStep(s=>Math.min(3,s+1));};
-  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;} setSaving(true);setError(''); const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,onboarded:true,claimed:true}; const {data: savedProfile,error}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single(); if(error){setSaving(false);setError(error.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');return;} const {error: verificationError}=await supabase.rpc('submit_business_verification',{p_business_profile_id:savedProfile.id,p_evidence_note:'Verification requested at the end of business setup.'}); setSaving(false); if(verificationError){setError('Business profile was created, but the verification request could not be submitted. You can request verification from the Trust Center.');return;} setPage('dashboard');};
-  const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Business onboarding</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>Create a business presence people trust.</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Set up your public business profile in a few simple steps. You can edit everything later.</p></div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}{field('City','city','Addis Ababa')}{field('Language','language','English, Amharic…')}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business</span><textarea value={form.bio} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Preview</p><h2 className="text-xl font-bold mt-2" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location not added'}</p><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description of your business.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>You can edit your profile after publishing. Your business profile will be linked to this login.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?'Creating & submitting…':'Create & request verification'}</button>}</div></div></div>;
+  const next=()=>{setError('');if(step===1){const missing=[['Business name',form.business_name],['Username',form.username],['Logo',logoPreview],['City/location',form.city],['Language',form.language]].filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items: ${missing.join(', ')}.`);return;}}if(step===2&&!form.industry.trim()){setError('Enter your industry to continue.');return;}if(step===2&&!form.bio.trim()){setError('Add a short business description to continue.');return;}setStep(s=>Math.min(3,s+1));};
+  const uploadLogo=async(file)=>{setLogoFile(file);setLogoPreview(URL.createObjectURL(file));};
+  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview;if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');const {error:verificationError}=await supabase.rpc('submit_business_verification',{p_business_profile_id:savedProfile.id,p_evidence_note:'Verification requested at the end of business setup.'});if(verificationError)throw new Error('Profile saved, but the verification request could not be submitted. Apply the Supabase verification migration, then try again.');setPage('dashboard');}catch(err){setError(err.message||'Something went wrong.');}finally{setSaving(false);setUploadingLogo(false);}};
+  const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]||''} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Business onboarding</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>Create a business presence people trust.</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Complete the required information first. Optional details can be added later.</p><div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div></div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#6B7280'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Ready for verification</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>Your required profile is complete. Submitting now will create/update the business profile and send a verification request to the admin review queue.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?(uploadingLogo?'Uploading logo…':'Submitting…'):'Create & request verification'}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -1827,9 +1836,9 @@ const ReviewsList = ({ userId, refreshKey }) => {
   );
 };
 
-const OnboardingField = ({ label, placeholder, icon: Icon, value, onChange, type = 'text' }) => (
+const OnboardingField = ({ label, placeholder, icon: Icon, value, onChange, type = 'text', required = false }) => (
   <div>
-    <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>{label}</label>
+    <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>{label}{required ? ' *' : ''}</label>
     <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5" style={{ borderColor: '#E5E7EB' }}>
       {Icon && <Icon size={15} style={{ color: '#6B7280' }} />}
       <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="flex-1 outline-none text-sm" />
@@ -2009,8 +2018,41 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
     return () => { cancelled = true; };
   }, [session?.user?.id]);
 
+  const validateCreatorStep = (currentStep) => {
+    if (currentStep === 0) {
+      const missing = [['Page name', pageName], ['Username', username], ['Profile photo', avatarPreview], ['Location', location], ['Language', language], ['Bio/about', bio]].filter(([,v]) => !hasProfileValue(v)).map(([l]) => l);
+      if (missing.length) { setSaveError(`Complete these required items: ${missing.join(', ')}.`); return false; }
+    }
+    if (currentStep === 1 && !Object.values(socials).some(hasProfileValue)) { setSaveError('Add at least one social account to continue.'); return false; }
+    if (currentStep === 2 && !hasProfileValue(primaryNiche)) { setSaveError('Choose your primary niche to continue.'); return false; }
+    if (currentStep === 3) {
+      if (![audienceAge, audienceGender, audienceLocation].every(hasProfileValue)) { setSaveError('Complete audience age range, gender and location to continue.'); return false; }
+    }
+    if (currentStep === 4 && !Object.values(pricing).some(hasProfileValue)) { setSaveError('Add at least one service/rate to continue.'); return false; }
+    if (currentStep === 6 && !hasProfileValue(availability)) { setSaveError('Choose your availability to continue.'); return false; }
+    setSaveError(''); return true;
+  };
+
+  const setupCompletion = completionPercent(creatorCompletionChecklist({
+    page_name: pageName, username, avatar_url: avatarPreview, city: location, language, bio,
+    platforms: socials, primary_niche: primaryNiche,
+    audience: { age: audienceAge, gender: audienceGender, location: audienceLocation },
+    services: pricing, availability
+  }));
+
   const finishSetup = async () => {
     if (!session) { setPage('auth'); return; }
+    const draftProfile = { page_name: pageName, username, avatar_url: avatarPreview, city: location, language, bio,
+      platforms: socials, primary_niche: primaryNiche,
+      audience: { age: audienceAge, gender: audienceGender, location: audienceLocation },
+      services: pricing, availability };
+    const requiredItems = creatorCompletionChecklist(draftProfile);
+    const missing = requiredItems.filter(([, value]) => !hasProfileValue(value)).map(([label]) => label);
+    if (missing.length) {
+      setSaveError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);
+      setStep(Math.max(0, requiredItems.findIndex(([, value]) => !hasProfileValue(value))));
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
@@ -2075,6 +2117,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
       <div className="mb-8">
         <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#111827' }}>{editMode ? 'Edit your creator profile' : 'Set up your creator profile'}</h1>
         <p className="text-sm" style={{ color: '#6B7280' }}>Step {step + 1} of {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[step]}</p>
+        <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${setupCompletion}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{setupCompletion}% complete</span></div><p className="text-[11px] mt-2" style={{color:'#6B7280'}}>Required information is counted. Optional details never block 100% completion.</p>
       </div>
 
       <div className="flex items-center gap-1.5 mb-10">
@@ -2089,8 +2132,8 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 0 — Basic info */}
         {step === 0 && (
           <div className="flex flex-col gap-5">
-            <OnboardingField label="Page name" placeholder="e.g. Sunrise Kitchen" value={pageName} onChange={e => setPageName(e.target.value)} />
-            <OnboardingField label="Creator username" placeholder="e.g. @sunrise.kitchen" value={username} onChange={e => setUsername(e.target.value)} />
+            <OnboardingField label="Page name" placeholder="e.g. Sunrise Kitchen" required value={pageName} onChange={e => setPageName(e.target.value)} />
+            <OnboardingField label="Creator username" placeholder="e.g. @sunrise.kitchen" required value={username} onChange={e => setUsername(e.target.value)} />
 
             <div className="grid grid-cols-2 gap-4">
               <ImageUploadTile label="Profile photo" shape="circle" previewUrl={avatarPreview} onFile={handleAvatarFile} uploading={uploadingAvatar} />
@@ -2159,12 +2202,12 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           </div>
         )}
 
-        {/* Step 2 — Niche (optional) */}
+        {/* Step 2 — Niche */}
         {step === 2 && (
           <div className="flex flex-col gap-6">
-            <p className="text-xs" style={{ color: '#6B7280' }}>Optional — skip this if you'd rather not specify a niche.</p>
+            <p className="text-xs" style={{ color: '#6B7280' }}>Required for a complete creator profile. Choose your primary niche.</p>
             <div>
-              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Primary niche <span style={{ color: '#6B7280', fontWeight: 400 }}>— choose one</span></p>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#111827' }}>Primary niche <span style={{ color: '#E6007A', fontWeight: 600 }}>* required</span></p>
               <div className="flex flex-wrap gap-2">
                 {NICHES.map(n => (
                   <button
@@ -2208,7 +2251,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 3 — Audience & creator metrics */}
         {step === 3 && (
           <div className="flex flex-col gap-5">
-            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Audience info</p>
+            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Audience info <span className="font-normal" style={{color:'#E6007A'}}>* required</span></p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-semibold block mb-1.5" style={{ color: '#374151' }}>Audience age range</label>
@@ -2237,7 +2280,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 4 — Services & pricing */}
         {step === 4 && (
           <div className="flex flex-col gap-5">
-            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Services offered & pricing</p>
+            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Services offered & pricing <span className="font-normal" style={{color:'#E6007A'}}>* add at least one</span></p>
             <div className="grid grid-cols-2 gap-4">
               <OnboardingField label="TikTok video" placeholder="ETB" value={pricing.tiktok} onChange={e => setPricing(p => ({ ...p, tiktok: e.target.value }))} />
               <OnboardingField label="Instagram Reel" placeholder="ETB" value={pricing.reel} onChange={e => setPricing(p => ({ ...p, reel: e.target.value }))} />
@@ -2292,6 +2335,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         </button>
         <button
           onClick={() => {
+            if (!validateCreatorStep(step)) return;
             if (step === ONBOARDING_STEPS.length - 1) finishSetup();
             else setStep(Math.min(ONBOARDING_STEPS.length - 1, step + 1));
           }}
@@ -2535,7 +2579,7 @@ const CreatorClaimForm = ({ token }) => {
           <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={handleBannerFile} uploading={uploadingBanner} />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <OnboardingField label="Page name" placeholder="e.g. Sunrise Kitchen" value={pageName} onChange={e => setPageName(e.target.value)} />
+          <OnboardingField label="Page name" placeholder="e.g. Sunrise Kitchen" required value={pageName} onChange={e => setPageName(e.target.value)} />
           <OnboardingField label="Username" placeholder="e.g. sunrise.kitchen" icon={AtSign} value={username} onChange={e => setUsername(e.target.value.replace(/\s/g, ''))} />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -3161,7 +3205,7 @@ const TrustCenter = ({ session }) => {
     if(b){setType('business');setProfile(b);const {data:v}=await supabase.from('business_verification_claims').select('*').eq('business_profile_id',b.id).maybeSingle();setClaim(v||null);}
   };
   useEffect(()=>{load()},[session?.user?.id]);
-  const submit=async()=>{if(!profile)return;setBusy(true);setMsg('');const fn=type==='creator'?'submit_creator_verification':'submit_business_verification';const params=type==='creator'?{p_creator_profile_id:profile.id,p_evidence_note:note}:{p_business_profile_id:profile.id,p_evidence_note:note};const {error}=await supabase.rpc(fn,params);setBusy(false);if(error)setMsg(error.message);else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}};
+  const submit=async()=>{if(!profile)return;const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile);const pct=completionPercent(checklist);if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}setBusy(true);setMsg('');const fn=type==='creator'?'submit_creator_verification':'submit_business_verification';const params=type==='creator'?{p_creator_profile_id:profile.id,p_evidence_note:note}:{p_business_profile_id:profile.id,p_evidence_note:note};const {error}=await supabase.rpc(fn,params);setBusy(false);if(error)setMsg(error.message);else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}};
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#111827'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Sign in to request verification.</p></div>;
   return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#6B7280'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div><div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#111827'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#6B7280'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div><div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}><h2 className="text-sm font-semibold" style={{color:'#111827'}}>Request a verification review</h2><p className="text-xs mt-1 mb-4" style={{color:'#6B7280'}}>{type==='creator'?'We can review identity, linked-account ownership, follower count and engagement claims.':'We can review your registered business information, license and authorized representative.'}</p><textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Tell the reviewer which connected accounts and statistics you want checked.':'Add the business registration/license reference or instructions for the reviewer. Do not paste private passwords or payment information.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#6B7280'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#111827'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}</div></div>;
 };
@@ -3736,7 +3780,7 @@ const AdminPanel = ({ session }) => {
           <p className="text-xs mb-4" style={{ color: '#6B7280' }}>This is the same full information set available in the normal creator setup. You can prepare the page completely for the recipient before giving them the NFC card.</p>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <OnboardingField label="Username" placeholder="@username" value={username} onChange={e => setUsername(e.target.value)} />
-            <OnboardingField label="Location" placeholder="Addis Ababa, Ethiopia" icon={MapPin} value={location} onChange={e => setLocation(e.target.value)} />
+            <OnboardingField label="Location" placeholder="Addis Ababa, Ethiopia" icon={MapPin} required value={location} onChange={e => setLocation(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <OnboardingField label="Language" placeholder="Amharic, English" icon={Languages} value={language} onChange={e => setLanguage(e.target.value)} />
