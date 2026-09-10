@@ -56,6 +56,26 @@ const GoogleButton = ({ onClick, disabled }) => (
   </button>
 );
 
+/* -------------------- shared helpers -------------------- */
+
+// Client-side throttle: whatever Supabase's own server-side limit is, the
+// UI never lets someone fire a second email inside this window. Keeps the
+// experience predictable and matches the "one minute is enough for now"
+// rule for every email-sending action (signup, resend, reset).
+const RESEND_COOLDOWN_SECONDS = 60;
+
+const isRateLimitMessage = (msg = '') => {
+  const lower = msg.toLowerCase();
+  return lower.includes('rate') || lower.includes('too many') || lower.includes('seconds');
+};
+
+const isUnconfirmedEmailMessage = (msg = '') => {
+  const lower = msg.toLowerCase();
+  return lower.includes('not confirmed') || lower.includes('confirm your email') || lower.includes('email not verified');
+};
+
+const RATE_LIMIT_MESSAGE = 'Too many attempts. Please wait 1 minute and try again.';
+
 /* -------------------- main component -------------------- */
 
 export default function Auth({ onAuthenticated }) {
@@ -67,8 +87,12 @@ export default function Auth({ onAuthenticated }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [session, setSession] = useState(null);
-  const [resetSent, setResetSent] = useState(false);
+  // 'signup' -> confirm-your-account email, 'reset' -> password reset email.
+  // Drives both the copy on the "check your email" screen and what the
+  // Resend button actually resends.
+  const [checkEmailContext, setCheckEmailContext] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   useEffect(() => { if (!cooldown) return; const t = setInterval(() => setCooldown(v => Math.max(0, v - 1)), 1000); return () => clearInterval(t); }, [cooldown]);
 
@@ -129,7 +153,8 @@ export default function Auth({ onAuthenticated }) {
   const handleSignUp = async (e) => {
     e.preventDefault();
     setError('');
-    if (cooldown) { setError(`Please wait ${cooldown} seconds before trying again.`); return; }
+    setNotice('');
+    if (cooldown) { setError(`Please wait ${cooldown}s before trying again.`); return; }
 
     const score = scorePassword(password);
     if (score < 3) {
@@ -137,9 +162,10 @@ export default function Auth({ onAuthenticated }) {
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         // Stored on the auth.users row; read this in a DB trigger to create
@@ -151,34 +177,85 @@ export default function Auth({ onAuthenticated }) {
     setLoading(false);
 
     if (error) {
-      setCooldown(60);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
       const msg = error.message || 'We could not create your account.';
-      setError(msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many') ? 'Too many attempts. Please wait 1 minute and try again.' : msg);
+      setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
       return;
     }
+
+    // A signUp call for an email that already exists returns success with
+    // no error and an identities array, but sends no new email — make sure
+    // the person isn't left thinking a fresh email is on its way.
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setError('An account with this email already exists. Try signing in, or use "Forgot password" if you need a new link.');
+      return;
+    }
+
     // Supabase sends a verification email automatically when email
-    // confirmations are enabled in Authentication settings.
+    // confirmations are enabled in Authentication settings. Start the same
+    // cooldown on success too, so the Resend button on the next screen
+    // can't be used to fire off a second email immediately.
+    setEmail(normalizedEmail);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    setCheckEmailContext('signup');
     setMode('check-email');
   };
 
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
-    if (cooldown) { setError(`Please wait ${cooldown} seconds before trying again.`); return; }
+    setNotice('');
+    if (cooldown) { setError(`Please wait ${cooldown}s before trying again.`); return; }
+    const normalizedEmail = email.trim().toLowerCase();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     setLoading(false);
     if (error) {
-      setCooldown(60);
       const msg = error.message || 'Sign in failed.';
-      setError(msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many') ? 'Too many attempts. Please wait 1 minute and try again.' : msg);
+      if (isUnconfirmedEmailMessage(msg)) {
+        // The most common reason sign-in silently "does nothing" for a new
+        // business or creator account: they signed up but never confirmed,
+        // and had no way to get a fresh link from the sign-in screen. Send
+        // one automatically and take them to the same check-email screen
+        // signup uses, instead of just showing an error.
+        setEmail(normalizedEmail);
+        await sendConfirmationEmail(normalizedEmail, { silent: true });
+        return;
+      }
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
     }
+  };
+
+  // Sends (or resends) the "confirm your account" email. Used by the
+  // sign-up flow's own confirmation, an unconfirmed sign-in attempt, and
+  // the Resend button on the check-email screen — one code path, one
+  // cooldown, so it behaves identically for both creators and businesses.
+  const sendConfirmationEmail = async (targetEmail, { silent = false } = {}) => {
+    if (cooldown) return;
+    if (!silent) { setError(''); setNotice(''); }
+    setLoading(true);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: targetEmail,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    setLoading(false);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    if (error) {
+      const msg = error.message || 'We could not send the confirmation email.';
+      setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
+      return;
+    }
+    setCheckEmailContext('signup');
+    setMode('check-email');
+    if (silent) setNotice('Your email address isn\u2019t confirmed yet, so we just sent a fresh confirmation link.');
   };
 
   const handleResetRequest = async (e) => {
     e.preventDefault();
     setError('');
-    setResetSent(false);
+    if (cooldown) { setError(`Please wait ${cooldown}s before trying again.`); return; }
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -192,14 +269,15 @@ export default function Auth({ onAuthenticated }) {
       redirectTo,
     });
     setLoading(false);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
 
     if (error) {
       const message = error.message || 'We could not send the reset email.';
       const lower = message.toLowerCase();
       if (lower.includes('redirect') || lower.includes('url')) {
         setError(`Password reset is blocked by Supabase redirect settings. Add ${redirectTo} to Authentication → URL Configuration → Redirect URLs.`);
-      } else if (lower.includes('rate limit') || lower.includes('too many')) {
-        setError('Too many reset requests. Please wait a few minutes and try again.');
+      } else if (isRateLimitMessage(message)) {
+        setError(RATE_LIMIT_MESSAGE);
       } else {
         setError(message);
       }
@@ -207,8 +285,25 @@ export default function Auth({ onAuthenticated }) {
     }
 
     setEmail(normalizedEmail);
-    setResetSent(true);
+    setCheckEmailContext('reset');
     setMode('check-email');
+  };
+
+  // Single Resend action on the check-email screen — resends whichever
+  // email got the person there (confirmation vs. password reset).
+  const handleResendFromCheckEmail = async () => {
+    if (cooldown) return;
+    if (checkEmailContext === 'reset') {
+      setError('');
+      setLoading(true);
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      setLoading(false);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      if (error) setError(isRateLimitMessage(error.message || '') ? RATE_LIMIT_MESSAGE : (error.message || 'We could not resend the reset email.'));
+    } else {
+      await sendConfirmationEmail(email);
+    }
   };
 
   const handleSignOut = async () => {
@@ -241,22 +336,43 @@ export default function Auth({ onAuthenticated }) {
 
   /* ---- check your email ---- */
   if (mode === 'check-email') {
+    const isReset = checkEmailContext === 'reset';
     return (
       <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6 text-center" style={{ borderColor: '#E5E7EB' }}>
         <Mail size={28} className="mx-auto mb-3" style={{ color: '#00A8CC' }} />
         <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Check your email</p>
         <p className="text-xs" style={{ color: '#6B7280' }}>
-          {resetSent ? <>We sent a password-reset link to <strong>{email}</strong>.</> : <>We sent a confirmation email to <strong>{email}</strong>. Open it to verify your account, then return here to sign in.</>}
+          {isReset
+            ? <>We sent a password-reset link to <strong>{email}</strong>. The subject line is <strong>"Reset your Commissioner password"</strong>.</>
+            : <>We sent a confirmation link to <strong>{email}</strong>. Look for an email titled <strong>"Confirm your Commissioner account"</strong>, open it to verify, then return here to sign in.</>}
         </p>
-        <p className="text-xs mt-2" style={{ color: '#6B7280' }}>If you don't see it, check Spam/Junk and make sure this is the email on your Commissioner account.</p>
+        <p className="text-xs mt-2" style={{ color: '#6B7280' }}>If you don't see it within a minute, check Spam/Junk — and make sure this is the email on your Commissioner account.</p>
+
+        {error && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{error}</p>}
+        {notice && !error && <p className="text-xs mt-3" style={{ color: '#036377' }}>{notice}</p>}
+
         <div className="flex gap-2 mt-4">
-          <button type="button" onClick={() => { setMode('reset'); setError(''); }} className="flex-1 text-xs font-semibold border rounded-lg py-2.5" style={{ borderColor: '#E5E7EB', color: '#374151' }}>
-            Try again
+          <button
+            type="button"
+            onClick={handleResendFromCheckEmail}
+            disabled={loading || cooldown > 0}
+            className="flex-1 text-xs font-semibold border rounded-lg py-2.5 disabled:opacity-50"
+            style={{ borderColor: '#E5E7EB', color: '#374151' }}
+          >
+            {loading ? 'Sending…' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend email'}
           </button>
-          <button type="button" onClick={() => { setMode('signin'); setError(''); }} className="flex-1 text-xs font-semibold rounded-lg py-2.5 text-white" style={{ background: '#E6007A' }}>
-            Back to sign in
+          <button
+            type="button"
+            onClick={() => { setMode(isReset ? 'reset' : 'signup'); setError(''); setNotice(''); }}
+            className="flex-1 text-xs font-semibold rounded-lg py-2.5 text-white"
+            style={{ background: '#E6007A' }}
+          >
+            Use a different email
           </button>
         </div>
+        <button type="button" onClick={() => { setMode('signin'); setError(''); setNotice(''); }} className="text-xs font-semibold mt-3 w-full text-center" style={{ color: '#6B7280' }}>
+          Back to sign in
+        </button>
       </div>
     );
   }
@@ -270,11 +386,12 @@ export default function Auth({ onAuthenticated }) {
           <Mail size={15} style={{ color: '#6B7280' }} />
           <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="flex-1 outline-none text-sm" />
         </div>
+        {cooldown > 0 && <p className="text-xs mb-3" style={{ color: '#B45309' }}>Try again in {cooldown}s.</p>}
         {error && <p className="text-xs mb-3" style={{ color: '#DC2626' }}>{error}</p>}
-        <button disabled={loading} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg disabled:opacity-50">
-          {loading ? 'Sending…' : 'Send reset link'}
+        <button disabled={loading || cooldown > 0} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg disabled:opacity-50">
+          {loading ? 'Sending…' : cooldown > 0 ? `Wait ${cooldown}s` : 'Send reset link'}
         </button>
-        <button type="button" onClick={() => setMode('signin')} className="text-xs font-semibold mt-3 w-full text-center" style={{ color: '#6B7280' }}>
+        <button type="button" onClick={() => { setMode('signin'); setError(''); }} className="text-xs font-semibold mt-3 w-full text-center" style={{ color: '#6B7280' }}>
           Back to sign in
         </button>
       </form>
@@ -288,7 +405,7 @@ export default function Auth({ onAuthenticated }) {
         {['signin', 'signup'].map(m => (
           <button
             key={m}
-            onClick={() => { setMode(m); setError(''); }}
+            onClick={() => { setMode(m); setError(''); setNotice(''); }}
             className="flex-1 text-sm font-semibold py-2 rounded-md"
             style={{ background: mode === m ? '#111827' : 'transparent', color: mode === m ? 'white' : '#374151' }}
           >
@@ -352,9 +469,14 @@ export default function Auth({ onAuthenticated }) {
 
         {cooldown > 0 && <p className="text-xs mt-3" style={{ color: '#B45309' }}>Try again in {cooldown}s.</p>}
         {error && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{error}</p>}
+        {notice && !error && <p className="text-xs mt-3" style={{ color: '#036377' }}>{notice}</p>}
 
-        <button disabled={loading} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg mt-4 disabled:opacity-50">
-          {loading ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+        <button disabled={loading || cooldown > 0} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg mt-4 disabled:opacity-50">
+          {loading
+            ? (mode === 'signup' ? `Creating your ${role} account…` : 'Signing in…')
+            : cooldown > 0
+              ? `Wait ${cooldown}s`
+              : mode === 'signup' ? 'Create account' : 'Sign in'}
         </button>
       </form>
     </div>
