@@ -1173,6 +1173,7 @@ const CreatorInquiryInbox = ({ profile }) => {
 
 const CreatorDashboard = ({ session }) => {
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [ratingSummary, setRatingSummary] = useState(null);
 
   useEffect(() => {
@@ -1184,14 +1185,36 @@ const CreatorDashboard = ({ session }) => {
     if (!session) return;
     supabase
       .from('creator_profiles')
-      .select('id, page_name, username, avatar_url, city, language, bio, verified, primary_niche, availability, onboarded, approved, plan, plan_expires_at')
+      .select('id, page_name, username, avatar_url, city, language, bio, verified, primary_niche, secondary_niches, platforms, audience, services, portfolio_link, availability, professional_preferences, onboarded, approved, plan, plan_expires_at')
       .eq('auth_user_id', session.user.id)
       .single()
-      .then(({ data }) => setProfile(data));
+      .then(({ data }) => { setProfile(data || null); setProfileLoading(false); });
   }, [session]);
 
   const displayName = profile?.page_name || session?.user?.email || 'Your profile';
-  const completion = [profile?.page_name, profile?.username, profile?.avatar_url, profile?.city, profile?.bio].filter(Boolean).length * 20;
+  // Completion is based on the information the creator setup actually collects.
+  // Do not depend on only the five basic fields: most of the setup lives in
+  // JSON columns (platforms, audience, services), so those must be counted too.
+  const hasValue = (value) => {
+    if (value == null) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.values(value).some(hasValue);
+    return Boolean(value);
+  };
+  const socialValues = profile?.platforms && typeof profile.platforms === 'object' ? Object.values(profile.platforms) : [];
+  const hasSocial = socialValues.some(hasValue);
+  const audienceValues = profile?.audience && typeof profile.audience === 'object' ? Object.values(profile.audience) : [];
+  const hasAudience = audienceValues.some(hasValue);
+  const serviceValues = profile?.services && typeof profile.services === 'object' ? Object.values(profile.services) : [];
+  const hasServices = serviceValues.some(hasValue);
+  const completionFields = [
+    ['Page name', profile?.page_name], ['Username', profile?.username], ['Profile photo', profile?.avatar_url],
+    ['Location', profile?.city], ['Language', profile?.language], ['Bio', profile?.bio], ['Social accounts', hasSocial],
+    ['Primary niche', profile?.primary_niche], ['Audience', hasAudience], ['Services & pricing', hasServices],
+    ['Portfolio', profile?.portfolio_link], ['Availability', profile?.availability], ['Preferences', profile?.professional_preferences]
+  ];
+  const completion = Math.min(100, Math.round((completionFields.filter(([, value]) => hasValue(value)).length / completionFields.length) * 100));
 
   return (
   <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
@@ -1230,10 +1253,10 @@ const CreatorDashboard = ({ session }) => {
     <div className="bg-white border rounded-2xl p-5 mb-6" style={{ borderColor: '#E5E7EB' }}>
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-semibold" style={{ color: '#111827' }}>Profile completion</p>
-        <p className="cm-mono text-sm font-semibold" style={{ color: '#E6007A' }}>{completion}%</p>
+        <p className="cm-mono text-sm font-semibold" style={{ color: '#E6007A' }}>{profileLoading ? '—' : `${completion}%`}</p>
       </div>
       <div className="h-2 rounded-full w-full" style={{ background: '#F3F4F6' }}>
-        <div className="h-2 rounded-full cm-beam" style={{ width: `${completion}%` }} />
+        <div className="h-2 rounded-full cm-beam" style={{ width: `${profileLoading ? 0 : completion}%` }} />
       </div>
       {completion < 100 && <p className="text-xs mt-2" style={{ color: '#6B7280' }}>Finish your profile to improve your discovery ranking.</p>}
     </div>
@@ -1292,10 +1315,27 @@ const BusinessListingsManager = ({ profile }) => {
 };
 
 const BusinessDashboard = ({ session }) => {
-  const [profile,setProfile]=useState(null);
-  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>setProfile(data||null))},[session?.user?.id]);
-  const completion=[profile?.business_name,profile?.username,profile?.avatar_url,profile?.city,profile?.bio,profile?.industry,profile?.website].filter(Boolean).length/7*100;
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>{profile?.plan==='enterprise'?'Enterprise plan':profile?.plan==='growth'?'Growth plan':'Starter plan'}{profile?.plan_expires_at?` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`:''}</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{Math.round(completion)}%</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${completion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
+  const [profile,setProfile]=useState(null); const [profileLoading,setProfileLoading]=useState(true);
+  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{setProfile(data||null);setProfileLoading(false)})},[session?.user?.id]);
+  // Business completion mirrors the fields available in BusinessOnboarding.
+  // It is recalculated from the loaded database record so it stays accurate
+  // after a profile is created or edited.
+  const businessHasValue = (value) => {
+    if (value == null) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.values(value).some(businessHasValue);
+    return Boolean(value);
+  };
+  const businessCompletionFields = [
+    ['Business name', profile?.business_name], ['Username', profile?.username], ['Logo', profile?.avatar_url],
+    ['City', profile?.city], ['Language', profile?.language], ['Industry', profile?.industry],
+    ['Website', profile?.website], ['About', profile?.bio]
+  ];
+  const businessCompletion = Math.min(100, Math.round(
+    (businessCompletionFields.filter(([, value]) => businessHasValue(value)).length / businessCompletionFields.length) * 100
+  ));
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"><div className="flex items-center gap-4"><Avatar name={profile?.business_name||session.user.email} size={56} ring src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h1 className="cm-display font-bold text-xl" style={{color:'#111827'}}>{profile?.business_name||'Your business'}</h1>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-sm" style={{color:'#6B7280'}}>{profile?.username?`@${profile.username.replace(/^@/,'')}`:'Complete your business profile'}{profile?.city?` · ${profile.city}`:''}</p></div></div><span className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#F3E8FF',color:'#7C3AED'}}>{profile?.plan==='enterprise'?'Enterprise plan':profile?.plan==='growth'?'Growth plan':'Starter plan'}{profile?.plan_expires_at?` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`:''}</span></div><div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex justify-between mb-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>Business profile completion</p><p className="cm-mono text-sm font-semibold" style={{color:'#7C3AED'}}>{profileLoading?'—':`${businessCompletion}%`}</p></div><div className="h-2 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full" style={{width:`${profileLoading?0:businessCompletion}%`,background:'linear-gradient(90deg,#7C3AED,#00D9FF)'}}/></div></div>{profile&&<BusinessListingsManager profile={profile}/>} {profile&&<div className="mb-6"><VerificationDetails type="business" id={profile.id}/></div>}<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Briefcase size={18} style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>B2B network</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Find creators, suppliers and other businesses.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><MessageSquare size={18} style={{color:'#036377'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Professional inbox</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Keep conversations and collaboration requests in one place.</p></div><div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><Shield size={18} style={{color:'#0E7A3B'}}/><p className="text-sm font-semibold mt-3" style={{color:'#111827'}}>Trust information</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Show the facts you have verified to potential partners.</p></div></div></div>;
 };
 
 const Dashboard = ({ session, activeRole }) => {
@@ -1329,9 +1369,9 @@ const BusinessOnboarding = ({ session, setPage }) => {
   useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>data&&setForm(f=>({...f,...data})))},[session?.user?.id]);
   const update=(key,value)=>setForm(f=>({...f,[key]:value}));
   const next=()=>{setError(''); if(step===1&&!form.business_name.trim()){setError('Enter your business name to continue.');return;} if(step===2&&!form.industry.trim()){setError('Choose or enter your industry.');return;} setStep(s=>Math.min(3,s+1));};
-  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;} setSaving(true);setError(''); const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,onboarded:true,claimed:true}; const {error}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}); setSaving(false); if(error){setError(error.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');} else setPage('dashboard');};
+  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;} setSaving(true);setError(''); const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,onboarded:true,claimed:true}; const {data: savedProfile,error}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single(); if(error){setSaving(false);setError(error.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');return;} const {error: verificationError}=await supabase.rpc('submit_business_verification',{p_business_profile_id:savedProfile.id,p_evidence_note:'Verification requested at the end of business setup.'}); setSaving(false); if(verificationError){setError('Business profile was created, but the verification request could not be submitted. You can request verification from the Trust Center.');return;} setPage('dashboard');};
   const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Business onboarding</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>Create a business presence people trust.</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Set up your public business profile in a few simple steps. You can edit everything later.</p></div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}{field('City','city','Addis Ababa')}{field('Language','language','English, Amharic…')}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business</span><textarea value={form.bio} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Preview</p><h2 className="text-xl font-bold mt-2" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location not added'}</p><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description of your business.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>You can edit your profile after publishing. Your business profile will be linked to this login.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?'Creating profile…':'Create business profile'}</button>}</div></div></div>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Business onboarding</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>Create a business presence people trust.</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Set up your public business profile in a few simple steps. You can edit everything later.</p></div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}{field('City','city','Addis Ababa')}{field('Language','language','English, Amharic…')}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business</span><textarea value={form.bio} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Preview</p><h2 className="text-xl font-bold mt-2" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location not added'}</p><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description of your business.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>You can edit your profile after publishing. Your business profile will be linked to this login.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?'Creating & submitting…':'Create & request verification'}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -1999,6 +2039,17 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           onboarded: true,
         }, { onConflict: 'auth_user_id' });
       if (error) throw error;
+      const { data: savedProfile, error: verificationError } = await supabase
+        .from('creator_profiles')
+        .select('id')
+        .eq('auth_user_id', session.user.id)
+        .single();
+      if (verificationError || !savedProfile?.id) throw verificationError || new Error('Could not find the saved creator profile.');
+      const { error: verificationRequestError } = await supabase.rpc('submit_creator_verification', {
+        p_creator_profile_id: savedProfile.id,
+        p_evidence_note: 'Verification requested at the end of creator setup.'
+      });
+      if (verificationRequestError) throw new Error('Profile saved, but the verification request could not be submitted. You can request verification from the Trust Center.');
       setSaved(true);
       if (onSaved) setTimeout(() => onSaved(), 700); else setTimeout(() => setPage('dashboard'), 1200);
     } catch (err) {
@@ -2248,7 +2299,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           style={{ background: '#E6007A' }}
           className="flex items-center gap-1.5 text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50"
         >
-          {saving ? (uploadingAvatar || uploadingBanner ? 'Uploading…' : 'Saving…') : step === ONBOARDING_STEPS.length - 1 ? (editMode ? 'Save changes' : 'Finish setup') : 'Continue'} <ArrowRight size={15} />
+          {saving ? (uploadingAvatar || uploadingBanner ? 'Uploading…' : 'Submitting…') : step === ONBOARDING_STEPS.length - 1 ? (editMode ? 'Save & request verification' : 'Finish & request verification') : 'Continue'} <ArrowRight size={15} />
         </button>
       </div>
       {saveError && <p className="text-xs mt-3 text-center" style={{ color: '#DC2626' }}>{saveError}</p>}
@@ -3127,23 +3178,52 @@ const B2BNetwork = ({ session, initialBusiness=null }) => {
 };
 
 const VerificationAdminQueue = () => {
-  const [creators,setCreators]=useState([]); const [businesses,setBusinesses]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState('');
-  const load=async()=>{setLoading(true);const [{data:c},{data:b}]=await Promise.all([supabase.from('creator_verification_claims').select('*,creator_profiles(id,page_name,username,platforms,audience,verified)').order('created_at',{ascending:false}),supabase.from('business_verification_claims').select('*,business_profiles(id,business_name,username,industry,verified)').order('created_at',{ascending:false})]);setCreators(c||[]);setBusinesses(b||[]);setLoading(false)};
+  const [creators,setCreators]=useState([]); const [businesses,setBusinesses]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(''); const [message,setMessage]=useState('');
+  const load=async()=>{setLoading(true);const [{data:c},{data:b}]=await Promise.all([
+    supabase.from('creator_verification_claims').select('*,creator_profiles(id,page_name,username,platforms,audience,verified,approved,onboarded)').order('created_at',{ascending:false}),
+    supabase.from('business_verification_claims').select('*,business_profiles(id,business_name,username,industry,verified,approved,onboarded)').order('created_at',{ascending:false})
+  ]);setCreators(c||[]);setBusinesses(b||[]);setLoading(false)};
   useEffect(()=>{load()},[]);
-  const verifyField=async(type,row,field)=>{
-    setBusy(`${row.id}:${field}`); const table=type==='creator'?'creator_verification_claims':'business_verification_claims';
-    const patch={ [field]:'verified', checked_at:new Date().toISOString(), status:'pending' };
-    const next={identity_status:row.identity_status,account_status:row.account_status,followers_status:row.followers_status,engagement_status:row.engagement_status,registration_status:row.registration_status,license_status:row.license_status,representative_status:row.representative_status,...patch};
-    const required=type==='creator'?['followers_status','engagement_status']:['registration_status','license_status'];
-    if(required.every(k=>next[k]==='verified')) patch.status='verified';
-    const {error}=await supabase.from(table).update(patch).eq('id',row.id);
-    if(!error && patch.status==='verified'){const ptype=type==='creator'?'creator_profiles':'business_profiles';const pid=type==='creator'?row.creator_profile_id:row.business_profile_id;await supabase.from(ptype).update({verified:true}).eq('id',pid)}
-    setBusy(''); await load();
+  const act=async(type,row,action)=>{
+    const key=`${type}:${row.id}:${action}`; setBusy(key); setMessage('');
+    const table=type==='creator'?'creator_verification_claims':'business_verification_claims';
+    const profileTable=type==='creator'?'creator_profiles':'business_profiles';
+    const profileId=type==='creator'?row.creator_profile_id:row.business_profile_id;
+    let error=null;
+    if(action==='verify'){
+      const patch=type==='creator'
+        ? {identity_status:'verified',account_status:'verified',followers_status:'verified',engagement_status:'verified',status:'verified',checked_at:new Date().toISOString()}
+        : {registration_status:'verified',license_status:'verified',representative_status:'verified',status:'verified',checked_at:new Date().toISOString()};
+      ({error}=await supabase.from(table).update(patch).eq('id',row.id));
+      if(!error) ({error}=await supabase.from(profileTable).update({verified:true}).eq('id',profileId));
+    } else if(action==='approve'){
+      ({error}=await supabase.from(profileTable).update({approved:true}).eq('id',profileId));
+    } else if(action==='reject'){
+      ({error}=await supabase.from(table).update({status:'rejected'}).eq('id',row.id));
+    } else if(action==='delete'){
+      const result=await supabase.rpc('admin_delete_page',{p_kind:type,p_page_id:profileId}); error=result.error;
+    }
+    setBusy('');
+    if(error) setMessage(error.message || `Could not ${action} this request.`); else await load();
   };
-  const reject=async(type,row)=>{setBusy(row.id);const table=type==='creator'?'creator_verification_claims':'business_verification_claims';await supabase.from(table).update({status:'rejected'}).eq('id',row.id);setBusy('');await load()};
-  if(loading)return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB'}}><p className="text-sm" style={{color:'#6B7280'}}>Loading verification queue…</p></div>;
-  const rows=[...creators.map(x=>({...x,_type:'creator',name:x.creator_profiles?.page_name||x.creator_profiles?.username||'Creator'})),...businesses.map(x=>({...x,_type:'business',name:x.business_profiles?.business_name||x.business_profiles?.username||'Business'}))];
-  return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>Verification queue</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Verify the exact claims you checked. A badge is not a guarantee of safety.</p></div><Shield size={18} style={{color:'#036377'}}/></div><div className="space-y-3">{rows.map(r=><div key={r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex flex-col gap-3"><div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2"><p className="text-sm font-semibold" style={{color:'#111827'}}>{r.name}</p><span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:r._type==='creator'?'#FDE7F1':'#F3E8FF',color:r._type==='creator'?'#99154F':'#7C3AED'}}>{r._type}</span></div><p className="text-[11px] mt-1" style={{color:'#6B7280'}}>Review status: {r.status}</p></div><button disabled={busy===r.id} onClick={()=>reject(r._type,r)} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:'#FECACA',color:'#B42318'}}>Reject</button></div>{r._type==='creator'?<div className="grid grid-cols-2 md:grid-cols-4 gap-2">{[['identity_status','Identity'],['account_status','Account'],['followers_status','Followers'],['engagement_status','Engagement']].map(([f,l])=><button key={f} disabled={r[f]==='verified'||busy===`${r.id}:${f}`} onClick={()=>verifyField(r._type,r,f)} className="text-left border rounded-lg p-3 disabled:opacity-60" style={{borderColor:r[f]==='verified'?'#BBF7D0':'#E5E7EB',background:r[f]==='verified'?'#F0FDF4':'#FFFFFF'}}><p className="text-[11px] font-semibold" style={{color:'#374151'}}>{l}</p><p className="text-[10px] mt-1 font-bold" style={{color:r[f]==='verified'?'#0E7A3B':'#9CA3AF'}}>{r[f]==='verified'?'Verified':'Verify claim'}</p></button>)}</div>:<div className="grid grid-cols-1 md:grid-cols-3 gap-2">{[['registration_status','Registration'],['license_status','License'],['representative_status','Representative']].map(([f,l])=><button key={f} disabled={r[f]==='verified'||busy===`${r.id}:${f}`} onClick={()=>verifyField(r._type,r,f)} className="text-left border rounded-lg p-3 disabled:opacity-60" style={{borderColor:r[f]==='verified'?'#BBF7D0':'#E5E7EB',background:r[f]==='verified'?'#F0FDF4':'#FFFFFF'}}><p className="text-[11px] font-semibold" style={{color:'#374151'}}>{l}</p><p className="text-[10px] mt-1 font-bold" style={{color:r[f]==='verified'?'#0E7A3B':'#9CA3AF'}}>{r[f]==='verified'?'Verified':'Verify claim'}</p></button>)}</div>}</div></div>)}{!rows.length&&<p className="text-xs py-5 text-center" style={{color:'#9CA3AF'}}>No verification requests yet.</p>}</div></div>;
+  if(loading)return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB'}}><p className="text-sm" style={{color:'#6B7280'}}>Loading verification requests…</p></div>;
+  const rows=[...creators.map(x=>({...x,_type:'creator',name:x.creator_profiles?.page_name||x.creator_profiles?.username||'Creator',profile:x.creator_profiles})),...businesses.map(x=>({...x,_type:'business',name:x.business_profiles?.business_name||x.business_profiles?.username||'Business',profile:x.business_profiles}))].sort((a,b)=>{const rank=r=>r.status==='pending'||r.status==='needs_recheck'?0:r.status==='rejected'?2:1;return rank(a)-rank(b)||new Date(b.created_at)-new Date(a.created_at)});
+  const pending=rows.filter(r=>r.status==='pending'||r.status==='needs_recheck');
+  return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}>
+    <div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>Verification requests {pending.length>0&&<span style={{color:'#E6007A'}}>({pending.length} pending)</span>}</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Every verification request from Creator and Business setup appears here. Review it, verify it, approve the profile, or reject/delete it.</p></div><Shield size={18} style={{color:'#036377'}}/></div>
+    {message&&<div className="mb-3 rounded-lg px-3 py-2 text-xs" style={{background:'#FFF1F2',color:'#B42318'}}>{message}</div>}
+    <div className="space-y-3">{rows.map(r=><div key={r._type+r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><p className="text-sm font-semibold" style={{color:'#111827'}}>{r.name}</p><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide" style={r._type==='business'?{background:'#F3E8FF',color:'#7C3AED'}:{background:'#FDE7F1',color:'#99154F'}}>{r._type}</span><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{background:r.status==='verified'?'#E9FBEF':r.status==='rejected'?'#FFF1F2':'#FFF7ED',color:r.status==='verified'?'#0E7A3B':r.status==='rejected'?'#B42318':'#9A4A0C'}}>{r.status.replace('_',' ')}</span>{r.profile?.verified&&<VerifiedBadge/>}{r.profile?.approved&&<span className="text-[10px] font-semibold" style={{color:'#0E7A3B'}}>Approved</span>}</div><p className="text-[11px] mt-1" style={{color:'#6B7280'}}>{r.profile?.username?`@${r.profile.username}`:''}{r.profile?.city?` · ${r.profile.city}`:''} · Submitted {new Date(r.created_at).toLocaleDateString()}</p>{r.evidence_note&&<p className="text-xs mt-2" style={{color:'#374151'}}>{r.evidence_note}</p>}</div>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button onClick={()=>act(r._type,r,'verify')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-50" style={{background:'#00A8CC'}}>{busy===`${r._type}:${r.id}:verify`?'Verifying…':'Verify'}</button>
+          <button onClick={()=>act(r._type,r,'approve')} disabled={!!busy||r.profile?.approved} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-50" style={{background:'#0E7A3B'}}>{r.profile?.approved?'Approved ✓':'Approve'}</button>
+          <button onClick={()=>act(r._type,r,'reject')} disabled={!!busy||r.status==='rejected'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:'#FECACA',color:'#B42318'}}>Reject</button>
+          <button onClick={()=>act(r._type,r,'delete')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:'#E5E7EB',color:'#6B7280'}}>Delete</button>
+        </div>
+      </div>
+    </div>)}{!rows.length&&<p className="text-xs py-6 text-center" style={{color:'#9CA3AF'}}>No verification requests yet.</p>}</div>
+  </div>;
 };
 const AdminPanel = ({ session }) => {
   const [claimType, setClaimType] = useState('creator'); // 'creator' | 'business'
