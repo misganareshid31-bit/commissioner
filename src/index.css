@@ -20,6 +20,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .cm-root h1 { font-size: clamp(1.8rem, 8vw, 2.5rem); }
 }
 
+/* Keep the public homepage tightly anchored beneath the navigation so the
+   first-screen content is immediately visible on desktop and mobile. */
+.cm-root > header + div > section:first-child {
+  margin-top: 0 !important;
+}
+
 /* Full professional UI upgrade */
 .cm-root { background: #f6f7fb; }
 .cm-root .cm-display { letter-spacing: -.045em; }

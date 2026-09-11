@@ -758,10 +758,10 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
   };
   return (
     <div className="overflow-hidden">
-      <section className="relative max-w-7xl mx-auto px-5 md:px-8 pt-10 md:pt-16 pb-14">
+      <section className="relative max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-8 pb-10 md:pb-12">
         <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: '#00D9FF' }} />
         <div className="absolute top-28 -left-28 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: '#E6007A' }} />
-        <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-12 items-center relative">
+        <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>
             <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#111827' }}>Where <span style={{ color: '#E6007A' }}>creators</span> and <span style={{ color: '#00A8C4' }}>businesses</span> connect professionally.</h1>
