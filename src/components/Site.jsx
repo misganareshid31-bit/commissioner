@@ -744,6 +744,10 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
   const [businesses, setBusinesses] = useState([]);
   const [search, setSearch] = useState('');
   useEffect(() => {
+    // Always start the public homepage at the top. This prevents the browser
+    // restoring a previous deep scroll position and making the hero appear
+    // vertically displaced/mostly empty on a fresh visit.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     let cancelled = false;
     Promise.all([fetchLaunchStats(), fetchLiveCreators(6), fetchLiveBusinesses(6)]).then(([stats, cs, bs]) => {
       if (cancelled) return;
@@ -758,7 +762,7 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
   };
   return (
     <div className="overflow-hidden">
-      <section className="relative max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-8 pb-10 md:pb-12">
+      <section className="cm-home-hero relative max-w-7xl mx-auto px-5 md:px-8 pt-3 md:pt-5 pb-10 md:pb-12">
         <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: '#00D9FF' }} />
         <div className="absolute top-28 -left-28 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: '#E6007A' }} />
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">

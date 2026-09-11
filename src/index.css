@@ -45,3 +45,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .cm-root section:first-child:before { width: 240px; height: 240px; right: -100px; }
   .cm-root section:first-child:after { width: 200px; height: 200px; left: -100px; }
 }
+
+
+/* Homepage first-screen layout: keep the hero directly under the navbar.
+   This deliberately avoids large vertical centering/blank space. */
+.cm-home-hero {
+  min-height: calc(100svh - 64px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  scroll-margin-top: 64px;
+}
+.cm-home-hero > .grid {
+  width: 100%;
+}
+@media (max-width: 1023px) {
+  .cm-home-hero { min-height: auto; }
+}
