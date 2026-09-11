@@ -1059,7 +1059,7 @@ const Campaigns = ({ session, setPage, appliedIds, onApply }) => (
   </div>
 );
 
-const Messages = ({ session, initialRecipientId = null }) => {
+const Messages = ({ session, initialRecipientId = null, marketplaceContact = false }) => {
   const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1123,13 +1123,14 @@ const Messages = ({ session, initialRecipientId = null }) => {
       const { data, error: rpcError } = await supabase.rpc('start_conversation', {
         p_other_user_id: initialRecipientId,
         p_initial_message: null,
+        p_marketplace: marketplaceContact,
       });
       if (rpcError) { setError(rpcError.message || 'Could not start the conversation.'); return; }
       await loadConversations();
       setActive(data);
       await loadThread(data);
     })();
-  }, [initialRecipientId, session?.user?.id]);
+  }, [initialRecipientId, session?.user?.id, marketplaceContact]);
 
   const selectConversation = async (id) => { setActive(id); await loadThread(id); };
   const activeConvo = conversations.find(c => c.id === active);
@@ -1428,7 +1429,7 @@ const BusinessListingsManager = ({ profile }) => {
   useEffect(()=>{if(profile?.id)load()},[profile?.id]);
   const add=async e=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('marketplace_listings').insert({owner_type:'business',owner_id:profile.id,title:form.title.trim(),description:form.description.trim(),listing_type:form.listing_type,category:form.category.trim(),price_display:form.price_display.trim(),external_url:form.external_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(error.message);else{setForm({title:'',description:'',listing_type:'service',category:'',price_display:'',external_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
   const remove=async id=>{await supabase.from('marketplace_listings').delete().eq('id',id).eq('owner_type','business').eq('owner_id',profile.id);await load()};
-  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Publish products, merchandise, services, or collaboration offers. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#374151'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option><option value="merch">Merchandise</option><option value="collaboration">Collaboration</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><OnboardingField label="Photo / video URL" placeholder="https://..." value={form.media_url} onChange={e=>setForm(f=>({...f,media_url:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#374151'}}>Media type</label><select value={form.media_type} onChange={e=>setForm(f=>({...f,media_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="image">Photo</option><option value="video">Video</option></select></div><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product, service, or collaboration." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#111827'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#111827'}}>{x.title}</p><p className="text-[11px]" style={{color:'#6B7280'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
+  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#111827'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Publish products, merchandise, services, or collaboration offers. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#374151'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><OnboardingField label="Photo / video URL" placeholder="https://..." value={form.media_url} onChange={e=>setForm(f=>({...f,media_url:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#374151'}}>Media type</label><select value={form.media_type} onChange={e=>setForm(f=>({...f,media_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="image">Photo</option><option value="video">Video</option></select></div><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product, service, or collaboration." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#111827'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#111827'}}>{x.title}</p><p className="text-[11px]" style={{color:'#6B7280'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
 };
 
 const BusinessDashboard = ({ session, setPage }) => {
@@ -1496,6 +1497,41 @@ const BusinessDashboard = ({ session, setPage }) => {
   );
 };
 
+
+const MarketplaceInbox = ({ session }) => {
+  const [rows,setRows]=useState([]);
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    if(!session?.user?.id){setRows([]);setLoading(false);return;}
+    (async()=>{
+      const {data,error}=await supabase.from('marketplace_inquiries').select('id,listing_id,buyer_user_id,conversation_id,created_at').eq('seller_user_id',session.user.id).order('created_at',{ascending:false}).limit(100);
+      if(!error){
+        const base=data||[];
+        const ids=[...new Set(base.map(r=>r.listing_id))];
+        const {data:listings}=ids.length ? await supabase.from('marketplace_listings').select('id,title').in('id',ids) : {data:[]};
+        const names=Object.fromEntries((listings||[]).map(x=>[x.id,x.title]));
+        setRows(base.map(r=>({...r,listing_title:names[r.listing_id]||'Marketplace listing'})));
+      }
+      setLoading(false);
+    })();
+  },[session?.user?.id]);
+  const counts={};
+  rows.forEach(r=>{counts[r.listing_id]=(counts[r.listing_id]||0)+1});
+  return (
+    <div className="max-w-7xl mx-auto px-5 md:px-8 pb-8">
+      <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Marketplace inquiries</p><h2 className="cm-display font-bold text-lg mt-1" style={{color:'#111827'}}>People asking about your listings</h2></div>
+          <span className="text-sm font-bold px-3 py-1.5 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>{rows.length} total</span>
+        </div>
+        {loading ? <p className="text-xs" style={{color:'#6B7280'}}>Loading inquiries…</p> :
+          rows.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{Object.entries(counts).map(([listingId,count])=><div key={listingId} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#111827'}}>{rows.find(r=>r.listing_id===listingId)?.listing_title || 'Marketplace listing'}</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>{count} {count===1?'inquiry':'inquiries'}</p></div>)}</div>
+          : <p className="text-xs" style={{color:'#6B7280'}}>No marketplace inquiries yet. New messages from your listings will appear here.</p>}
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = ({ session, activeRole, setPage }) => {
   const isBusiness = activeRole === 'business';
   return (
@@ -1516,6 +1552,7 @@ const Dashboard = ({ session, activeRole, setPage }) => {
         </div>
       </div>
       {isBusiness ? <BusinessDashboard session={session} setPage={setPage}/> : <CreatorDashboard session={session} setPage={setPage}/>}
+      <MarketplaceInbox session={session}/>
     </div>
   );
 };
@@ -3342,19 +3379,27 @@ const Marketplace = ({ onMessage }) => {
     })();
   },[]);
   const filtered=items.filter(x=>(tab==='all'||x.owner_type===tab||x.listing_type===tab)&&`${x.title} ${x.description} ${x.category} ${x.owner?.page_name||x.owner?.business_name||''}`.toLowerCase().includes(q.toLowerCase()));
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Products, services & collaborations</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Discover products and services offered by creators and businesses. Commissioner connects you; transactions happen directly between parties.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#111827':'transparent',color:tab===v?'#fff':'#4B5563'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#111827'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#6B7280'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#111827'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#4B5563'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#111827'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#E6007A'}}>Contact</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}</div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Products & services</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Discover products and services offered by creators and businesses. Anyone with a Commissioner account can message a poster directly.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#111827':'transparent',color:tab===v?'#fff':'#4B5563'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#6B7280'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#111827'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#6B7280'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#111827'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#4B5563'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#111827'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner, x.id)} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#E6007A'}}>Contact</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#111827'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}</div>;
 };
 
-const TrustCenter = ({ session }) => {
-  const [profile,setProfile]=useState(null); const [type,setType]=useState('creator'); const [claim,setClaim]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
+const TrustCenter = ({ session, activeRole }) => {
+  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
   const load=async()=>{
     if(!session?.user?.id)return;
-    const {data:c}=await supabase.from('creator_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
-    if(c){setType('creator');setProfile(c);const {data:v}=await supabase.from('creator_verification_claims').select('*').eq('creator_profile_id',c.id).maybeSingle();setClaim(v||null);return;}
-    const {data:b}=await supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
-    if(b){setType('business');setProfile(b);const {data:v}=await supabase.from('business_verification_claims').select('*').eq('business_profile_id',b.id).maybeSingle();setClaim(v||null);}
+    const preferred = activeRole === 'business' ? 'business' : 'creator';
+    const order = preferred === 'business' ? ['business','creator'] : ['creator','business'];
+    for (const role of order) {
+      if (role === 'creator') {
+        const {data:c}=await supabase.from('creator_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
+        if(c){setType('creator');setProfile(c);const {data:v}=await supabase.from('creator_verification_claims').select('*').eq('creator_profile_id',c.id).maybeSingle();setClaim(v||null);return;}
+      } else {
+        const {data:b}=await supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
+        if(b){setType('business');setProfile(b);const {data:v}=await supabase.from('business_verification_claims').select('*').eq('business_profile_id',b.id).maybeSingle();setClaim(v||null);return;}
+      }
+    }
+    setProfile(null); setClaim(null); setType(preferred);
   };
-  useEffect(()=>{load()},[session?.user?.id]);
+  useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
   const submit=async()=>{if(!profile)return;const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile);const pct=completionPercent(checklist);if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}setBusy(true);setMsg('');const fn=type==='creator'?'submit_creator_verification':'submit_business_verification';const params=type==='creator'?{p_creator_profile_id:profile.id,p_evidence_note:note}:{p_business_profile_id:profile.id,p_evidence_note:note};const {error}=await supabase.rpc(fn,params);setBusy(false);if(error)setMsg(error.message);else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}};
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#111827'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Sign in to request verification.</p></div>;
   return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#6B7280'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div><div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#111827'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#6B7280'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div><div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}><h2 className="text-sm font-semibold" style={{color:'#111827'}}>Request a verification review</h2><p className="text-xs mt-1 mb-4" style={{color:'#6B7280'}}>{type==='creator'?'We can review identity, linked-account ownership, follower count and engagement claims.':'We can review your registered business information, license and authorized representative.'}</p><textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Tell the reviewer which connected accounts and statistics you want checked.':'Add the business registration/license reference or instructions for the reviewer. Do not paste private passwords or payment information.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#6B7280'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#111827'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}</div></div>;
@@ -4293,7 +4338,7 @@ const TOUR_STEPS = [
   { target: 'nav-dashboard', title: 'Your Dashboard', body: 'This is home base — your profile status, plan, and quick links live here.' },
   { target: 'nav-creators', title: 'Discover creators', body: 'Browse and filter creators by platform, niche, city, and followers.' },
   { target: 'nav-businesses', title: 'Discover businesses', body: 'See registered, Commissioner-verified businesses.' },
-  { target: 'nav-marketplace', title: 'Marketplace', body: 'Products, services, and collaborations from creators and businesses.' },
+  { target: 'nav-marketplace', title: 'Marketplace', body: 'Products and services from creators and businesses.' },
   { target: 'nav-network', title: 'B2B network', body: 'Make direct professional connections, one request at a time.' },
   { target: 'nav-trust', title: 'Trust Center', body: 'Verify specific claims about yourself so others know what to trust.' },
   { target: 'nav-messages', title: 'Messages', body: 'Chat directly with anyone you connect with on Commissioner.' },
@@ -4474,6 +4519,7 @@ export default function Commissioner() {
 
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const [messageRecipientId, setMessageRecipientId] = useState(null);
+  const [marketplaceContact, setMarketplaceContact] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [launchStats, setLaunchStats] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -4490,6 +4536,7 @@ export default function Commissioner() {
     if (!networkLaunched) { setToast(`Messaging unlocks once Commissioner reaches ${launchStats?.threshold ?? LAUNCH_THRESHOLD} verified creators & businesses.`); setTimeout(() => setToast(''), 3500); return; }
     if (!creator.authUserId) { setToast('This creator has not connected a messaging account yet.'); setTimeout(() => setToast(''), 3000); return; }
     setMessageRecipientId(creator.authUserId);
+    setMarketplaceContact(false);
     setPage('messages');
   };
   const onApply = (campaign) => {
@@ -4607,12 +4654,22 @@ export default function Commissioner() {
       {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
       {page === 'creators' && <Creators session={session} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} />}
       {page === 'businesses' && <Businesses onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
-      {page === 'marketplace' && <Marketplace onMessage={(owner) => onHire(owner && owner.auth_user_id ? {authUserId: owner.auth_user_id} : owner)} />}
+      {page === 'marketplace' && <Marketplace onMessage={async (owner, listingId) => {
+        if (!session) { setPage('auth'); return; }
+        const id = owner?.auth_user_id || owner?.authUserId;
+        if (!id || id === session.user.id) return;
+        if (listingId && String(listingId).match(/^[0-9a-f-]{36}$/i)) {
+          const { data, error } = await supabase.rpc('start_marketplace_inquiry', { p_listing_id: listingId });
+          if (error) { setToast(error.message || 'Could not start the marketplace conversation.'); setTimeout(()=>setToast(''),4000); return; }
+          setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages'); return;
+        }
+        setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages');
+      }} />}
       {page === 'network' && <B2BNetwork session={session} initialBusiness={selectedBusiness} />}
-      {page === 'trust' && <TrustCenter session={session} />}
+      {page === 'trust' && <TrustCenter session={session} activeRole={activeRole} />}
       {page === 'campaigns' && <Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} />}
       {page === 'spotlight' && <Spotlight />}
-      {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} />}
+      {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} marketplaceContact={marketplaceContact} />}
       {page === 'pricing' && <Pricing />}
       {page === 'about' && <AboutUs />}
       {page === 'terms' && <TermsOfService />}
