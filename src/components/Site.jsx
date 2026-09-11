@@ -402,20 +402,6 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          {session && hasBothProfiles && (
-            <div className="flex items-center gap-0.5 border rounded-lg p-0.5" style={{ borderColor: '#E5E7EB' }}>
-              {[['creator', 'Creator'], ['business', 'Business']].map(([r, l]) => (
-                <button
-                  key={r}
-                  onClick={() => setActiveRole?.(r)}
-                  className="px-2.5 py-1.5 rounded-md text-xs font-semibold"
-                  style={{ background: activeRole === r ? '#111827' : 'transparent', color: activeRole === r ? '#fff' : '#4B5563' }}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          )}
           {session ? (
             <div className="relative">
               <button
@@ -434,6 +420,16 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               {accountMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-56 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
+                  {hasBothProfiles && (
+                    <div className="px-3 pt-2 pb-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1" style={{ color: '#9CA3AF' }}>Switch account</p>
+                      <div className="flex gap-1">
+                        {[['creator','Creator'],['business','Business']].map(([r,l]) => (
+                          <button key={r} onClick={() => { setActiveRole?.(r); setPage('dashboard'); setAccountMenuOpen(false); }} className="flex-1 px-2 py-2 rounded-lg text-xs font-semibold" style={{ background: activeRole===r ? '#111827' : '#F8FAFC', color: activeRole===r ? '#fff' : '#4B5563' }}>{l}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
                   {(isBusiness ? hasCreator : hasBusiness) ? (
                     <button onClick={() => { const role = isBusiness ? 'creator' : 'business'; setActiveRole?.(role); setAccountMenuOpen(false); setMenuOpen(false); setPage('dashboard'); }}
@@ -1325,14 +1321,6 @@ const CreatorDashboard = ({ session, setPage }) => {
   }, [session]);
 
   const displayName = profile?.page_name || session?.user?.email || 'Your profile';
-  const completionFields = creatorCompletionChecklist(profile);
-  const [serverCompletion, setServerCompletion] = useState(null);
-  useEffect(() => {
-    if (!profile?.id) { setServerCompletion(null); return; }
-    supabase.rpc('creator_profile_completion_percent', { p_profile_id: profile.id }).then(({ data }) => setServerCompletion(Number.isFinite(Number(data)) ? Number(data) : null));
-  }, [profile?.id]);
-  const completion = serverCompletion ?? completionPercent(completionFields);
-  const missingCompletion = completionFields.filter(([, value]) => !hasProfileValue(value)).map(([label]) => label);
 
 
   return (
@@ -1365,23 +1353,6 @@ const CreatorDashboard = ({ session, setPage }) => {
         {profile?.approved
           ? <><CheckCircle2 size={16} /> Your profile is approved and visible to businesses.</>
           : <><Clock size={16} /> Your profile is submitted and pending approval — it won't appear in Discover creators until reviewed.</>}
-      </div>
-    )}
-
-    {/* Profile completion is shown only while setup is unfinished. Once setup reaches 100%, the completion counter disappears. */}
-    {!profileLoading && !profile?.onboarded && completion < 100 && (
-      <div className="bg-white border rounded-2xl p-5 mb-6" style={{ borderColor: '#E5E7EB' }}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold" style={{ color: '#111827' }}>Profile completion</p>
-          <p className="cm-mono text-sm font-semibold" style={{ color: '#E6007A' }}>{`${completion}%`}</p>
-        </div>
-        <div className="h-2 rounded-full w-full" style={{ background: '#F3F4F6' }}>
-          <div className="h-2 rounded-full cm-beam" style={{ width: `${completion}%` }} />
-        </div>
-        <div className="mt-3">
-          <p className="text-xs" style={{ color: '#6B7280' }}>Finish your required setup to unlock verification. {missingCompletion.length} item{missingCompletion.length === 1 ? '' : 's'} remaining.</p>
-          <button onClick={() => setPage('onboarding')} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#E6007A'}}>Continue setup</button>
-        </div>
       </div>
     )}
 
@@ -1455,17 +1426,6 @@ const BusinessDashboard = ({ session, setPage }) => {
       });
   }, [session?.user?.id]);
 
-  const businessCompletionFields = businessCompletionChecklist(profile);
-  const [serverBusinessCompletion, setServerBusinessCompletion] = useState(null);
-  useEffect(() => {
-    if (!profile?.id) { setServerBusinessCompletion(null); return; }
-    supabase.rpc('business_profile_completion_percent', { p_profile_id: profile.id }).then(({ data }) => setServerBusinessCompletion(Number.isFinite(Number(data)) ? Number(data) : null));
-  }, [profile?.id]);
-  const businessCompletion = serverBusinessCompletion ?? completionPercent(businessCompletionFields);
-  const businessMissing = businessCompletionFields
-    .filter(([, value]) => !hasProfileValue(value))
-    .map(([label]) => label);
-
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -1489,27 +1449,6 @@ const BusinessDashboard = ({ session, setPage }) => {
           {profile?.plan_expires_at ? ` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}` : ''}
         </span>
       </div>
-
-      {/* Business profile completion is shown only while setup is unfinished. */}
-      {!profileLoading && !profile?.onboarded && businessCompletion < 100 && (
-        <div className="bg-white border rounded-2xl p-5 mb-6" style={{ borderColor: '#E5E7EB' }}>
-          <div className="flex justify-between mb-2">
-            <p className="text-sm font-semibold" style={{ color: '#111827' }}>Business profile completion</p>
-            <p className="cm-mono text-sm font-semibold" style={{ color: '#7C3AED' }}>{`${businessCompletion}%`}</p>
-          </div>
-          <div className="h-2 rounded-full" style={{ background: '#F3F4F6' }}>
-            <div className="h-2 rounded-full" style={{ width: `${businessCompletion}%`, background: 'linear-gradient(90deg,#7C3AED,#00D9FF)' }} />
-          </div>
-          <div className="mt-3">
-            <p className="text-xs" style={{ color: '#6B7280' }}>
-              Finish your required setup to unlock verification. {businessMissing.length} item{businessMissing.length === 1 ? '' : 's'} remaining.
-            </p>
-            <button onClick={() => setPage('onboarding')} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{ background: '#E6007A' }}>
-              Continue setup
-            </button>
-          </div>
-        </div>
-      )}
 
       {profile && <BusinessListingsManager profile={profile} />}
       {profile && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
@@ -1568,9 +1507,11 @@ const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
   const update=(key,value)=>setForm(f=>({...f,[key]:value}));
   const next=()=>{setError('');if(step===1){const missing=[['Business name',form.business_name],['Username',form.username],['Logo',logoPreview],['City/location',form.city],['Language',form.language]].filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items: ${missing.join(', ')}.`);return;}}if(step===2&&!form.industry.trim()){setError('Enter your industry to continue.');return;}if(step===2&&!form.bio.trim()){setError('Add a short business description to continue.');return;}setStep(s=>Math.min(3,s+1));};
   const uploadLogo=async(file)=>{setLogoFile(file);setLogoPreview(URL.createObjectURL(file));};
-  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview;if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');if(!editMode){const {error:verificationError}=await supabase.rpc('submit_business_verification',{p_business_profile_id:savedProfile.id,p_evidence_note:'Verification requested at the end of business setup.'});if(verificationError)throw new Error('Profile saved, but the verification request could not be submitted. Apply the Supabase verification migration, then try again.');}setPage(editMode?'account':'dashboard');}catch(err){setError(err.message||'Something went wrong.');}finally{setSaving(false);setUploadingLogo(false);}};
+  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview;if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');// Verification is optional. Completing setup only saves the profile;
+  // the owner can request verification later from Trust Center.
+  setPage(editMode?'account':'dashboard');}catch(err){setError(err.message||'Something went wrong.');}finally{setSaving(false);setUploadingLogo(false);}};
   const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]||''} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#6B7280'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Ready for verification</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>Your required profile is complete. Submitting now will create/update the business profile and send a verification request to the admin review queue.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Submitting…')):(editMode?'Save changes':'Create & request verification')}</button>}</div></div></div>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#6B7280'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>Your required profile is complete. Finishing now will create/update the business profile. Verification is optional and can be requested later from Trust Center.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -2207,7 +2148,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
       setPreferences(data.professional_preferences || '');
     })();
     return () => { cancelled = true; };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, editMode]);
 
   const validateCreatorStep = (currentStep) => {
     if (currentStep === 0) {
@@ -2272,19 +2213,8 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           onboarded: true,
         }, { onConflict: 'auth_user_id' });
       if (error) throw error;
-      const { data: savedProfile, error: verificationError } = await supabase
-        .from('creator_profiles')
-        .select('id')
-        .eq('auth_user_id', session.user.id)
-        .single();
-      if (verificationError || !savedProfile?.id) throw verificationError || new Error('Could not find the saved creator profile.');
-      if (!editMode) {
-        const { error: verificationRequestError } = await supabase.rpc('submit_creator_verification', {
-          p_creator_profile_id: savedProfile.id,
-          p_evidence_note: 'Verification requested at the end of creator setup.'
-        });
-        if (verificationRequestError) throw new Error('Profile saved, but the verification request could not be submitted. You can request verification from the Trust Center.');
-      }
+      // Verification is optional. Completing setup only saves the profile;
+      // the owner can request verification later from Trust Center.
       setSaved(true);
       if (onSaved) setTimeout(() => onSaved(), 700); else setTimeout(() => setPage('dashboard'), 1200);
     } catch (err) {
@@ -2300,7 +2230,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
     return (
       <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center">
         <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
-        <p className="text-sm font-semibold" style={{ color: '#111827' }}>{editMode ? 'Profile updated successfully.' : "Profile submitted — it's now pending approval."}</p>
+        <p className="text-sm font-semibold" style={{ color: '#111827' }}>{editMode ? 'Profile updated successfully.' : 'Profile setup completed successfully.'}</p>
       </div>
     );
   }
@@ -2310,7 +2240,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
       <div className="mb-8">
         <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#111827' }}>{editMode ? 'Edit your creator profile' : 'Set up your creator profile'}</h1>
         <p className="text-sm" style={{ color: '#6B7280' }}>Step {step + 1} of {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[step]}</p>
-        <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${setupCompletion}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{!editMode && `${setupCompletion}% complete`}</span></div><p className="text-[11px] mt-2" style={{color:'#6B7280'}}>Required information is counted. Optional details never block 100% completion.</p>
+        {!editMode && <><div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${setupCompletion}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{`${setupCompletion}% complete`}</span></div><p className="text-[11px] mt-2" style={{color:'#6B7280'}}>Required information is counted. Optional details never block 100% completion.</p></>}
       </div>
 
       <div className="flex items-center gap-1.5 mb-10">
@@ -2536,7 +2466,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           style={{ background: '#E6007A' }}
           className="flex items-center gap-1.5 text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50"
         >
-          {saving ? (uploadingAvatar || uploadingBanner ? 'Uploading…' : 'Submitting…') : step === ONBOARDING_STEPS.length - 1 ? (editMode ? 'Save & request verification' : 'Finish & request verification') : 'Continue'} <ArrowRight size={15} />
+          {saving ? (uploadingAvatar || uploadingBanner ? 'Uploading…' : 'Saving…') : step === ONBOARDING_STEPS.length - 1 ? (editMode ? 'Save changes' : 'Finish setup') : 'Continue'} <ArrowRight size={15} />
         </button>
       </div>
       {saveError && <p className="text-xs mt-3 text-center" style={{ color: '#DC2626' }}>{saveError}</p>}

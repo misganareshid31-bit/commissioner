@@ -150,3 +150,12 @@ next.
 - Creator and Business setup completion counters are not shown once setup is complete, and are hidden during edit mode.
 - Creator/Business discovery directories are locked behind the live 50 verified Creator + 50 verified Business launch gate and show a lock/progress notice before unlock.
 - After launch, live approved/onboarded creators and businesses are discoverable.
+
+## 2026-09-11 — final completion/setup/admin correction
+- Removed Creator and Business profile-completion counters from dashboards entirely; completion progress is shown only during first-time onboarding.
+- Completed profiles are treated as finished and onboarding routes redirect back to the dashboard instead of reopening setup.
+- Editing an existing profile is available from Account Settings only; the onboarding progress bar is hidden during edit mode.
+- Verification is now optional during onboarding. Finishing setup never automatically submits a verification request; owners can request verification later from Trust Center.
+- Added an explicit Creator/Business account switcher to the account side panel/dropdown above Account Settings.
+- Rebuilt the admin plan migration to create the missing `plan` columns before normalizing legacy plan values, preventing the `column "plan" does not exist` SQL error.
+- Admin verification supports Basic, Pro, and Premium, with Verify/Unverify reversal and admin-only plan assignment.
