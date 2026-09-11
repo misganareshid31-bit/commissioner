@@ -1,101 +1,81 @@
-# Commissioner — Master-plan implementation report
+# Commissioner — implementation report
 
-## What was already working
+## A. What was already working
 
-The uploaded project already contained a substantial React/Vite Commissioner MVP:
-- Supabase-backed creator and business profiles
-- Separate creator/business onboarding
-- Public creator/business profile routes
-- Authentication and password-reset flow
-- Creator/business discovery
-- Marketplace and creator products
-- B2B connection flow
-- Messaging/conversations
-- Verification request and admin queue
-- Trust/safety tables and actions
-- Plan fields and ranked discovery
-- NFC claim-link flow
-- Vercel SPA rewrite configuration
-- Live 50/50 launch-progress UI
+The supplied project already had a substantial React/Vite + Supabase MVP, including authentication, separate creator/business tables and onboarding, public profiles, discovery, messaging, connections, verification, trust/safety, marketplace, plans, NFC claim/admin flows, a live 50/50 launch gate, and Vercel SPA routing.
 
-## Changes made in this build pass
+## B. What changed in this pass
 
-### A. Routing / disappeared Admin page
-- `/admin` is now recognized as a real initial route.
-- A Vercel refresh on `/admin` no longer initializes the app on the homepage.
-- The authenticated-home redirect does not override a direct `/admin` visit.
+### Identity and navigation
+- Removed the always-visible global **Edit creator profile / Edit business profile** button from desktop and mobile navigation.
+- The logged-in top account control now shows the active profile picture, page name/business name, username when available, and **Creator** or **Business** identity type instead of the Gmail address.
+- Account settings now provides explicit active-identity switching and a clear path to create the second profile.
+- One Supabase auth account can own both a creator profile and a business profile; the two profiles remain separate records and tables.
+- Logged-in navigation now includes both **Find creators** and **Find businesses**.
+- **Hire creators** is shown only to the active Business experience and is not shown on the Creator experience.
 
-### B. Verification security
-- The admin queue now uses `admin_review_verification()` instead of directly updating
-  `verified` from the browser.
-- Verification approval is server-side.
-- The server checks required profile completion before verification/approval.
-- Normal users cannot promote their own profile through the privileged review RPC.
-- Gift/NFC pages now start unverified; the previous "Mark verified right away" UI was removed.
+### Profile completion
+- Added server-backed `creator_profile_completion_percent(uuid)` and `business_profile_completion_percent(uuid)` functions.
+- Dashboards use the server result as the completion source of truth, with the existing client checklist as a fallback.
+- Completion is based on the required fields already used by the onboarding forms rather than optional fields.
+- The business and creator onboarding flows retain their existing save/upsert behavior.
 
-### C. Admin identity
-- The new master migration uses `admin_users` + `is_admin()` instead of a personal
-  email allowlist.
-- Admin operations are server-side.
-- Existing older migrations are preserved for backward compatibility; the master
-  migration must be applied last so its secure functions/policies become authoritative.
+### Find Businesses
+- Discovery now reads from the real `business_profiles` table with `approved = true` and `onboarded = true`.
+- No sample businesses were added.
+- If no real businesses are available, the UI shows an empty state.
 
-### D. 50/50 launch gate
-- Added server-side `commissioner_launch_stats()`.
-- Added server-side `commissioner_network_unlocked()`.
-- Connection inserts are blocked at the database boundary while below 50 verified
-  creators AND 50 verified businesses, except admins.
-- New conversation creation is also gated server-side while below the threshold,
-  while existing conversations can remain accessible subject to normal privacy/block rules.
+### Public homepage / UX
+- Reworked the homepage into a more visual, demo-like landing experience.
+- Uses Commissioner magenta `#E6007A` and cyan `#00D9FF` intentionally as separate brand accents rather than a page-wide gradient.
+- Added clearer hero messaging, discovery actions, live network counts, real featured creators/businesses, trust messaging, how-it-works cards, and a strong final CTA.
+- Featured profiles come from Supabase and disappear into honest empty states when there is no approved data.
 
-### E. NFC
-- Added an admin-only `nfc_cards` registry that supports creator or business assignment.
-- Added secure RPCs for registering/assigning and changing NFC status.
-- Added an Admin → NFC management UI.
-- The UI displays/copies the permanent public destination.
-- Physical NTAG215 programming remains external hardware work.
+### Security / database
+Added:
+- `20260911_DUAL_IDENTITY_COMPLETION_SECURITY.sql`
 
-### F. Deployment
-- Added `.env.example`.
-- Added `DEPLOYMENT.md` with Supabase, admin setup, build, GitHub, Vercel, and NFC
-  instructions.
-- Existing `vercel.json` SPA rewrites were retained.
+This forward-only migration:
+- preserves one creator + one business profile per auth user,
+- provides `get_my_profile_types()` for dual identity discovery,
+- adds server-side completion percentage functions,
+- replaces legacy hardcoded admin RLS policies with `is_admin()`, and
+- reapplies the protected-field trigger to both profile tables.
 
-## Database migration added
+The existing master migration remains the main security/verification/NFC/launch-gate migration and should still be applied before this final repair migration.
 
-`COMMISSIONER-MASTER-MIGRATION.sql`
+## C–O. Existing master-plan areas retained
 
-Run it **after the project's existing migrations**. It is designed as a forward migration
-and uses `CREATE OR REPLACE`, `IF NOT EXISTS`, and policy replacement where appropriate.
+The existing build's previous implementation of authentication, creator/business onboarding, verification review, messaging, connections, ratings, blocking/reporting, NFC administration, campaigns/marketplace, plans, launch-gate logic, RLS, and Vercel routing was preserved rather than rebuilt from scratch.
 
-## Testing
+## Test report
 
 | Feature | Result | Notes |
 |---|---|---|
-| Source inspection | PASS | Existing project files and migrations inspected. |
-| `/admin` route fix | PASS (static inspection) | Route initialization and refresh logic updated. |
-| Verification browser path | PASS (static inspection) | Admin queue now calls secure review RPC. |
-| 50/50 server-side SQL | NOT TESTED | Requires a live Supabase database. |
-| NFC registry | NOT TESTED | Requires live Supabase tables/RPCs. |
-| Authentication E2E | NOT TESTED | Requires Supabase credentials and email/OAuth configuration. |
-| Production npm build | NOT TESTED | `vite` was not installed; dependency installation timed out in this environment. |
-| Vercel production deploy | NOT TESTED | Requires the user's Vercel project. |
-| Physical NTAG215 tap | NOT TESTED | Requires the physical card and NFC-capable device. |
+| Source audit and requested UI changes | **PASS** | Actual project files were inspected and modified. |
+| Remove persistent edit-profile nav action | **PASS** | Desktop and mobile global navigation updated. |
+| Active profile avatar + page/business name | **PASS** | Nav reads the active profile record and no longer uses Gmail as the visible account name. |
+| Creator vs Business navigation | **PASS** | Both discovery destinations are available; Hire creators is Business-only. |
+| Dual-profile account switching | **PASS (code path)** | Existing dual-profile RPC architecture retained and Account settings now exposes switching. Live Supabase test is still required. |
+| Find Businesses live data | **PASS (code path)** | Direct `business_profiles` query with approved/onboarded filters. Live database test is still required. |
+| Profile completion calculation | **PASS (code path)** | Server-backed percentage functions added; live RPC execution is still required. |
+| Homepage redesign | **PASS (source inspection)** | Real-data sections and empty states implemented. |
+| Admin security migration | **PASS (migration authored)** | Must be executed in the user's Supabase project to verify remotely. |
+| Authentication E2E | **NOT TESTED** | Requires live Supabase credentials/configuration. |
+| Supabase RLS/security | **NOT TESTED** | Requires applying migrations to a live project and attempting protected operations. |
+| `npm run build` | **NOT TESTED** | Dependency installation in this environment did not complete; the available `node_modules` tree was incomplete. |
+| Vercel deployment | **NOT TESTED** | Requires the user's Vercel project. |
+| Physical NFC/NTAG215 | **NOT TESTED** | Requires physical hardware and an NFC-capable device. |
 
 ## Remaining limitations
 
-- The master migration has not been executed against the user's Supabase project.
-- The intended admin account must be added to `admin_users` by the project owner.
-- Vercel environment variables must be configured.
-- Real social-platform verification APIs are still external integrations; the app does
-  not fabricate verification evidence.
-- Payments remain intentionally disabled.
-- Physical NFC tag programming remains a hardware operation.
+1. The new migration has not been executed against the user's Supabase project.
+2. The intended administrator must exist in `public.admin_users`.
+3. Vercel must receive `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+4. A clean `npm install` followed by `npm run build` must be performed in a networked environment.
+5. Physical NFC programming remains an external hardware operation.
+6. Payments remain intentionally disabled.
 
 ## Final status
 
-**NOT READY — deployment prerequisites and production integration testing remain.**
-
-The project is materially closer to the master plan, but the master plan explicitly
-requires real build/testing and server integration. Those cannot honestly be marked
-PASS without access to the live Supabase/Vercel environment.
+**NOT READY — production deployment still requires Supabase migration execution, environment configuration, a successful production build, and live smoke/security testing.**

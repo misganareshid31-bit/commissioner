@@ -121,6 +121,30 @@ async function fetchLiveCreators(limit = 48) {
   });
 }
 
+async function fetchLiveBusinesses(limit = 48) {
+  const { data, error } = await supabase
+    .from('business_profiles')
+    .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, verified, approved, onboarded, plan, created_at')
+    .eq('onboarded', true)
+    .eq('approved', true)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map((row, i) => ({
+    id: row.id,
+    authUserId: row.auth_user_id,
+    name: row.business_name || row.username || 'Business',
+    handle: row.username ? (row.username.startsWith('@') ? row.username : `@${row.username}`) : '',
+    industry: row.industry || 'Business',
+    city: row.city || '',
+    bio: row.bio || '',
+    verified: !!row.verified,
+    avatarUrl: row.avatar_url,
+    plan: row.plan || 'starter',
+    tone: i,
+  }));
+}
+
 // Commissioner unlocks its networking features (Connect, messaging entry
 // points, and full marketplace visibility) once it has reached this many
 // verified creators AND verified businesses. Counts come straight from
@@ -285,6 +309,25 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   const [addingProfile, setAddingProfile] = useState(false);
   const isBusiness = activeRole === 'business';
   const hasBothProfiles = hasCreator && hasBusiness;
+  const [activeProfile, setActiveProfile] = useState(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) { setActiveProfile(null); return; }
+    let cancelled = false;
+    const table = isBusiness ? 'business_profiles' : 'creator_profiles';
+    const fields = isBusiness
+      ? 'id,business_name,username,avatar_url,approved,onboarded,verified'
+      : 'id,page_name,username,avatar_url,approved,onboarded,verified';
+    supabase.from(table).select(fields).eq('auth_user_id', session.user.id).maybeSingle().then(({ data }) => {
+      if (!cancelled) setActiveProfile(data || null);
+    });
+    return () => { cancelled = true; };
+  }, [session?.user?.id, activeRole]);
+
+  const activeDisplayName = isBusiness
+    ? (activeProfile?.business_name || 'Business account')
+    : (activeProfile?.page_name || 'Creator account');
+  const activeUsername = activeProfile?.username ? `@${activeProfile.username.replace(/^@/, '')}` : '';
 
   // The "+ Set up" action must open the correct setup form. Do not create
   // the opposite profile here: the setup form is responsible for collecting
@@ -312,7 +355,8 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   const links = session
     ? [
         { id: 'dashboard', label: isBusiness ? 'Business dashboard' : 'Creator dashboard' },
-        isBusiness ? { id: 'creators', label: 'Find creators' } : { id: 'businesses', label: 'Find businesses' },
+        { id: 'creators', label: 'Find creators' },
+        { id: 'businesses', label: 'Find businesses' },
         { id: 'marketplace', label: isBusiness ? 'Business marketplace' : 'Creator marketplace' },
         { id: 'network', label: isBusiness ? 'Business network' : 'Creator network' },
         { id: 'messages', label: 'Messages' },
@@ -382,8 +426,11 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                 className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg"
                 style={{ color: '#111827', background: accountMenuOpen ? '#F8FAFC' : 'transparent' }}
               >
-                <span style={{ background: '#0E7A3B' }} className="w-2 h-2 rounded-full" />
-                {session.user.email}
+                <Avatar name={activeDisplayName} size={32} ring src={activeProfile?.avatar_url} />
+                <span className="flex flex-col items-start leading-tight max-w-[150px]">
+                  <span className="text-xs font-bold truncate w-full">{activeDisplayName}</span>
+                  <span className="text-[10px] font-medium" style={{ color: isBusiness ? '#7C3AED' : '#036377' }}>{isBusiness ? 'Business' : 'Creator'}{activeUsername ? ` · ${activeUsername}` : ''}</span>
+                </span>
                 <ChevronDown size={14} style={{ color: '#6B7280' }} />
               </button>
               {accountMenuOpen && (
@@ -411,24 +458,17 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           ) : (
             <button onClick={() => setPage('auth')} className="text-sm font-medium px-3 py-2" style={{ color: '#111827' }}>Sign in</button>
           )}
-          <button
-            data-tour="nav-hire"
-            onClick={() => setPage('creators')}
-            style={{ background: '#E6007A' }}
-            className="text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
-          >
-            Hire creators
-          </button>
-          {session ? (
+          {session && isBusiness && (
             <button
-              data-tour="nav-edit-profile"
-              onClick={() => { window.history.pushState({}, '', `/join/${isBusiness ? 'business' : 'creator'}`); setPage('onboarding'); }}
-              style={{ borderColor: '#00D9FF', color: '#036377' }}
-              className="border-2 text-sm font-semibold px-3.5 py-1.5 rounded-lg"
+              data-tour="nav-hire"
+              onClick={() => setPage('creators')}
+              style={{ background: '#E6007A' }}
+              className="text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
             >
-              {isBusiness ? 'Edit business profile' : 'Edit creator profile'}
+              Hire creators
             </button>
-          ) : (
+          )}
+          {!session ? (
             <div className="relative">
               <button
                 onClick={() => setJoinMenuOpen(o => !o)}
@@ -490,7 +530,10 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Account</p>
               {session ? (
                 <div className="flex flex-col gap-1">
-                  <div className="px-3 py-2 text-xs truncate" style={{ color: '#6B7280' }}>{session.user.email}</div>
+                  <div className="mx-3 mb-2 rounded-xl border p-3 flex items-center gap-3" style={{ borderColor: '#E5E7EB', background: '#F8FAFC' }}>
+                    <Avatar name={activeDisplayName} size={38} ring src={activeProfile?.avatar_url} />
+                    <div className="min-w-0"><p className="text-sm font-bold truncate" style={{ color: '#111827' }}>{activeDisplayName}</p><p className="text-[10px] font-semibold" style={{ color: isBusiness ? '#7C3AED' : '#036377' }}>{isBusiness ? 'Business account' : 'Creator account'}</p></div>
+                  </div>
                   {hasBothProfiles && (
                     <div className="flex items-center gap-0.5 border rounded-lg p-0.5 mx-3 mb-1" style={{ borderColor: '#E5E7EB' }}>
                       {[['creator', 'Creator'], ['business', 'Business']].map(([r, l]) => (
@@ -526,22 +569,10 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                 <button onClick={() => { setPage('auth'); setMenuOpen(false); }} className="w-full text-left px-3 py-3 rounded-xl text-sm font-semibold" style={{ color: '#E6007A', background: '#FDE7F1' }}>Sign in</button>
               )}
             </div>
-            <div className="p-4 border-t shrink-0 flex flex-col gap-2" style={{ borderColor: '#E5E7EB' }}>
-              {session ? (
-                <button onClick={() => { window.history.pushState({}, '', `/join/${isBusiness ? 'business' : 'creator'}`); setPage('onboarding'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
-                  {isBusiness ? 'Edit business profile' : 'Edit creator profile'}
-                </button>
-              ) : (
-                <>
-                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('auth'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">
-                    Join as a creator
-                  </button>
-                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('auth'); setMenuOpen(false); }} style={{ borderColor: '#00D9FF', color: '#036377' }} className="w-full border-2 text-sm font-semibold px-4 py-3 rounded-xl">
-                    Join as a business
-                  </button>
-                </>
-              )}
-            </div>
+            {!session && <div className="p-4 border-t shrink-0 flex flex-col gap-2" style={{ borderColor: '#E5E7EB' }}>
+              <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('auth'); setMenuOpen(false); }} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold px-4 py-3 rounded-xl">Join as a creator</button>
+              <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('auth'); setMenuOpen(false); }} style={{ borderColor: '#00D9FF', color: '#036377' }} className="w-full border-2 text-sm font-semibold px-4 py-3 rounded-xl">Join as a business</button>
+            </div>}
           </aside>
         </>
       )}
@@ -699,95 +730,75 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 
 const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
   const [launchStats, setLaunchStats] = useState(null);
-  useEffect(() => { fetchLaunchStats().then(setLaunchStats); }, []);
+  const [creators, setCreators] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchLaunchStats(), fetchLiveCreators(6), fetchLiveBusinesses(6)]).then(([stats, cs, bs]) => {
+      if (cancelled) return;
+      setLaunchStats(stats); setCreators(cs); setBusinesses(bs);
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const runSearch = () => {
+    const q = search.trim();
+    if (q) sessionStorage.setItem('commissioner_discovery_query', q);
+    setPage('creators');
+  };
   return (
-  <div>
-    {/* hero */}
-    <section className="max-w-7xl mx-auto px-5 md:px-8 pt-16 pb-10">
-      <div className="max-w-3xl">
-        <span style={{ background: '#FDE7F1', color: '#99154F' }} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
-          <Sparkles size={13} /> Now in early access
-        </span>
-        <h1 className="cm-display font-bold leading-[1.05] mb-6" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.75rem)', color: '#111827' }}>
-          Where creators and businesses build real partnerships.
-        </h1>
-        <p className="text-lg mb-8 max-w-xl" style={{ color: '#374151' }}>
-          Commissioner connects vetted creators with businesses for campaigns, UGC, and brand partnerships — whether you're looking to hire or looking for your next deal.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-3 mb-10">
-          <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3.5 rounded-xl hover:opacity-90 flex items-center justify-center gap-2">
-            Hire creators <ArrowRight size={16} />
-          </button>
-          {!session && (
-            <>
-              <button onClick={() => joinAs?.('creator')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-cyan-50">
-                Join as a creator
-              </button>
-              <button onClick={() => joinAs?.('business')} style={{ borderColor: '#7C3AED', color: '#7C3AED' }} className="border-2 font-semibold px-6 py-3.5 rounded-xl hover:bg-purple-50">
-                Join as a business
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 bg-white border rounded-xl p-2 max-w-xl" style={{ borderColor: '#E5E7EB' }}>
-          <Search size={18} style={{ color: '#6B7280' }} className="ml-2" />
-          <input
-            placeholder="Search by niche, platform, or city — e.g. Fashion in Dubai"
-            className="flex-1 outline-none text-sm py-2"
-          />
-          <button style={{ background: '#111827' }} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg">Search</button>
-        </div>
-      </div>
-    </section>
-
-    {/* launch progress */}
-    <section className="max-w-7xl mx-auto px-5 md:px-8 pb-16">
-      <LaunchProgressCard stats={launchStats} />
-    </section>
-
-    {/* how it works */}
-    <section style={{ background: '#F8FAFC' }} className="py-16">
-      <div className="max-w-7xl mx-auto px-5 md:px-8">
-        <h2 className="cm-display font-bold text-2xl md:text-3xl mb-10 text-center" style={{ color: '#111827' }}>How it works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { icon: Search, t: 'Discover', d: 'Search and filter creators by niche, platform, city, and audience — or post a campaign and let creators come to you.' },
-            { icon: MessageSquare, t: 'Collaborate', d: 'Message directly, agree on scope in a shared campaign workspace, and track approvals and revisions in one place.' },
-            { icon: Shield, t: 'Get results', d: 'Track delivery, collaboration history, and verified facts so every relationship builds trust for the next one.' },
-          ].map((s, i) => (
-            <div key={s.t} className="bg-white rounded-2xl border p-7" style={{ borderColor: '#E5E7EB' }}>
-              <div style={{ background: '#E0FBFF' }} className="w-11 h-11 rounded-xl flex items-center justify-center mb-5">
-                <s.icon size={20} style={{ color: '#036377' }} />
-              </div>
-              <h3 className="font-semibold text-base mb-2" style={{ color: '#111827' }}>{s.t}</h3>
-              <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{s.d}</p>
+    <div className="overflow-hidden">
+      <section className="relative max-w-7xl mx-auto px-5 md:px-8 pt-10 md:pt-16 pb-14">
+        <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: '#00D9FF' }} />
+        <div className="absolute top-28 -left-28 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: '#E6007A' }} />
+        <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-12 items-center relative">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>
+            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#111827' }}>Where <span style={{ color: '#E6007A' }}>creators</span> and <span style={{ color: '#00A8C4' }}>businesses</span> connect professionally.</h1>
+            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#4B5563' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
+            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+              <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-100">Explore creators <ArrowRight size={16}/></button>
+              <button onClick={() => setPage('businesses')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 bg-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2">Explore businesses <Building2 size={16}/></button>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    {/* CTA */}
-    <section className="max-w-7xl mx-auto px-5 md:px-8 py-16">
-      <div className="rounded-3xl p-10 md:p-14 relative overflow-hidden" style={{ background: '#111827' }}>
-        <div className="relative max-w-lg">
-          <h2 className="cm-display font-bold text-2xl md:text-3xl text-white mb-3">Ready to start collaborating?</h2>
-          <p className="text-sm mb-7" style={{ color: '#9CA3AF' }}>Commissioner is in early access — be one of the first creators or businesses on the platform.</p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={() => setPage('creators')} style={{ background: '#E6007A' }} className="text-white font-semibold px-6 py-3 rounded-xl">Hire creators</button>
-            {!session && (
-              <>
-                <button onClick={() => joinAs?.('creator')} style={{ borderColor: '#00D9FF', color: '#00D9FF' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a creator</button>
-                <button onClick={() => joinAs?.('business')} style={{ borderColor: '#7C3AED', color: '#A78BFA' }} className="border-2 font-semibold px-6 py-3 rounded-xl">Join as a business</button>
-              </>
-            )}
+            <div className="bg-white border rounded-2xl p-2 flex items-center gap-2 shadow-sm max-w-2xl" style={{ borderColor: '#DCEFF2' }}>
+              <Search size={19} style={{ color: '#00A8C4' }} className="ml-2"/>
+              <input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runSearch()} placeholder="Search creators, businesses, niches or cities" className="flex-1 outline-none text-sm py-3"/>
+              <button onClick={runSearch} style={{ background: '#111827' }} className="text-white text-sm font-bold px-5 py-3 rounded-xl">Search</button>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="bg-white border rounded-[2rem] p-4 md:p-5 shadow-2xl" style={{ borderColor: '#E5E7EB' }}>
+              <div className="rounded-[1.5rem] p-5 md:p-7" style={{ background: '#111827' }}>
+                <div className="flex items-center justify-between mb-7"><div><p className="text-[10px] uppercase tracking-[.22em] font-bold" style={{ color:'#00D9FF' }}>LIVE NETWORK</p><p className="text-white text-xl font-bold mt-1">Commissioner</p></div><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background:'#E6007A' }}><Shield size={19} color="white"/></div></div>
+                <div className="grid grid-cols-2 gap-3 mb-4"><div className="rounded-2xl p-4" style={{ background:'#1F2937' }}><p className="text-2xl font-bold text-white">{launchStats?.creatorCount ?? 0}</p><p className="text-[11px] mt-1" style={{ color:'#A5F3FC' }}>Verified creators</p></div><div className="rounded-2xl p-4" style={{ background:'#1F2937' }}><p className="text-2xl font-bold text-white">{launchStats?.businessCount ?? 0}</p><p className="text-[11px] mt-1" style={{ color:'#A5F3FC' }}>Verified businesses</p></div></div>
+                <div className="rounded-2xl p-4" style={{ background:'#FDE7F1' }}><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background:'#E6007A' }}><MessageSquare size={15} color="white"/></div><div><p className="text-xs font-bold" style={{ color:'#111827' }}>Professional conversations</p><p className="text-[11px]" style={{ color:'#6B7280' }}>Message, connect and collaborate.</p></div></div></div>
+              </div>
+            </div>
+            <div className="absolute -bottom-5 -left-5 bg-white border rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3" style={{ borderColor:'#BFEFF5' }}><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background:'#E0FBFF' }}><CheckCircle2 size={18} style={{ color:'#036377' }}/></div><div><p className="text-xs font-bold" style={{ color:'#111827' }}>Trust-first profiles</p><p className="text-[10px]" style={{ color:'#6B7280' }}>Verification is reviewed by admins.</p></div></div>
           </div>
         </div>
-      </div>
-    </section>
-  </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-5 md:px-8 pb-16">
+        <div className="grid md:grid-cols-3 gap-4">
+          {[['01','Build your professional identity','Create a dedicated Creator or Business page with your own name, image, services and professional details.',UserCheck,'#E6007A'],['02','Discover the right people','Find real creators and businesses by niche, industry, city and verification status.',Search,'#00A8C4'],['03','Connect with confidence','Message directly, build your network and keep trust signals attached to the profile.',Shield,'#7C3AED']].map(([n,t,d,Icon,c])=><div key={n} className="bg-white border rounded-2xl p-6 cm-card-hover" style={{ borderColor:'#E5E7EB' }}><div className="flex items-center justify-between mb-5"><span className="cm-mono text-xs font-bold" style={{color:c}}>{n}</span><Icon size={19} style={{color:c}}/></div><h3 className="cm-display font-bold text-lg mb-2" style={{color:'#111827'}}>{t}</h3><p className="text-sm leading-6" style={{color:'#6B7280'}}>{d}</p></div>)}
+        </div>
+      </section>
+
+      <section style={{ background:'#F8FAFC' }} className="py-16">
+        <div className="max-w-7xl mx-auto px-5 md:px-8">
+          <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#6B7280'}}>Only approved, onboarded profiles from Commissioner are shown here.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('creators')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find creators</button><button onClick={()=>setPage('businesses')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find businesses</button></div></div>
+          {(creators.length || businesses.length) ? <div className="grid lg:grid-cols-2 gap-5">
+            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#111827'}}>Featured creators</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>LIVE DATA</span></div>{creators.slice(0,3).map(c=><div key={c.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={c.name} size={42} src={c.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#111827'}}>{c.name}</p><p className="text-[11px] truncate" style={{color:'#6B7280'}}>{c.niche}{c.city?` · ${c.city}`:''}</p></div>{c.verified&&<VerifiedIcon size={14}/>}</div>)}{!creators.length&&<p className="text-xs py-5" style={{color:'#6B7280'}}>No approved creators yet.</p>}</div>
+            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#111827'}}>Featured businesses</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>LIVE DATA</span></div>{businesses.slice(0,3).map(b=><div key={b.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={b.name} size={42} src={b.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#111827'}}>{b.name}</p><p className="text-[11px] truncate" style={{color:'#6B7280'}}>{b.industry}{b.city?` · ${b.city}`:''}</p></div>{b.verified&&<VerifiedIcon size={14}/>}</div>)}{!businesses.length&&<p className="text-xs py-5" style={{color:'#6B7280'}}>No approved businesses yet.</p>}</div>
+          </div> : <div className="bg-white border rounded-2xl p-10 text-center" style={{borderColor:'#E5E7EB'}}><Users size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-bold" style={{color:'#111827'}}>The Commissioner network is being built.</p><p className="text-xs mt-1" style={{color:'#6B7280'}}>Approved creators and businesses will appear here automatically.</p></div>}
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-5 md:px-8 py-16"><LaunchProgressCard stats={launchStats}/></section>
+
+      <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20"><div className="rounded-[2rem] p-8 md:p-12 relative overflow-hidden" style={{background:'#111827'}}><div className="absolute -right-20 -top-20 w-56 h-56 rounded-full border-[30px] opacity-30" style={{borderColor:'#00D9FF'}}/><div className="relative max-w-2xl"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#00D9FF'}}>Join Commissioner</p><h2 className="cm-display font-bold text-3xl md:text-4xl text-white mt-2 mb-4">Your professional network starts with one strong profile.</h2><p className="text-sm leading-6 mb-7" style={{color:'#9CA3AF'}}>Creators and businesses keep separate identities even when they use the same login. Switch between them whenever you need.</p><div className="flex flex-col sm:flex-row gap-3">{!session&&<><button onClick={()=>joinAs?.('creator')} className="text-white font-bold px-5 py-3 rounded-xl" style={{background:'#E6007A'}}>Join as creator</button><button onClick={()=>joinAs?.('business')} className="font-bold px-5 py-3 rounded-xl border-2" style={{borderColor:'#00D9FF',color:'#00D9FF'}}>Join as business</button></>}{session&&<button onClick={()=>setPage('dashboard')} className="text-white font-bold px-5 py-3 rounded-xl" style={{background:'#E6007A'}}>Open my dashboard</button>}<button onClick={()=>setPage('businesses')} className="font-bold px-5 py-3 rounded-xl border" style={{borderColor:'#4B5563',color:'#fff'}}>Explore the network</button></div></div></div></section>
+    </div>
   );
 };
 
@@ -1315,7 +1326,12 @@ const CreatorDashboard = ({ session, setPage }) => {
 
   const displayName = profile?.page_name || session?.user?.email || 'Your profile';
   const completionFields = creatorCompletionChecklist(profile);
-  const completion = completionPercent(completionFields);
+  const [serverCompletion, setServerCompletion] = useState(null);
+  useEffect(() => {
+    if (!profile?.id) { setServerCompletion(null); return; }
+    supabase.rpc('creator_profile_completion_percent', { p_profile_id: profile.id }).then(({ data }) => setServerCompletion(Number.isFinite(Number(data)) ? Number(data) : null));
+  }, [profile?.id]);
+  const completion = serverCompletion ?? completionPercent(completionFields);
   const missingCompletion = completionFields.filter(([, value]) => !hasProfileValue(value)).map(([label]) => label);
 
 
@@ -1436,7 +1452,12 @@ const BusinessDashboard = ({ session, setPage }) => {
   }, [session?.user?.id]);
 
   const businessCompletionFields = businessCompletionChecklist(profile);
-  const businessCompletion = completionPercent(businessCompletionFields);
+  const [serverBusinessCompletion, setServerBusinessCompletion] = useState(null);
+  useEffect(() => {
+    if (!profile?.id) { setServerBusinessCompletion(null); return; }
+    supabase.rpc('business_profile_completion_percent', { p_profile_id: profile.id }).then(({ data }) => setServerBusinessCompletion(Number.isFinite(Number(data)) ? Number(data) : null));
+  }, [profile?.id]);
+  const businessCompletion = serverBusinessCompletion ?? completionPercent(businessCompletionFields);
   const businessMissing = businessCompletionFields
     .filter(([, value]) => !hasProfileValue(value))
     .map(([label]) => label);
@@ -2527,7 +2548,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
 
 /* ---------------------------------- app ---------------------------------- */
 
-const AccountSettings = ({ session, setPage, activeRole }) => {
+const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness, setActiveRole, refreshMyProfiles }) => {
   const [newPassword, setNewPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState('');
@@ -2571,8 +2592,22 @@ const AccountSettings = ({ session, setPage, activeRole }) => {
       <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#111827' }}>Account settings</h1>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-xs font-semibold mb-1" style={{ color: '#6B7280' }}>Signed in as</p>
+        <p className="text-xs font-semibold mb-1" style={{ color: '#6B7280' }}>Account email</p>
         <p className="text-sm font-semibold" style={{ color: '#111827' }}>{session.user.email}</p>
+        <p className="text-xs mt-2" style={{ color: '#6B7280' }}>Your email identifies your login. Your public identity is always your active Creator or Business page.</p>
+      </div>
+
+      <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-sm font-semibold" style={{ color: '#111827' }}>Active account</p><p className="text-xs mt-1" style={{ color: '#6B7280' }}>One login can hold separate Creator and Business profiles.</p></div><Settings size={18} style={{ color: '#00A8CC' }} /></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[['creator', hasCreator], ['business', hasBusiness]].map(([role, exists]) => (
+            <button key={role} disabled={!exists} onClick={() => { setActiveRole?.(role); setPage('dashboard'); }} className="text-left rounded-xl border p-4 disabled:opacity-50" style={{ borderColor: activeRole === role ? '#00D9FF' : '#E5E7EB', background: activeRole === role ? '#F0FDFF' : '#fff' }}>
+              <div className="flex items-center justify-between"><span className="text-sm font-bold capitalize" style={{ color: '#111827' }}>{role}</span>{activeRole === role && <CheckCircle2 size={16} style={{ color: '#00A8CC' }} />}</div>
+              <p className="text-xs mt-1" style={{ color: '#6B7280' }}>{exists ? (activeRole === role ? 'Currently active' : `Switch to your ${role} workspace`) : `No ${role} profile yet`}</p>
+            </button>
+          ))}
+        </div>
+        {(!hasCreator || !hasBusiness) && <button onClick={async () => { const role = !hasCreator ? 'creator' : 'business'; await supabase.rpc(role === 'creator' ? 'add_creator_profile' : 'add_business_profile'); refreshMyProfiles?.(); setActiveRole?.(role); window.history.pushState({}, '', `/join/${role}`); setPage('onboarding'); }} className="mt-4 text-xs font-semibold" style={{ color: '#036377' }}>+ Set up your {hasCreator ? 'business' : 'creator'} profile</button>}
       </div>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
@@ -3331,7 +3366,7 @@ const VerificationDetails = ({ type, id, compact=false }) => {
 };
 const Businesses = ({ onConnect }) => {
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
-  useEffect(()=>{supabase.from('business_profiles_ranked').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan').eq('approved',true).eq('onboarded',true).order('effective_plan_rank',{ascending:false}).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
+  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan,created_at').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Find businesses</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
@@ -4293,7 +4328,6 @@ const TOUR_STEPS = [
   { target: 'nav-trust', title: 'Trust Center', body: 'Verify specific claims about yourself so others know what to trust.' },
   { target: 'nav-messages', title: 'Messages', body: 'Chat directly with anyone you connect with on Commissioner.' },
   { target: 'nav-pricing', title: 'Pricing', body: 'See the available plans for creators and businesses.' },
-  { target: 'nav-edit-profile', title: 'Your profile', body: 'Keep this current — it\'s what everyone else on Commissioner sees.' },
   { target: 'nav-account', title: 'Account menu', body: 'Manage your account, switch roles, or add a second profile from here.' },
 ];
 
@@ -4603,7 +4637,7 @@ export default function Commissioner() {
       {page === 'onboarding' && session && (onboardingRole === 'business'
         ? <BusinessOnboarding session={session} setPage={setPage} />
         : <Onboarding session={session} setPage={setPage} />)}
-      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} /> : <Auth onAuthenticated={() => setPage('account')} />)}
+      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 py-16">

@@ -4,11 +4,14 @@
 
 Apply the existing migrations in the order documented by the project, then apply:
 
-1. `COMMISSIONER-MASTER-MIGRATION.sql` — **last**
+1. `COMMISSIONER-MASTER-MIGRATION.sql` — **last of the existing migrations**
+2. `20260911_DUAL_IDENTITY_COMPLETION_SECURITY.sql` — **final repair migration**
 
 The master migration is the forward security layer. It replaces the older email-based
 admin checks, adds secure verification review, the server-side 50/50 launch gate, and
-the admin-only NFC registry.
+the admin-only NFC registry. The final repair migration then adds server-backed
+profile-completion percentages, reinforces dual-profile constraints, and removes any
+legacy hardcoded-admin profile policies that may still exist from older schema files.
 
 ### Assign an admin
 

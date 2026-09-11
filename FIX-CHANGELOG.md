@@ -119,3 +119,16 @@ next.
 - Direct `/join/business` and `/join/creator` loads explicitly set the active role before rendering onboarding, preventing a stale role from opening the wrong setup form.
 - Added `FIX-PROFILE-INSERT-RLS.sql` for authenticated self-inserts into creator/business profiles.
 - Added `SUPABASE-EMAIL-SETUP.md` documenting the exact email subjects and SMTP configuration required for reliable delivery.
+
+## 2026-09-11 — identity, discovery, completion and homepage pass
+
+- Removed the persistent desktop/mobile "Edit creator/business profile" action from the global upper navigation. Profile editing remains reachable from Account settings/onboarding.
+- Replaced the logged-in upper navigation Gmail label with the active profile avatar, page name/business name, username and active identity type.
+- Kept Creator and Business profiles as separate database records while allowing one authenticated user to own both and switch between them.
+- Added explicit Creator/Business workspace switching to Account settings.
+- Logged-in navigation now exposes both **Find creators** and **Find businesses** so discovery is not role-blind.
+- Kept **Hire creators** only on the Business experience; it is removed from the Creator experience.
+- Changed Find Businesses to query the real `business_profiles` table directly using approved + onboarded filters, avoiding ranked-view visibility issues.
+- Added server-backed creator/business profile completion percentage RPCs and wired both dashboards to them, with client calculation as a fallback.
+- Redesigned the public homepage as a more visual Commissioner landing experience using separate cyan and magenta accents, real featured profiles, live 50/50 counts, clear discovery CTAs, and empty states instead of fabricated content.
+- Added `20260911_DUAL_IDENTITY_COMPLETION_SECURITY.sql` for completion RPCs, dual-profile constraints/RPC, and replacement of legacy hardcoded admin RLS policies with `is_admin()`.
