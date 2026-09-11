@@ -117,3 +117,6 @@ After the dual-identity security migration, run:
 - `20260911_PUBLIC_VISIBILITY_MARKETPLACE_INTERACTION.sql`
 
 This migration makes registered Creator and Business profiles publicly viewable while they are being completed, adds marketplace photo/video fields, and enforces the 100%-complete profile requirement before new connections or messages can be started.
+
+### Final admin verification controls
+After the existing migrations, run `20260911_ADMIN_VERIFICATION_PLAN_FINAL.sql` last. It normalizes admin-assigned plans to **Basic, Pro, Premium**, adds atomic verify+plan and unverify RPCs, and keeps plan/verification changes admin-only.

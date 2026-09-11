@@ -140,3 +140,13 @@ next.
 - Marketplace supports both Creator and Business sellers, classified as Product or Service, with optional photo/video media URLs.
 - Marketplace cards use a full magenta border for Creator posts and a full cyan border for Business posts, with an explicit Creator post / Business post label.
 - Added a final migration: `20260911_PUBLIC_VISIBILITY_MARKETPLACE_INTERACTION.sql`.
+
+
+## 2026-09-11 final verification/setup pass
+- Admin verification now supports exactly Basic, Pro, and Premium plans.
+- Verify action assigns the selected plan atomically; verified rows switch to Unverify.
+- Unverify reverses the verification state and removes approval so an accidental verification can be undone.
+- Completed Creator/Business profiles no longer reopen onboarding; profile editing is reached from Account Settings only.
+- Creator and Business setup completion counters are not shown once setup is complete, and are hidden during edit mode.
+- Creator/Business discovery directories are locked behind the live 50 verified Creator + 50 verified Business launch gate and show a lock/progress notice before unlock.
+- After launch, live approved/onboarded creators and businesses are discoverable.
