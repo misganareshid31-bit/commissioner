@@ -1130,7 +1130,6 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
       const { data, error: rpcError } = await supabase.rpc('start_conversation', {
         p_other_user_id: initialRecipientId,
         p_initial_message: null,
-        p_marketplace: marketplaceContact,
       });
       if (rpcError) { setError(rpcError.message || 'Could not start the conversation.'); return; }
       await loadConversations();
