@@ -468,7 +468,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               Hire creators
             </button>
           )}
-          {!session ? (
+          {!session && (
             <div className="relative">
               <button
                 onClick={() => setJoinMenuOpen(o => !o)}
