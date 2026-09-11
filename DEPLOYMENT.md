@@ -111,3 +111,9 @@ piece of hardware: actual tag programming requires an NFC-capable device/writer.
 assignment, environment variables, and a successful production build/smoke test.**
 
 No remote Supabase database was modified from this environment.
+
+### Final public-discovery / marketplace migration
+After the dual-identity security migration, run:
+- `20260911_PUBLIC_VISIBILITY_MARKETPLACE_INTERACTION.sql`
+
+This migration makes registered Creator and Business profiles publicly viewable while they are being completed, adds marketplace photo/video fields, and enforces the 100%-complete profile requirement before new connections or messages can be started.

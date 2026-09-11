@@ -132,3 +132,11 @@ next.
 - Added server-backed creator/business profile completion percentage RPCs and wired both dashboards to them, with client calculation as a fallback.
 - Redesigned the public homepage as a more visual Commissioner landing experience using separate cyan and magenta accents, real featured profiles, live 50/50 counts, clear discovery CTAs, and empty states instead of fabricated content.
 - Added `20260911_DUAL_IDENTITY_COMPLETION_SECURITY.sql` for completion RPCs, dual-profile constraints/RPC, and replacement of legacy hardcoded admin RLS policies with `is_admin()`.
+
+## 2026-09-11 — Public discovery + marketplace posts + interaction gate
+- Creator and Business directories now show registered/approved profiles even while the profile owner is still finishing setup; viewing is public and does not require login.
+- Added explicit public-profile viewing actions for creator and business cards.
+- Connecting and messaging now require the signed-in member to have at least one Creator or Business identity at 100% completion; this is enforced both in the UI and by Supabase RPC/RLS.
+- Marketplace supports both Creator and Business sellers, classified as Product or Service, with optional photo/video media URLs.
+- Marketplace cards use a full magenta border for Creator posts and a full cyan border for Business posts, with an explicit Creator post / Business post label.
+- Added a final migration: `20260911_PUBLIC_VISIBILITY_MARKETPLACE_INTERACTION.sql`.
