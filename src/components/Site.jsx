@@ -425,7 +425,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                       <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1" style={{ color: '#9CA3AF' }}>Switch account</p>
                       <div className="flex gap-1">
                         {[['creator','Creator'],['business','Business']].map(([r,l]) => (
-                          <button key={r} onClick={() => { setActiveRole?.(r); setPage('dashboard'); setAccountMenuOpen(false); }} className="flex-1 px-2 py-2 rounded-lg text-xs font-semibold" style={{ background: activeRole===r ? '#111827' : '#F8FAFC', color: activeRole===r ? '#fff' : '#4B5563' }}>{l}</button>
+                          <button key={r} onClick={() => { setActiveRole?.(r); setPage('dashboard'); setAccountMenuOpen(false); setMenuOpen(false); }} className="flex-1 px-2 py-2 rounded-lg text-xs font-semibold" style={{ background: activeRole===r ? '#111827' : '#F8FAFC', color: activeRole===r ? '#fff' : '#4B5563' }}>{l}</button>
                         ))}
                       </div>
                     </div>
@@ -524,32 +524,50 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Account</p>
               {session ? (
                 <div className="flex flex-col gap-1">
-                  <div className="mx-3 mb-2 rounded-xl border p-3 flex items-center gap-3" style={{ borderColor: '#E5E7EB', background: '#F8FAFC' }}>
-                    <Avatar name={activeDisplayName} size={38} ring src={activeProfile?.avatar_url} />
-                    <div className="min-w-0"><p className="text-sm font-bold truncate" style={{ color: '#111827' }}>{activeDisplayName}</p><p className="text-[10px] font-semibold" style={{ color: isBusiness ? '#7C3AED' : '#036377' }}>{isBusiness ? 'Business account' : 'Creator account'}</p></div>
-                  </div>
-                  {hasBothProfiles && (
-                    <div className="flex items-center gap-0.5 border rounded-lg p-0.5 mx-3 mb-1" style={{ borderColor: '#E5E7EB' }}>
-                      {[['creator', 'Creator'], ['business', 'Business']].map(([r, l]) => (
+                  <button
+                    onClick={() => hasBothProfiles && setAddingProfile(v => !v)}
+                    disabled={!hasBothProfiles}
+                    className="w-full mb-3 rounded-2xl border-2 p-3.5 text-left flex items-center gap-3 transition-all disabled:cursor-default"
+                    style={{
+                      borderColor: isBusiness ? '#00D9FF' : '#E6007A',
+                      background: isBusiness ? '#ECFEFF' : '#FFF0F7',
+                      boxShadow: `0 0 0 1px ${isBusiness ? '#00D9FF' : '#E6007A'}22`
+                    }}
+                  >
+                    <Avatar name={activeDisplayName} size={42} ring src={activeProfile?.avatar_url} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: isBusiness ? '#008FA8' : '#C00062' }}>{isBusiness ? 'Business account' : 'Creator account'}</span>
+                      <span className="block text-sm font-bold truncate mt-0.5" style={{ color: '#111827' }}>{activeDisplayName}</span>
+                      {activeUsername && <span className="block text-[10px] font-medium truncate mt-0.5" style={{ color: '#6B7280' }}>{activeUsername}</span>}
+                    </span>
+                    {hasBothProfiles && <ChevronDown size={18} className={`shrink-0 transition-transform ${addingProfile ? 'rotate-180' : ''}`} style={{ color: isBusiness ? '#008FA8' : '#C00062' }} />}
+                  </button>
+                  {hasBothProfiles && addingProfile && (
+                    <div className="mb-3 rounded-2xl border-2 overflow-hidden" style={{ borderColor: '#D1D5DB' }}>
+                      <p className="px-4 pt-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: '#6B7280' }}>Switch account</p>
+                      {[['creator', 'Creator account', '#E6007A', '#FFF0F7'], ['business', 'Business account', '#00D9FF', '#ECFEFF']].map(([r, l, accent, bg]) => (
                         <button
                           key={r}
-                          onClick={() => setActiveRole?.(r)}
-                          className="flex-1 py-1.5 rounded-md text-xs font-semibold"
-                          style={{ background: activeRole === r ? '#111827' : 'transparent', color: activeRole === r ? '#fff' : '#4B5563' }}
+                          onClick={() => { setActiveRole?.(r); setPage('dashboard'); setAddingProfile(false); setMenuOpen(false); }}
+                          className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 border-t-2"
+                          style={{
+                            borderColor: '#F3F4F6',
+                            background: activeRole === r ? bg : '#fff',
+                            color: activeRole === r ? (r === 'business' ? '#007A91' : '#B00059') : '#374151'
+                          }}
                         >
-                          {l}
+                          <span className="flex items-center gap-3 min-w-0">
+                            <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: accent, boxShadow: `0 0 0 3px ${accent}33` }} />
+                            <span className="text-sm font-bold">{l}</span>
+                          </span>
+                          {activeRole === r && <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: r === 'business' ? '#007A91' : '#B00059' }}>Active</span>}
                         </button>
                       ))}
                     </div>
                   )}
                   <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
                   <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
-                  {(isBusiness ? hasCreator : hasBusiness) ? (
-                    <button onClick={() => { const role = isBusiness ? 'creator' : 'business'; setActiveRole?.(role); setAccountMenuOpen(false); setMenuOpen(false); setPage('dashboard'); }}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#036377' }}>
-                      {isBusiness ? 'Open creator account' : 'Open business account'}
-                    </button>
-                  ) : (
+                  {!hasBothProfiles && (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
                       {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
                     </button>
@@ -4204,32 +4222,60 @@ function useMyProfiles(session) {
   const [hasCreator, setHasCreator] = useState(false);
   const [hasBusiness, setHasBusiness] = useState(false);
   const [activeRole, setActiveRoleState] = useState('creator');
+  const refreshSeq = React.useRef(0);
 
-  const refresh = React.useCallback(() => {
-    if (!session?.user?.id) { setHasCreator(false); setHasBusiness(false); return; }
-    supabase.rpc('get_my_profile_types').then(({ data }) => {
-      const row = Array.isArray(data) ? data[0] : data;
-      const hc = !!row?.has_creator, hb = !!row?.has_business;
-      setHasCreator(hc);
-      setHasBusiness(hb);
-      const storageKey = `commissioner_active_role_${session.user.id}`;
-      const stored = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
-      let next = stored;
-      if (!next || (next === 'creator' && !hc) || (next === 'business' && !hb)) {
-        next = hc ? 'creator' : (hb ? 'business' : (session.user.user_metadata?.role === 'business' ? 'business' : 'creator'));
-      }
-      setActiveRoleState(next);
-    });
-  }, [session?.user?.id]);
+  const refresh = React.useCallback(async () => {
+    const userId = session?.user?.id;
+    if (!userId) { setHasCreator(false); setHasBusiness(false); setActiveRoleState('creator'); return; }
+    const seq = ++refreshSeq.current;
+    const storageKey = `commissioner_active_role_${userId}`;
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+
+    // Prefer the RPC, but also query the two profile tables directly as a
+    // fallback. This makes account switching continue to work even if an
+    // older database has not yet received get_my_profile_types().
+    let hc = false, hb = false;
+    const { data: types, error: typesError } = await supabase.rpc('get_my_profile_types');
+    if (!typesError) {
+      const row = Array.isArray(types) ? types[0] : types;
+      hc = !!row?.has_creator;
+      hb = !!row?.has_business;
+    } else {
+      const [{ data: cp }, { data: bp }] = await Promise.all([
+        supabase.from('creator_profiles').select('id').eq('auth_user_id', userId).maybeSingle(),
+        supabase.from('business_profiles').select('id').eq('auth_user_id', userId).maybeSingle()
+      ]);
+      hc = !!cp; hb = !!bp;
+    }
+    if (seq !== refreshSeq.current) return;
+    setHasCreator(hc); setHasBusiness(hb);
+
+    // Never let a background refresh undo a switch the user just made.
+    const current = activeRole;
+    let next = current;
+    if (stored === 'creator' || stored === 'business') next = stored;
+    if (next === 'creator' && !hc) next = hb ? 'business' : 'creator';
+    if (next === 'business' && !hb) next = hc ? 'creator' : 'business';
+    if (!hc && hb) next = 'business';
+    if (hc && !hb) next = 'creator';
+    if (!stored && hc && hb) next = current === 'business' ? 'business' : 'creator';
+    setActiveRoleState(next);
+    if (typeof window !== 'undefined' && (next === 'creator' || next === 'business')) {
+      localStorage.setItem(storageKey, next);
+    }
+  }, [session?.user?.id, activeRole]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const setActiveRole = (role) => {
+  const setActiveRole = React.useCallback((role) => {
+    if (role !== 'creator' && role !== 'business') return;
+    // Update React state and storage immediately so the workspace changes on
+    // the same click. The profile-existence guard is handled by the UI.
     setActiveRoleState(role);
     if (session?.user?.id && typeof window !== 'undefined') {
       localStorage.setItem(`commissioner_active_role_${session.user.id}`, role);
     }
-  };
+  }, [session?.user?.id]);
 
   return { hasCreator, hasBusiness, activeRole, setActiveRole, refresh };
 }
