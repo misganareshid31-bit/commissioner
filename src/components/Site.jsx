@@ -3409,20 +3409,15 @@ const VerificationAdminQueue = () => {
   useEffect(()=>{load()},[]);
   const act=async(type,row,action)=>{
     const key=`${type}:${row.id}:${action}`; setBusy(key); setMessage('');
-    const table=type==='creator'?'creator_verification_claims':'business_verification_claims';
-    const profileTable=type==='creator'?'creator_profiles':'business_profiles';
     const profileId=type==='creator'?row.creator_profile_id:row.business_profile_id;
     let error=null;
-    if(action==='verify'){
-      const patch=type==='creator'
-        ? {identity_status:'verified',account_status:'verified',followers_status:'verified',engagement_status:'verified',status:'verified',checked_at:new Date().toISOString()}
-        : {registration_status:'verified',license_status:'verified',representative_status:'verified',status:'verified',checked_at:new Date().toISOString()};
-      ({error}=await supabase.from(table).update(patch).eq('id',row.id));
-      if(!error) ({error}=await supabase.from(profileTable).update({verified:true}).eq('id',profileId));
-    } else if(action==='approve'){
-      ({error}=await supabase.from(profileTable).update({approved:true}).eq('id',profileId));
-    } else if(action==='reject'){
-      ({error}=await supabase.from(table).update({status:'rejected'}).eq('id',row.id));
+    if(['verify','approve','reject'].includes(action)){
+      const result = await supabase.rpc('admin_review_verification', {
+        p_kind: type,
+        p_claim_id: row.id,
+        p_action: action
+      });
+      error = result.error;
     } else if(action==='delete'){
       const result=await supabase.rpc('admin_delete_page',{p_kind:type,p_page_id:profileId}); error=result.error;
     }
@@ -3448,6 +3443,112 @@ const VerificationAdminQueue = () => {
     </div>)}{!rows.length&&<p className="text-xs py-6 text-center" style={{color:'#9CA3AF'}}>No verification requests yet.</p>}</div>
   </div>;
 };
+
+const AdminNfcManager = () => {
+  const [cards, setCards] = useState([]);
+  const [creators, setCreators] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
+  const [cardCode, setCardCode] = useState('');
+  const [kind, setKind] = useState('creator');
+  const [profileId, setProfileId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    const [{ data: c }, { data: cr }, { data: b }] = await Promise.all([
+      supabase.from('nfc_cards').select('id,card_code,creator_id,business_id,status,assigned_at,created_at,updated_at').order('created_at', { ascending: false }).limit(100),
+      supabase.from('creator_profiles').select('id,page_name,username').order('created_at', { ascending: false }).limit(100),
+      supabase.from('business_profiles').select('id,business_name,username').order('created_at', { ascending: false }).limit(100),
+    ]);
+    setCards(c || []);
+    setCreators(cr || []);
+    setBusinesses(b || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    if (!cardCode.trim()) { setMessage('Enter the physical card identifier.'); return; }
+    setSaving(true);
+    const { error } = await supabase.rpc('admin_register_nfc_card', {
+      p_card_code: cardCode.trim(),
+      p_kind: profileId ? kind : null,
+      p_profile_id: profileId || null,
+    });
+    setSaving(false);
+    if (error) { setMessage(error.message); return; }
+    setCardCode('');
+    setProfileId('');
+    setMessage('NFC card registered/assigned. Program the physical tag with the destination URL shown below.');
+    await load();
+  };
+
+  const status = async (id, value) => {
+    const { error } = await supabase.rpc('admin_set_nfc_status', { p_card_id: id, p_status: value });
+    if (error) setMessage(error.message); else await load();
+  };
+
+  const destination = (card) => {
+    if (card.creator_id) return `${window.location.origin}/creator/${card.creator_id}`;
+    if (card.business_id) return `${window.location.origin}/business/${card.business_id}`;
+    return '';
+  };
+
+  const nameFor = (card) => {
+    const c = creators.find(x => x.id === card.creator_id);
+    const b = businesses.find(x => x.id === card.business_id);
+    return c?.page_name || c?.username || b?.business_name || b?.username || 'Unassigned';
+  };
+
+  return (
+    <section className="border rounded-2xl p-5 mb-8 bg-white" style={{ borderColor: '#E5E7EB' }}>
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: '#111827' }}>NFC management</p>
+          <p className="text-xs mt-1" style={{ color: '#6B7280' }}>Admin-only registry for physical NFC cards. Commissioner stores the assignment; the tag itself is programmed with an external NFC-capable device.</p>
+        </div>
+        <Zap size={18} style={{ color: '#00D9FF' }} />
+      </div>
+      <form onSubmit={save} className="grid grid-cols-1 md:grid-cols-[1fr_150px_1fr_auto] gap-2 mb-5">
+        <input value={cardCode} onChange={e => setCardCode(e.target.value)} placeholder="Card ID / UID label" className="border rounded-lg px-3 py-2.5 text-sm" style={{ borderColor: '#E5E7EB' }} />
+        <select value={kind} onChange={e => { setKind(e.target.value); setProfileId(''); }} className="border rounded-lg px-3 py-2.5 text-sm" style={{ borderColor: '#E5E7EB' }}>
+          <option value="creator">Creator</option>
+          <option value="business">Business</option>
+        </select>
+        <select value={profileId} onChange={e => setProfileId(e.target.value)} className="border rounded-lg px-3 py-2.5 text-sm" style={{ borderColor: '#E5E7EB' }}>
+          <option value="">Unassigned</option>
+          {(kind === 'creator' ? creators : businesses).map(x => <option key={x.id} value={x.id}>{x.page_name || x.business_name || x.username || x.id}</option>)}
+        </select>
+        <button disabled={saving} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{ background: '#E6007A' }}>{saving ? 'Saving…' : 'Register'}</button>
+      </form>
+      {message && <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ background: '#F0F9FF', color: '#075985' }}>{message}</p>}
+      {loading ? <p className="text-sm" style={{ color: '#6B7280' }}>Loading NFC cards…</p> : !cards.length ? <p className="text-sm py-4 text-center" style={{ color: '#9CA3AF' }}>No NFC cards registered yet.</p> : (
+        <div className="space-y-2">
+          {cards.map(card => (
+            <div key={card.id} className="border rounded-xl p-3 flex flex-col lg:flex-row lg:items-center gap-3" style={{ borderColor: '#E5E7EB' }}>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold" style={{ color: '#111827' }}>{card.card_code || card.id}</p>
+                <p className="text-[11px]" style={{ color: '#6B7280' }}>{nameFor(card)} · {card.status}</p>
+                {destination(card) && <p className="text-[10px] cm-mono truncate mt-1" style={{ color: '#036377' }}>{destination(card)}</p>}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {destination(card) && <button type="button" onClick={() => navigator.clipboard?.writeText(destination(card))} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#BAE6FD', color: '#036377' }}>Copy URL</button>}
+                <button type="button" onClick={() => status(card.id, card.status === 'inactive' || card.status === 'revoked' ? 'active' : 'inactive')} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#374151' }}>{card.status === 'active' ? 'Disable' : 'Activate'}</button>
+                <button type="button" onClick={() => status(card.id, 'revoked')} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#FECACA', color: '#B42318' }}>Revoke</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
 const AdminPanel = ({ session }) => {
   const [claimType, setClaimType] = useState('creator'); // 'creator' | 'business'
   const [pageName, setPageName] = useState('');
@@ -3467,7 +3568,7 @@ const AdminPanel = ({ session }) => {
   const [portfolioLink, setPortfolioLink] = useState('');
   const [availability, setAvailability] = useState('Available now');
   const [preferences, setPreferences] = useState('');
-  const [verifiedOnCreate, setVerifiedOnCreate] = useState(true);
+  const [verifiedOnCreate, setVerifiedOnCreate] = useState(false);
   const [giftMode, setGiftMode] = useState(true);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -3522,7 +3623,7 @@ const AdminPanel = ({ session }) => {
         setSetupStatus('missing');
         setSetupError(
           missing
-            ? 'The Supabase admin migration has not been applied. The Admin page cannot create gift profiles until admin_check_setup and the admin_create_claim functions are installed.'
+            ? 'The Commissioner master migration has not been applied. The Admin page requires the secure admin role, verification review, launch-gate, and NFC functions.'
             : `Supabase setup check failed: ${error.message}`
         );
         return;
@@ -3713,7 +3814,7 @@ const AdminPanel = ({ session }) => {
       const missing = error.code === 'PGRST202' || /could not find the function/i.test(error.message || '');
       setCreateError(
         missing
-          ? 'The Supabase delete function is missing. Run the latest supabase-schema.sql in Supabase → SQL Editor, then refresh this page.'
+          ? 'The secure admin delete function is missing. Run COMMISSIONER-MASTER-MIGRATION.sql in Supabase → SQL Editor, then refresh this page.'
           : `Could not delete ${name}: ${error.message}`
       );
       return;
@@ -3790,16 +3891,14 @@ const AdminPanel = ({ session }) => {
               {r.approved ? 'Approved ✓' : 'Approve'}
             </button>
           )}
-          <button
-            onClick={() => toggleField(r, 'verified')}
-            disabled={busyId === r.id + 'verified'}
-            className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
+          <span
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-full border"
             style={r.verified
               ? { background: '#E0FBFF', color: '#036377', borderColor: '#00D9FF' }
-              : { background: 'white', color: '#374151', borderColor: '#E5E7EB' }}
+              : { background: '#F9FAFB', color: '#6B7280', borderColor: '#E5E7EB' }}
           >
-            {r.verified ? 'Verified ✓' : 'Mark verified'}
-          </button>
+            {r.verified ? 'Verified ✓' : 'Verification required'}
+          </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t" style={{ borderColor: '#F3F4F6' }}>
           <span className="text-[11px] font-semibold" style={{ color: '#6B7280' }}>Plan:</span>
@@ -3881,7 +3980,7 @@ const AdminPanel = ({ session }) => {
               <p className="text-sm font-bold" style={{ color: '#92400E' }}>Supabase admin setup required</p>
               <p className="text-xs mt-1 leading-5" style={{ color: '#78350F' }}>{setupError}</p>
               <div className="mt-3 p-3 rounded-lg border cm-mono text-[11px] whitespace-pre-wrap overflow-auto" style={{ borderColor: '#FCD34D', background: '#FFFFFF', color: '#92400E' }}>
-                Run the latest <b>supabase-schema.sql</b> in Supabase → SQL Editor.
+                Run <b>COMMISSIONER-MASTER-MIGRATION.sql</b> in Supabase → SQL Editor after the existing migrations.
                 Then click Refresh / reload this page.
 
                 Required functions:
@@ -3898,6 +3997,7 @@ const AdminPanel = ({ session }) => {
 
       <div className="mb-8"><LaunchProgressCard stats={launchStats} /></div>
 
+      <AdminNfcManager />
       <VerificationAdminQueue />
 
       <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
@@ -4004,10 +4104,7 @@ const AdminPanel = ({ session }) => {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-sm mb-4" style={{ color: '#374151' }}>
-          <input type="checkbox" checked={verifiedOnCreate} onChange={e => setVerifiedOnCreate(e.target.checked)} />
-          Mark verified right away
-        </label>
+        <p className="text-xs mb-4" style={{ color: '#6B7280' }}>New gift pages start unverified. Verification is granted only through the admin review queue after the profile is complete.</p>
 
         <button onClick={handleCreate} disabled={creating || setupStatus !== 'ready'} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {creating ? 'Creating…' : 'Create gift page'}
@@ -4281,7 +4378,11 @@ export default function Commissioner() {
     if (parts[0] === 'join' && (parts[1] === 'creator' || parts[1] === 'business')) return parts[1];
     return null;
   })();
-  const [page, setPage] = useState(initialJoinRole ? 'onboarding' : 'home');
+  // Keep the admin control center directly reachable after a Vercel refresh.
+  // Without this, /admin was rewritten to index.html correctly but React
+  // initialized to the homepage and the Admin screen appeared to disappear.
+  const initialAdminRoute = window.location.pathname.replace(/\/+$/, '') === '/admin';
+  const [page, setPage] = useState(initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home'));
   const [pageHistory, setPageHistory] = useState([]);
   const prevPageRef = React.useRef('home');
   useEffect(() => {
@@ -4404,11 +4505,9 @@ export default function Commissioner() {
           setPage('auth');
         }
       } else if (data.session) {
-        // Already signed in (session restored from a previous visit) and
-        // just landed on the plain homepage — send them to their Dashboard
-        // instead of the marketing page. Only on this first load: it won't
-        // fight with someone deliberately clicking "Home" later in the session.
-        setPage(p => (p === 'home' ? 'dashboard' : p));
+        // Restore the dashboard only for a plain homepage visit. A direct
+        // /admin URL must remain on the admin control center after refresh.
+        setPage(p => (p === 'home' && !initialAdminRoute ? 'dashboard' : p));
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {

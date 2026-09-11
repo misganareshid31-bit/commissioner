@@ -68,6 +68,7 @@ Run these files in Supabase SQL Editor in this order:
 2. `NFC-ADMIN-FIX.sql` (if your current deployment uses that migration)
 3. `PROFESSIONAL-V1-MIGRATION.sql`
 4. `COMMISSIONER-TRUST-MARKETPLACE-B2B.sql`
+5. `COMMISSIONER-MASTER-MIGRATION.sql` (**run last; this is the secure forward layer**)
 
 Do not put a Supabase service-role key in the frontend environment.
 

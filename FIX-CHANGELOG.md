@@ -74,52 +74,6 @@ and in `AdminPanel` itself (the actual gate).
   admin panel after deploying.
 
 
-## 9. Production hardening pass (new)
-Given the detailed 51-item production spec, here's what a real audit of the
-code (not the docs/comments, which lag behind) found and fixed. See
-`PRODUCTION-HARDENING-MIGRATION.sql` for the SQL — run it last, after every
-other migration.
-
-**Real bug found and fixed:** `PLAN-SYSTEM-MIGRATION.sql` redefines
-`protect_admin_fields()` (the trigger that stops a normal user from setting
-`approved`/`verified`/`plan` on their own profile) and, in doing so, silently
-reverted its admin check from `is_admin()` back to the old hardcoded email —
-undoing part of `ADMIN-ROLE-MIGRATION.sql` if it was applied afterward (it's
-the newer file, so this is the likely order). Not an open door for ordinary
-users, but it meant any admin added later through `admin_users` wouldn't be
-recognized by this specific trigger. Fixed by redefining the function again,
-correctly, in the new migration.
-
-**Real gap found and fixed:** verification's "100% complete before you can
-request review" rule only existed in the React client
-(`creatorCompletionChecklist` / `businessCompletionChecklist` in Site.jsx). A
-direct call to `submit_creator_verification` / `submit_business_verification`
-(REST, curl, devtools) could submit a request below 100%. Added
-`creator_profile_completion_pct()` / `business_profile_completion_pct()` SQL
-functions mirroring the client checklist field-for-field, and both RPCs now
-reject the call server-side if completion isn't 100%.
-
-**Real gap found and fixed:** the 50/50 launch gate added last pass was
-UI-only. Added `launch_unlocked()` and wired it into the `b2b_connections`
-insert policy, so a direct API call can't create a connection before
-threshold either. Admins still bypass it.
-
-**Already correct, no change needed:** profile save on both the creator and
-business setup flows already uses `.upsert()` — first save, edit, and
-re-save all work without duplicate-row or "already exists" errors.
-`is_admin()` / `admin_users` (from `ADMIN-ROLE-MIGRATION.sql`) already covers
-every table this session checked *except* the one regression above. Ratings,
-blocking, and reporting tables already exist (`TRUST-SAFETY-MIGRATION.sql`).
-Messaging is already usable without a prior "accepted" connection (visibility
-setting per profile, not connection-gated) — matching this session's explicit
-instruction, so it was left as-is.
-
-**Confirmed still missing (not built this pass — see report):** a real
-notifications system (no table/UI exists at all), a dedicated NFC
-"card registry" admin screen (NFC currently works via `claim_token` +
-external physical programming, which covers the actual use case, but there's
-no list/reassign/disable UI as described in the spec).
-
 ## 7. 50/50 launch gate (new)
 Added the missing launch-gate feature: Commissioner unlocks full networking
 once it has **50 verified creators AND 50 verified businesses**. Nothing
