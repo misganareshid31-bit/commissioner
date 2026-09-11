@@ -1059,7 +1059,7 @@ const Campaigns = ({ session, setPage, appliedIds, onApply }) => (
   </div>
 );
 
-const Messages = ({ session, initialRecipientId = null, marketplaceContact = false }) => {
+const Messages = ({ session, initialRecipientId = null, initialConversationId = null, marketplaceContact = false }) => {
   const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1118,8 +1118,15 @@ const Messages = ({ session, initialRecipientId = null, marketplaceContact = fal
   }, [session?.user?.id, active]);
 
   useEffect(() => {
-    if (!initialRecipientId || !session?.user?.id || initialRecipientId === session.user.id) return;
+    if (!session?.user?.id) return;
     (async () => {
+      if (initialConversationId) {
+        await loadConversations();
+        setActive(initialConversationId);
+        await loadThread(initialConversationId);
+        return;
+      }
+      if (!initialRecipientId || initialRecipientId === session.user.id) return;
       const { data, error: rpcError } = await supabase.rpc('start_conversation', {
         p_other_user_id: initialRecipientId,
         p_initial_message: null,
@@ -1130,7 +1137,7 @@ const Messages = ({ session, initialRecipientId = null, marketplaceContact = fal
       setActive(data);
       await loadThread(data);
     })();
-  }, [initialRecipientId, session?.user?.id, marketplaceContact]);
+  }, [initialConversationId, initialRecipientId, session?.user?.id, marketplaceContact]);
 
   const selectConversation = async (id) => { setActive(id); await loadThread(id); };
   const activeConvo = conversations.find(c => c.id === active);
@@ -4519,7 +4526,7 @@ export default function Commissioner() {
 
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const [messageRecipientId, setMessageRecipientId] = useState(null);
-  const [marketplaceContact, setMarketplaceContact] = useState(false);
+  const [marketplaceContact, setMarketplaceContact] = useState(false); const [messageConversationId, setMessageConversationId] = useState(null);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [launchStats, setLaunchStats] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -4660,16 +4667,16 @@ export default function Commissioner() {
         if (!id || id === session.user.id) return;
         if (listingId && String(listingId).match(/^[0-9a-f-]{36}$/i)) {
           const { data, error } = await supabase.rpc('start_marketplace_inquiry', { p_listing_id: listingId });
-          if (error) { setToast(error.message || 'Could not start the marketplace conversation.'); setTimeout(()=>setToast(''),4000); return; }
-          setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages'); return;
+          if (error) { setToast(error.message || 'Could not start the marketplace conversation. Please run the latest marketplace messaging SQL migration.'); setTimeout(()=>setToast(''),5000); return; }
+          setMessageConversationId(data); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages'); return;
         }
-        setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages');
+        setMessageConversationId(null); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages');
       }} />}
       {page === 'network' && <B2BNetwork session={session} initialBusiness={selectedBusiness} />}
       {page === 'trust' && <TrustCenter session={session} activeRole={activeRole} />}
       {page === 'campaigns' && <Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} />}
       {page === 'spotlight' && <Spotlight />}
-      {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} marketplaceContact={marketplaceContact} />}
+      {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} initialConversationId={messageConversationId} marketplaceContact={marketplaceContact} />}
       {page === 'pricing' && <Pricing />}
       {page === 'about' && <AboutUs />}
       {page === 'terms' && <TermsOfService />}
