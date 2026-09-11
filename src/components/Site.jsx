@@ -121,6 +121,32 @@ async function fetchLiveCreators(limit = 48) {
   });
 }
 
+// Commissioner unlocks its networking features (Connect, messaging entry
+// points, and full marketplace visibility) once it has reached this many
+// verified creators AND verified businesses. Counts come straight from
+// creator_profiles / business_profiles — no seeded numbers.
+const LAUNCH_THRESHOLD = 50;
+
+// Counts verified, approved, onboarded profiles on each side. Uses
+// head:true count-only queries so this is cheap to call from the public
+// homepage as well as from gated actions.
+async function fetchLaunchStats() {
+  const [{ count: creators }, { count: businesses }] = await Promise.all([
+    supabase.from('creator_profiles').select('id', { count: 'exact', head: true })
+      .eq('approved', true).eq('onboarded', true).eq('verified', true),
+    supabase.from('business_profiles').select('id', { count: 'exact', head: true })
+      .eq('approved', true).eq('onboarded', true).eq('verified', true),
+  ]);
+  const creatorCount = creators || 0;
+  const businessCount = businesses || 0;
+  return {
+    creatorCount,
+    businessCount,
+    threshold: LAUNCH_THRESHOLD,
+    unlocked: creatorCount >= LAUNCH_THRESHOLD && businessCount >= LAUNCH_THRESHOLD,
+  };
+}
+
 const NICHES = ['Food & Restaurants', 'Fashion', 'Beauty', 'Technology', 'Gaming', 'Fitness', 'Travel', 'Comedy', 'Entertainment'];
 const BUSINESS_CATEGORIES = ['Food & Restaurants', 'Fashion & Retail', 'Beauty & Cosmetics', 'Technology', 'Gaming', 'Fitness & Wellness', 'Travel & Hospitality', 'Entertainment', 'Other'];
 const LOOKING_FOR_OPTIONS = ['Sponsored posts', 'Product reviews', 'Long-term ambassadorship', 'Event coverage', 'UGC content', 'Affiliate partnerships'];
@@ -149,6 +175,54 @@ const PlatformIcon = ({ p, size = 14 }) => {
   if (p === 'telegram') return <TelegramLogo size={size} />;
   return null;
 };
+
+// One metric's progress toward the launch threshold (e.g. "32 / 50 creators").
+const LaunchProgressBar = ({ label, count, threshold, color }) => (
+  <div>
+    <div className="flex items-center justify-between mb-1.5">
+      <span className="text-xs font-semibold" style={{ color: '#111827' }}>{label}</span>
+      <span className="cm-mono text-xs font-bold" style={{ color }}>{Math.min(count, threshold)} / {threshold}</span>
+    </div>
+    <div className="w-full rounded-full overflow-hidden" style={{ height: 8, background: '#F3F4F6' }}>
+      <div style={{ width: `${Math.min(100, (count / threshold) * 100)}%`, height: '100%', background: color, transition: 'width 0.4s ease' }} />
+    </div>
+  </div>
+);
+
+// Public-facing launch-progress card. Shown on the homepage and anywhere
+// else visitors should see real progress toward the 50/50 unlock — never
+// fabricated numbers, always the live counts from fetchLaunchStats().
+const LaunchProgressCard = ({ stats, compact = false }) => {
+  if (!stats) return null;
+  return (
+    <div className="bg-white border rounded-2xl p-5 md:p-6" style={{ borderColor: '#E5E7EB' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#E6007A' }}>Launch progress</p>
+          {!compact && <p className="text-sm mt-1" style={{ color: '#4B5563' }}>Full networking unlocks once Commissioner reaches {stats.threshold} verified creators and {stats.threshold} verified businesses.</p>}
+        </div>
+        {stats.unlocked
+          ? <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>Unlocked</span>
+          : <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{ background: '#FFF1E5', color: '#9A4A0C' }}>Building up</span>}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <LaunchProgressBar label="Verified creators" count={stats.creatorCount} threshold={stats.threshold} color="#E6007A" />
+        <LaunchProgressBar label="Verified businesses" count={stats.businessCount} threshold={stats.threshold} color="#00D9FF" />
+      </div>
+    </div>
+  );
+};
+
+// Inline notice shown in place of a locked action (Connect, starting a new
+// conversation, etc.) while the platform is still below the 50/50 threshold.
+const LaunchGateNotice = ({ stats }) => (
+  <div className="bg-white border rounded-2xl p-6 text-center" style={{ borderColor: '#E5E7EB' }}>
+    <Lock size={22} className="mx-auto mb-3" style={{ color: '#9CA3AF' }} />
+    <p className="text-sm font-semibold" style={{ color: '#111827' }}>Networking unlocks at {stats?.threshold ?? LAUNCH_THRESHOLD} verified creators & businesses</p>
+    <p className="text-xs mt-1 mb-4" style={{ color: '#6B7280' }}>Profiles, verification, and the marketplace are open now — connecting and messaging open platform-wide once we hit the threshold.</p>
+    {stats && <div className="max-w-sm mx-auto"><LaunchProgressCard stats={stats} compact /></div>}
+  </div>
+);
 
 const VerifiedIcon = ({ size = 14, label = 'Verified by Commissioner' }) => (
   <span
@@ -623,7 +697,10 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 
 /* ---------------------------------- pages ---------------------------------- */
 
-const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => (
+const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
+  const [launchStats, setLaunchStats] = useState(null);
+  useEffect(() => { fetchLaunchStats().then(setLaunchStats); }, []);
+  return (
   <div>
     {/* hero */}
     <section className="max-w-7xl mx-auto px-5 md:px-8 pt-16 pb-10">
@@ -663,6 +740,11 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => (
           <button style={{ background: '#111827' }} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg">Search</button>
         </div>
       </div>
+    </section>
+
+    {/* launch progress */}
+    <section className="max-w-7xl mx-auto px-5 md:px-8 pb-16">
+      <LaunchProgressCard stats={launchStats} />
     </section>
 
     {/* how it works */}
@@ -706,7 +788,8 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => (
       </div>
     </section>
   </div>
-);
+  );
+};
 
 const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'facebook'];
 
@@ -3303,13 +3386,18 @@ const TrustCenter = ({ session }) => {
 
 const B2BNetwork = ({ session, initialBusiness=null }) => {
   const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [busy,setBusy]=useState(false);
+  const [launchStats,setLaunchStats]=useState(null); const [isAdmin,setIsAdmin]=useState(false);
   const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
   useEffect(()=>{load()},[session?.user?.id]);
+  useEffect(()=>{fetchLaunchStats().then(setLaunchStats)},[]);
+  useEffect(()=>{if(!session){setIsAdmin(false);return;}supabase.rpc('is_admin').then(({data})=>setIsAdmin(!!data))},[session?.user?.id]);
   useEffect(()=>{if(initialBusiness&&session)setMessage(`I'd like to connect with ${initialBusiness.business_name||initialBusiness.name} through Commissioner.`)},[initialBusiness?.id,session?.user?.id]);
-  const send=async(target)=>{if(!session)return;setBusy(true);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||'I would like to connect professionally through Commissioner.'});setBusy(false);if(error)setMessage(error.code==='23505'?'A connection request already exists.':error.message);else{setMessage('Connection request sent.');await load();}};
+  const launched = !!launchStats?.unlocked || isAdmin;
+  const send=async(target)=>{if(!session)return;if(!launched){setMessage('Connecting is locked until Commissioner reaches its launch threshold.');return;}setBusy(true);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||'I would like to connect professionally through Commissioner.'});setBusy(false);if(error)setMessage(error.code==='23505'?'A connection request already exists.':error.message);else{setMessage('Connection request sent.');await load();}};
   const filtered=items.filter(x=>`${x.name} ${x.industry||x.primary_niche||''} ${x.city||''}`.toLowerCase().includes(search.toLowerCase()));
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Briefcase size={32} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#111827'}}>B2B network</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Sign in to connect with businesses and creators.</p></div>;
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Professional connections without the noise</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find people and companies, review their verified facts, and start a professional relationship.</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5"><div><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white mb-4" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, creators, industries…" className="flex-1 outline-none text-sm"/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filtered.map((x,i)=><div key={x.kind+x.id} className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3"><Avatar name={x.name} size={46} tone={i} src={x.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#111827'}}>{x.name}</p>{x.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#6B7280'}}>{x.kind==='business'?x.industry:x.primary_niche}{x.city?` · ${x.city}`:''}</p></div></div><p className="text-[11px] mt-4" style={{color:'#6B7280'}}>Verified facts are shown separately from general reputation.</p><div className="flex gap-2 mt-3"><button onClick={()=>send(x)} disabled={busy} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#111827'}}>Connect</button><button onClick={()=>setMessage(`I'd like to discuss a professional opportunity with ${x.name}.`)} className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><MessageSquare size={14}/></button></div></div>)}</div></div><aside className="bg-white border rounded-2xl p-5 h-fit" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold" style={{color:'#111827'}}>Connection message</p><p className="text-xs mt-1 mb-3" style={{color:'#6B7280'}}>This starts a professional connection. You can continue the conversation in Messages after acceptance.</p><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={5} className="w-full border rounded-xl px-3 py-3 text-xs outline-none resize-none" style={{borderColor:'#E5E7EB'}} placeholder="Introduce yourself and explain why you want to connect."/><div className="mt-4 border-t pt-4" style={{borderColor:'#F3F4F6'}}><p className="text-xs font-semibold mb-2" style={{color:'#111827'}}>Your recent connections</p>{connections.slice(0,5).map(c=><div key={c.id} className="flex items-center justify-between py-2 text-[11px]"><span style={{color:'#4B5563'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}{!connections.length&&<p className="text-[11px]" style={{color:'#9CA3AF'}}>No connections yet.</p>}</div></aside></div></div>;
+  if(!launched)return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Professional connections without the noise</h1></div><LaunchGateNotice stats={launchStats}/>{connections.length>0&&<div className="bg-white border rounded-2xl p-5 mt-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-3" style={{color:'#111827'}}>Your existing connections</p>{connections.map(c=><div key={c.id} className="flex items-center justify-between py-2 text-xs border-b last:border-0" style={{borderColor:'#F3F4F6'}}><span style={{color:'#4B5563'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>}</div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">{isAdmin&&!launchStats?.unlocked&&<div className="mb-5 text-xs font-semibold px-4 py-2.5 rounded-lg" style={{background:'#FFF1E5',color:'#9A4A0C'}}>Admin preview — the network is still locked for everyone else until launch threshold is reached.</div>}<div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#111827'}}>Professional connections without the noise</h1><p className="text-sm mt-2" style={{color:'#6B7280'}}>Find people and companies, review their verified facts, and start a professional relationship.</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5"><div><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white mb-4" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, creators, industries…" className="flex-1 outline-none text-sm"/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filtered.map((x,i)=><div key={x.kind+x.id} className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3"><Avatar name={x.name} size={46} tone={i} src={x.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#111827'}}>{x.name}</p>{x.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#6B7280'}}>{x.kind==='business'?x.industry:x.primary_niche}{x.city?` · ${x.city}`:''}</p></div></div><p className="text-[11px] mt-4" style={{color:'#6B7280'}}>Verified facts are shown separately from general reputation.</p><div className="flex gap-2 mt-3"><button onClick={()=>send(x)} disabled={busy} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#111827'}}>Connect</button><button onClick={()=>setMessage(`I'd like to discuss a professional opportunity with ${x.name}.`)} className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><MessageSquare size={14}/></button></div></div>)}</div></div><aside className="bg-white border rounded-2xl p-5 h-fit" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold" style={{color:'#111827'}}>Connection message</p><p className="text-xs mt-1 mb-3" style={{color:'#6B7280'}}>This starts a professional connection. You can continue the conversation in Messages after acceptance.</p><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={5} className="w-full border rounded-xl px-3 py-3 text-xs outline-none resize-none" style={{borderColor:'#E5E7EB'}} placeholder="Introduce yourself and explain why you want to connect."/><div className="mt-4 border-t pt-4" style={{borderColor:'#F3F4F6'}}><p className="text-xs font-semibold mb-2" style={{color:'#111827'}}>Your recent connections</p>{connections.slice(0,5).map(c=><div key={c.id} className="flex items-center justify-between py-2 text-[11px]"><span style={{color:'#4B5563'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}{!connections.length&&<p className="text-[11px]" style={{color:'#9CA3AF'}}>No connections yet.</p>}</div></aside></div></div>;
 };
 
 const VerificationAdminQueue = () => {
@@ -3401,6 +3489,9 @@ const AdminPanel = ({ session }) => {
     if (!session) { setIsAdmin(false); setAdminChecked(true); return; }
     supabase.rpc('is_admin').then(({ data }) => { setIsAdmin(!!data); setAdminChecked(true); });
   }, [session?.user?.id]);
+
+  const [launchStats, setLaunchStats] = useState(null);
+  useEffect(() => { if (isAdmin) fetchLaunchStats().then(setLaunchStats); }, [isAdmin]);
 
   const loadRows = async () => {
     setLoadingRows(true);
@@ -3804,6 +3895,8 @@ const AdminPanel = ({ session }) => {
           </div>
         </div>
       )}
+
+      <div className="mb-8"><LaunchProgressCard stats={launchStats} /></div>
 
       <VerificationAdminQueue />
 
@@ -4270,8 +4363,17 @@ export default function Commissioner() {
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const [messageRecipientId, setMessageRecipientId] = useState(null);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [launchStats, setLaunchStats] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => { fetchLaunchStats().then(setLaunchStats); }, []);
+  useEffect(() => {
+    if (!session) { setIsAdmin(false); return; }
+    supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data));
+  }, [session?.user?.id]);
+  const networkLaunched = !!launchStats?.unlocked || isAdmin;
   const onHire = async (creator) => {
     if (!session) { setPage('auth'); return; }
+    if (!networkLaunched) { setToast(`Messaging unlocks once Commissioner reaches ${launchStats?.threshold ?? LAUNCH_THRESHOLD} verified creators & businesses.`); setTimeout(() => setToast(''), 3500); return; }
     if (!creator.authUserId) { setToast('This creator has not connected a messaging account yet.'); setTimeout(() => setToast(''), 3000); return; }
     setMessageRecipientId(creator.authUserId);
     setPage('messages');

@@ -74,6 +74,45 @@ and in `AdminPanel` itself (the actual gate).
   admin panel after deploying.
 
 
+## 7. 50/50 launch gate (new)
+Added the missing launch-gate feature: Commissioner unlocks full networking
+once it has **50 verified creators AND 50 verified businesses**. Nothing
+else was in place for this before — no counts, no gate, no UI.
+
+- `fetchLaunchStats()` (top of `src/components/Site.jsx`) runs two
+  count-only queries (`creator_profiles` / `business_profiles`, filtered to
+  `approved && onboarded && verified`) and returns
+  `{ creatorCount, businessCount, threshold: 50, unlocked }`. No schema
+  change needed — it reads the same tables/columns the rest of the app
+  already queries publicly.
+- New shared components: `LaunchProgressBar`, `LaunchProgressCard` (the
+  public progress display), `LaunchGateNotice` (shown in place of a locked
+  action).
+- **Public homepage** now shows a live "Launch progress" section with both
+  progress bars — real counts, never placeholders.
+- **B2B Network page**: if the platform isn't unlocked yet, the page shows
+  `LaunchGateNotice` instead of the connect grid (existing connections, if
+  any, still list below it), and the `send()` connect action itself refuses
+  to fire while locked, as a second guard.
+- **"Message" from a creator card / marketplace "Contact"** (`onHire`, top
+  level): now checks the same launch state before opening a conversation;
+  shows a toast explaining the threshold instead of silently proceeding.
+- **Admins bypass the gate** (checked via the existing `is_admin()` RPC) so
+  the team can exercise the network before launch, with a small "Admin
+  preview — still locked for everyone else" banner so it's never mistaken
+  for the real unlocked state.
+- **Admin panel** now shows the same live `LaunchProgressCard` at the top,
+  so admins can see real progress without a separate report.
+
+**What this does not do:** the gate above is a client-side/UX gate, not a
+database-level security boundary — it stops the UI from offering the
+action, but it does not add a Postgres RLS policy that blocks
+`b2b_connections` inserts or `start_conversation` calls server-side before
+threshold. If you need the lock to hold even against a direct API call
+(not just the web UI), that needs a companion SQL migration checking the
+same counts inside those functions/policies — flag it and I can add that
+next.
+
 ## 6. Auth and role-isolated onboarding hardening
 - Normal wrong-password/validation errors no longer trigger a 60-second email cooldown; only real rate-limit responses do.
 - Confirmation resend displays a clear sending state and keeps the confirmation subject explicit.
