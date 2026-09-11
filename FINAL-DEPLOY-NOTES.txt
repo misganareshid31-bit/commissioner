@@ -1,0 +1,12 @@
+COMMISSIONER FINAL MESSAGING FIX
+
+1. Deploy this project to Vercel.
+2. In Supabase SQL Editor run COMMISSIONER-FINAL-MESSAGING-ONE-SHOT.sql once.
+3. Refresh the app.
+
+Important fixes in this final version:
+- Marketplace owner queries include auth_user_id, so Message can identify the actual account.
+- Marketplace Message creates/reuses a conversation and records listing context.
+- Normal messaging start_conversation no longer has the 50/50 launch gate or profile-completion gate.
+- Sending, loading, unread/read, and realtime message functions are included.
+- Marketplace media_type/media_url fields are included.

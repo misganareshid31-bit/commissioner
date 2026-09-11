@@ -3368,8 +3368,8 @@ const Marketplace = ({ onMessage, session }) => {
       try{
         const {data: listings}=await supabase.from('marketplace_listings').select('*').eq('active',true).order('created_at',{ascending:false}).limit(100);
         const [{data: creators},{data: businesses}]=await Promise.all([
-          supabase.from('creator_profiles').select('id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('approved',true).limit(80),
-          supabase.from('business_profiles').select('id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('approved',true).limit(80)
+          supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('approved',true).limit(80),
+          supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('approved',true).limit(80)
         ]);
         const byId={}; (creators||[]).forEach(x=>byId[`creator:${x.id}`]={...x,type:'creator'}); (businesses||[]).forEach(x=>byId[`business:${x.id}`]={...x,type:'business'});
         const rows=(listings||[]).map(x=>({...x,owner:byId[`${x.owner_type}:${x.owner_id}`]})).filter(x=>x.owner);
