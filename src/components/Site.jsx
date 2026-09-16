@@ -9,7 +9,8 @@ import {
   Calendar, ImageIcon, FileText, MoreHorizontal, Wallet, Award,
   UserCheck, Building2, Sparkles, ArrowRight, Flame, Camera, Globe,
   Phone, Upload, ChevronLeft, Check, Video, Link2, Languages,
-  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX, Music2
+  LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX, Music2,
+  LayoutDashboard, Network, ShieldCheck, CreditCard, Store, UserPlus, Repeat, Pencil
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -296,13 +297,14 @@ const StatusPill = ({ status }) => {
   );
 };
 
-const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, hasBusiness, activeRole, setActiveRole, onProfilesChanged }) => {
+const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, hasBusiness, activeRole, setActiveRole, onProfilesChanged, openOnboarding }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     if (!session) { setIsAdmin(false); return; }
     supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data));
   }, [session?.user?.id]);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [joinMenuOpen, setJoinMenuOpen] = useState(false);
   const [addingProfile, setAddingProfile] = useState(false);
   const isBusiness = activeRole === 'business';
@@ -327,6 +329,15 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     : (activeProfile?.page_name || 'Creator account');
   const activeUsername = activeProfile?.username ? `@${activeProfile.username.replace(/^@/, '')}` : '';
 
+  // One colour rule, applied everywhere: magenta means "creator", cyan means
+  // "business". The navigation highlight follows the active workspace so the
+  // user can tell which side of Commissioner they are in at a glance.
+  const roleAccent = isBusiness ? '#00D9FF' : '#E6007A';
+  const roleAccentInk = isBusiness ? '#036377' : '#C00062';
+  const roleAccentSoft = isBusiness ? '#ECFEFF' : '#FDE7F1';
+  const navActiveInk = session ? roleAccentInk : '#C00062';
+  const navActiveSoft = session ? roleAccentSoft : '#FDE7F1';
+
   // The "+ Set up" action must open the correct setup form. Do not create
   // the opposite profile here: the setup form is responsible for collecting
   // the profile information and creating the record when the user finishes.
@@ -341,34 +352,35 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     setMenuOpen(false);
     sessionStorage.setItem('commissioner_intended_role', otherRole);
     localStorage.setItem(`commissioner_active_role_${session.user.id}`, otherRole);
-    window.history.pushState({}, '', `/join/${otherRole}`);
-    setPage('onboarding');
+    // Go through the app's single onboarding entry point so the setup screen
+    // is told, explicitly, which role it is opening.
+    openOnboarding?.(otherRole);
   };
-  // Logged-out visitors see the full discovery set. Once someone's signed
-  // in, the nav narrows to what's actually relevant to their role — a
-  // business's main reason for being here is finding creators (so
-  // "Businesses" drops out), and vice versa for a creator — and Dashboard
-  // becomes a first-class nav item instead of being buried in the account
-  // menu, since it's now where logged-in users land by default.
+  // One fixed navigation hierarchy, in one fixed order, for every screen:
+  // Dashboard, the discovery entry that matches the active role (a business
+  // finds creators, a creator finds businesses), Marketplace, B2B network,
+  // Messages, Trust & verification, Plans. "Edit profile" is deliberately
+  // NOT here — it belongs on the user's own profile, not the main nav.
   const links = session
     ? [
-        { id: 'dashboard', label: isBusiness ? 'Business dashboard' : 'Creator dashboard' },
-        { id: 'creators', label: 'Find creators' },
-        { id: 'businesses', label: 'Find businesses' },
-        { id: 'marketplace', label: isBusiness ? 'Business marketplace' : 'Creator marketplace' },
-        { id: 'network', label: isBusiness ? 'Business network' : 'Creator network' },
-        { id: 'messages', label: 'Messages' },
-        { id: 'trust', label: 'Trust & verification' },
-        { id: 'pricing', label: 'Plans' },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        isBusiness
+          ? { id: 'creators', label: 'Find creators', icon: Users }
+          : { id: 'businesses', label: 'Find businesses', icon: Building2 },
+        { id: 'marketplace', label: 'Marketplace', icon: Store },
+        { id: 'network', label: 'B2B network', icon: Network },
+        { id: 'messages', label: 'Messages', icon: MessageSquare },
+        { id: 'trust', label: 'Trust & verification', icon: ShieldCheck },
+        { id: 'pricing', label: 'Plans', icon: CreditCard },
       ]
     : [
-        { id: 'home', label: 'Home' },
-        { id: 'creators', label: 'Creators' },
-        { id: 'businesses', label: 'Businesses' },
-        { id: 'marketplace', label: 'Marketplace' },
-        { id: 'network', label: 'B2B network' },
-        { id: 'trust', label: 'Trust' },
-        { id: 'pricing', label: 'Pricing' },
+        { id: 'home', label: 'Home', icon: Globe },
+        { id: 'creators', label: 'Creators', icon: Users },
+        { id: 'businesses', label: 'Businesses', icon: Building2 },
+        { id: 'marketplace', label: 'Marketplace', icon: Store },
+        { id: 'network', label: 'B2B network', icon: Network },
+        { id: 'trust', label: 'Trust', icon: ShieldCheck },
+        { id: 'pricing', label: 'Plans', icon: CreditCard },
       ];
 
   const handleSignOut = async () => {
@@ -384,83 +396,123 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
         </button>
 
-        <nav className="hidden lg:flex items-center gap-1">
-          {links.map(l => (
-            <button
-              key={l.id}
-              data-tour={`nav-${l.id}`}
-              onClick={() => setPage(l.id)}
-              className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                color: page === l.id ? '#E6007A' : '#374151',
-                background: page === l.id ? '#FDE7F1' : 'transparent'
-              }}
-            >
-              {l.label}
-            </button>
-          ))}
+        <nav className="hidden lg:flex items-center gap-0.5">
+          {links.map(l => {
+            const Icon = l.icon;
+            const isActive = page === l.id;
+            return (
+              <button
+                key={l.id}
+                data-tour={`nav-${l.id}`}
+                onClick={() => setPage(l.id)}
+                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                style={{
+                  color: isActive ? navActiveInk : '#374151',
+                  background: isActive ? navActiveSoft : 'transparent'
+                }}
+              >
+                {Icon && <Icon size={15} strokeWidth={isActive ? 2.4 : 2} />}
+                {l.label}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-1.5">
+          {/* Top right holds four things only: notifications, messages, the
+              profile avatar and the account menu. Page-level actions such as
+              "Edit profile" or "Hire creators" live on the page they belong
+              to, not up here. */}
+          {session && (
+            <div className="relative">
+              <button
+                aria-label="Notifications"
+                onClick={() => { setNotifOpen(o => !o); setAccountMenuOpen(false); }}
+                className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+                style={{ color: notifOpen ? roleAccentInk : '#4B5563', background: notifOpen ? roleAccentSoft : 'transparent' }}
+              >
+                <Bell size={18} />
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-full mt-1 w-64 bg-white border rounded-xl shadow-lg p-4 z-50" style={{ borderColor: '#E5E7EB' }}>
+                  <p className="text-xs font-bold mb-1" style={{ color: '#111827' }}>Notifications</p>
+                  <p className="text-xs leading-relaxed" style={{ color: '#6B7280' }}>You're all caught up. Connection requests and verification updates will appear here.</p>
+                </div>
+              )}
+            </div>
+          )}
+          {session && (
+            <button
+              aria-label="Messages"
+              onClick={() => { setPage('messages'); setNotifOpen(false); setAccountMenuOpen(false); }}
+              className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+              style={{ color: page === 'messages' ? roleAccentInk : '#4B5563', background: page === 'messages' ? roleAccentSoft : 'transparent' }}
+            >
+              <MessageSquare size={18} />
+            </button>
+          )}
           {session ? (
             <div className="relative">
               <button
                 data-tour="nav-account"
-                onClick={() => setAccountMenuOpen(o => !o)}
-                className="flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg"
+                onClick={() => { setAccountMenuOpen(o => !o); setNotifOpen(false); }}
+                className="flex items-center gap-2 text-sm font-semibold px-2.5 py-1.5 rounded-lg"
                 style={{ color: '#111827', background: accountMenuOpen ? '#F8FAFC' : 'transparent' }}
               >
                 <Avatar name={activeDisplayName} size={32} ring src={activeProfile?.avatar_url} />
                 <span className="flex flex-col items-start leading-tight max-w-[150px]">
                   <span className="text-xs font-bold truncate w-full">{activeDisplayName}</span>
-                  <span className="text-[10px] font-medium" style={{ color: isBusiness ? '#7C3AED' : '#036377' }}>{isBusiness ? 'Business' : 'Creator'}{activeUsername ? ` · ${activeUsername}` : ''}</span>
+                  <span className="text-[10px] font-semibold" style={{ color: roleAccentInk }}>{isBusiness ? 'Business' : 'Creator'}{activeUsername ? ` · ${activeUsername}` : ''}</span>
                 </span>
                 <ChevronDown size={14} style={{ color: '#6B7280' }} />
               </button>
               {accountMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-56 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
-                  <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Dashboard</button>
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border rounded-2xl py-2 z-50" style={{ borderColor: '#E5E7EB', boxShadow: '0 12px 36px rgba(17,24,39,0.12)' }}>
+                  {/* The role switcher is explicit: the workspace you are in is
+                      always labelled, and switching is a deliberate choice —
+                      never something that happens as a side effect. */}
+                  <div className="px-3 pb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1.5" style={{ color: '#9CA3AF' }}>Active workspace</p>
+                    <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: roleAccent, background: roleAccentSoft }}>
+                      <p className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: roleAccentInk }}>{isBusiness ? 'Business' : 'Creator'}</p>
+                      <p className="text-sm font-bold truncate" style={{ color: '#111827' }}>{activeDisplayName}</p>
+                    </div>
+                  </div>
                   {hasBothProfiles && (
-                    <div className="px-3 pt-2 pb-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1" style={{ color: '#9CA3AF' }}>Switch account</p>
-                      <div className="flex gap-1">
-                        {[['creator','Creator'],['business','Business']].map(([r,l]) => (
-                          <button key={r} onClick={() => { setActiveRole?.(r); setPage('dashboard'); setAccountMenuOpen(false); setMenuOpen(false); }} className="flex-1 px-2 py-2 rounded-lg text-xs font-semibold" style={{ background: activeRole===r ? '#111827' : '#F8FAFC', color: activeRole===r ? '#fff' : '#4B5563' }}>{l}</button>
+                    <div className="px-3 pb-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1.5" style={{ color: '#9CA3AF' }}>Switch workspace</p>
+                      <div className="flex gap-1.5">
+                        {[['creator', 'Creator', '#E6007A', '#C00062', '#FDE7F1'], ['business', 'Business', '#00D9FF', '#036377', '#ECFEFF']].map(([r, l, accent, ink, soft]) => (
+                          <button
+                            key={r}
+                            onClick={() => { if (activeRole === r) { setAccountMenuOpen(false); return; } setActiveRole?.(r); setPage('dashboard'); setAccountMenuOpen(false); setMenuOpen(false); }}
+                            className="flex-1 px-2 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5"
+                            style={{ borderColor: activeRole === r ? accent : '#E5E7EB', background: activeRole === r ? soft : '#fff', color: activeRole === r ? ink : '#4B5563' }}
+                          >
+                            <span className="w-2 h-2 rounded-full" style={{ background: accent }} />{l}
+                          </button>
                         ))}
                       </div>
                     </div>
                   )}
-                  <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Account settings</button>
-                  {(isBusiness ? hasCreator : hasBusiness) ? (
-                    <button onClick={() => { const role = isBusiness ? 'creator' : 'business'; setActiveRole?.(role); setAccountMenuOpen(false); setMenuOpen(false); setPage('dashboard'); }}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#036377' }}>
-                      {isBusiness ? 'Open creator account' : 'Open business account'}
-                    </button>
-                  ) : (
-                    <button onClick={addOtherProfile} disabled={addingProfile} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
-                      {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
+                  <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
+                  <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#111827' }}><LayoutDashboard size={16} style={{ color: '#6B7280' }} />Dashboard</button>
+                  <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#111827' }}><Settings size={16} style={{ color: '#6B7280' }} />Account settings</button>
+                  {!hasBothProfiles && (
+                    <button onClick={addOtherProfile} disabled={addingProfile} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2.5" style={{ color: isBusiness ? '#C00062' : '#036377' }}>
+                      <UserPlus size={16} />{addingProfile ? 'Setting up…' : `Add a ${isBusiness ? 'creator' : 'business'} profile`}
                     </button>
                   )}
                   {isAdmin && (
-                    <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#111827' }}>Admin</button>
+                    <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#111827' }}><Shield size={16} style={{ color: '#6B7280' }} />Admin</button>
                   )}
-                  <div className="h-px my-1" style={{ background: '#E5E7EB' }} />
-                  <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#DC2626' }}>Sign out</button>
+                  <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
+                  <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#DC2626' }}><LogOut size={16} />Sign out</button>
                 </div>
               )}
             </div>
           ) : (
             <button onClick={() => setPage('auth')} className="text-sm font-medium px-3 py-2" style={{ color: '#111827' }}>Sign in</button>
-          )}
-          {session && isBusiness && (
-            <button
-              data-tour="nav-hire"
-              onClick={() => setPage('creators')}
-              style={{ background: '#E6007A' }}
-              className="text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Hire creators
-            </button>
           )}
           {!session && (
             <div className="relative">
@@ -509,16 +561,24 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
             <div className="flex-1 overflow-y-auto cm-scroll p-4">
               <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Navigation</p>
               <div className="flex flex-col gap-1">
-                {links.map(l => (
-                  <button
-                    key={l.id}
-                    onClick={() => { setPage(l.id); setMenuOpen(false); }}
-                    className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center justify-between"
-                    style={{ color: page === l.id ? '#E6007A' : '#374151', background: page === l.id ? '#FDE7F1' : 'transparent' }}
-                  >
-                    {l.label}<ChevronRight size={15} />
-                  </button>
-                ))}
+                {links.map(l => {
+                  const Icon = l.icon;
+                  const isActive = page === l.id;
+                  return (
+                    <button
+                      key={l.id}
+                      onClick={() => { setPage(l.id); setMenuOpen(false); }}
+                      className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center justify-between gap-3"
+                      style={{ color: isActive ? navActiveInk : '#374151', background: isActive ? navActiveSoft : 'transparent' }}
+                    >
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        {Icon && <Icon size={17} strokeWidth={isActive ? 2.4 : 2} />}
+                        <span className="truncate">{l.label}</span>
+                      </span>
+                      <ChevronRight size={15} className="shrink-0" />
+                    </button>
+                  );
+                })}
               </div>
               <div className="h-px my-4" style={{ background: '#E5E7EB' }} />
               <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Account</p>
@@ -569,7 +629,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                   <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
                   {!hasBothProfiles && (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
-                      {addingProfile ? 'Setting up…' : `+ Set up a ${isBusiness ? 'Creator' : 'Business'} profile`}
+                      {addingProfile ? 'Setting up…' : `Add a ${isBusiness ? 'creator' : 'business'} profile`}
                     </button>
                   )}
                   {isAdmin && (
@@ -1576,7 +1636,7 @@ const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
   // the owner can request verification later from Trust Center.
   setPage(editMode?'account':'dashboard');}catch(err){setError(err.message||'Something went wrong.');}finally{setSaving(false);setUploadingLogo(false);}};
   const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]||''} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#E6007A':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8 shadow-sm">{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#6B7280'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'#FAF5FF'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>Your required profile is complete. Finishing now will create/update the business profile. Verification is optional and can be requested later from Trust Center.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#E6007A'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#E6007A'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#111827'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#6B7280'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#111827':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#6B7280'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#111827'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#6B7280'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#374151'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#6B7280'}}>Your required profile is complete. Finishing now will create/update the business profile. Verification is optional and can be requested later from Trust Center.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -4346,10 +4406,10 @@ const TOUR_STEPS = [
   { target: 'nav-businesses', title: 'Discover businesses', body: 'See registered, Commissioner-verified businesses.' },
   { target: 'nav-marketplace', title: 'Marketplace', body: 'Products and services from creators and businesses.' },
   { target: 'nav-network', title: 'B2B network', body: 'Make direct professional connections, one request at a time.' },
-  { target: 'nav-trust', title: 'Trust Center', body: 'Verify specific claims about yourself so others know what to trust.' },
+  { target: 'nav-trust', title: 'Trust & verification', body: 'Verify specific claims about yourself so others know what to trust.' },
   { target: 'nav-messages', title: 'Messages', body: 'Chat directly with anyone you connect with on Commissioner.' },
-  { target: 'nav-pricing', title: 'Pricing', body: 'See the available plans for creators and businesses.' },
-  { target: 'nav-account', title: 'Account menu', body: 'Manage your account, switch roles, or add a second profile from here.' },
+  { target: 'nav-pricing', title: 'Plans', body: 'See the available plans for creators and businesses.' },
+  { target: 'nav-account', title: 'Account menu', body: 'Switch between your creator and business workspace, or add the second profile, from here.' },
 ];
 
 const NavTour = ({ onDone }) => {
@@ -4439,22 +4499,64 @@ export default function Commissioner() {
   const initialAdminRoute = window.location.pathname.replace(/\/+$/, '') === '/admin';
   const [page, setPage] = useState(initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home'));
   const [editingProfile, setEditingProfile] = useState(false);
+  // Which setup flow the onboarding screen should show. This is set
+  // explicitly whenever we enter onboarding, so a stale /join/... URL left in
+  // the address bar can never decide it for us.
+  const [onboardingRoleState, setOnboardingRoleState] = useState(initialJoinRole);
   const [pageHistory, setPageHistory] = useState([]);
-  const prevPageRef = React.useRef('home');
+  const prevPageRef = React.useRef(initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home'));
+
+  // Back now uses real browser history: every in-app screen change pushes a
+  // history entry, and the browser's own Back button (or gesture, or the
+  // in-app Back button) pops it. Previously the in-app stack and the browser
+  // stack disagreed, which is why Back sometimes left the app entirely.
+  const skipHistoryPushRef = React.useRef(false);
   useEffect(() => {
-    if (prevPageRef.current !== page) {
-      setPageHistory(h => [...h, prevPageRef.current]);
-      prevPageRef.current = page;
+    window.history.replaceState({ ...(window.history.state || {}), cmPage: prevPageRef.current }, '');
+  }, []);
+  useEffect(() => {
+    if (prevPageRef.current === page) return;
+    if (skipHistoryPushRef.current) {
+      skipHistoryPushRef.current = false;
+    } else {
+      window.history.pushState({ cmPage: page }, '', window.location.pathname + window.location.search);
     }
+    setPageHistory(h => [...h, prevPageRef.current]);
+    prevPageRef.current = page;
   }, [page]);
+  useEffect(() => {
+    const onPop = (e) => {
+      const target = e.state && e.state.cmPage;
+      skipHistoryPushRef.current = true;
+      setPageHistory(h => (h.length ? h.slice(0, -1) : h));
+      if (target) {
+        setPage(target);
+      } else {
+        setPage(p => (p === 'home' ? p : 'home'));
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const goBack = () => {
-    setPageHistory(h => {
-      if (h.length === 0) { setPage('home'); return h; }
-      const next = [...h];
-      const last = next.pop();
-      setPage(last);
-      return next;
-    });
+    if (pageHistory.length > 0) window.history.back();
+    else setPage('home');
+  };
+
+  // The single entry point into either setup flow. Everything that opens
+  // onboarding goes through here so the role is always stated outright.
+  const openOnboarding = (role, { edit = false } = {}) => {
+    setOnboardingRoleState(role);
+    setEditingProfile(edit);
+    if (edit) {
+      // Editing is not a join flow — drop any leftover /join/:role URL so it
+      // cannot be misread as an instruction to open the other role's setup.
+      if (window.location.pathname.startsWith('/join')) window.history.replaceState({ cmPage: 'onboarding' }, '', '/');
+    } else {
+      window.history.pushState({ cmPage: 'onboarding' }, '', `/join/${role}`);
+      skipHistoryPushRef.current = true;
+    }
+    setPage('onboarding');
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [session, setSession] = useState(null);
@@ -4502,8 +4604,7 @@ export default function Commissioner() {
       setPage('dashboard');
       return;
     }
-    window.history.pushState({}, '', `/join/${role}`);
-    setPage('onboarding');
+    openOnboarding(role);
   };
   const [savedIds, setSavedIds] = useState([]);
   const [appliedIds, setAppliedIds] = useState([]);
@@ -4516,12 +4617,16 @@ export default function Commissioner() {
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const officialType = pathParts[0] || '';
   const officialId = pathParts[1] || '';
-  // The /join/:role URL is authoritative while the onboarding screen is open.
-  // This prevents the profile hook's initial default ('creator') from briefly
-  // rendering the Creator setup when a user explicitly chose Business.
-  const onboardingRole = page === 'onboarding' && (officialType === 'join')
-    ? (officialId === 'business' || officialId === 'creator' ? officialId : activeRole)
-    : activeRole;
+  // Role safety rule for the setup screen, in priority order:
+  //   1. Editing an existing profile ALWAYS follows the active workspace, so
+  //      a business user can never be dropped into creator setup.
+  //   2. Otherwise the role we explicitly opened onboarding with wins.
+  //   3. A /join/:role URL (bookmark, shared link, refresh) is the fallback.
+  //   4. Active role last.
+  const joinUrlRole = officialType === 'join' && (officialId === 'creator' || officialId === 'business') ? officialId : null;
+  const onboardingRole = editingProfile
+    ? activeRole
+    : (onboardingRoleState || joinUrlRole || activeRole);
 
   const toggleSave = (id) => setSavedIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const [messageRecipientId, setMessageRecipientId] = useState(null);
@@ -4650,7 +4755,7 @@ export default function Commissioner() {
   return (
     <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
       <FontLoader />
-      <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} />
+      <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} openOnboarding={openOnboarding} />
       {page !== 'home' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
           <BackButton onClick={goBack} />
@@ -4682,9 +4787,9 @@ export default function Commissioner() {
       {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} setPage={setPage} />}
       {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
       {page === 'onboarding' && session && (onboardingRole === 'business'
-        ? <BusinessOnboarding session={session} setPage={setPage} editMode={editingProfile} />
+        ? <BusinessOnboarding session={session} setPage={(p) => { setEditingProfile(false); setPage(p); }} editMode={editingProfile} />
         : <Onboarding session={session} setPage={setPage} editMode={editingProfile} onSaved={() => { setEditingProfile(false); setPage('account'); }} />)}
-      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} onEditProfile={() => { setEditingProfile(true); setPage('onboarding'); }} /> : <Auth onAuthenticated={() => setPage('account')} />)}
+      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} onEditProfile={() => openOnboarding(activeRole, { edit: true })} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 py-16">
@@ -4698,8 +4803,7 @@ export default function Commissioner() {
                 const table = intendedRole === 'creator' ? 'creator_profiles' : 'business_profiles';
                 const { data: existingProfile } = await supabase.from(table).select('onboarded').eq('auth_user_id', sess.user.id).maybeSingle();
                 if (existingProfile?.onboarded) { setPage('dashboard'); return; }
-                window.history.pushState({}, '', `/join/${intendedRole}`);
-                setPage('onboarding');
+                openOnboarding(intendedRole);
               });
             } else {
               setPage('dashboard');
