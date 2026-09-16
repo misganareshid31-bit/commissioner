@@ -53,3 +53,21 @@ a soft gradient review panel and deeper card shadow instead of flat white.
 - Switch roles, then open Account settings → Edit profile. A business user must
   land in business setup, a creator in creator setup, every time.
 - Browser Back from a few screens deep, and after a `/join/...` deep link.
+
+## 7. Account switch fix (follow-up)
+Two causes, both fixed in `src/components/Site.jsx`:
+
+1. **The switch snapped back.** `useMyProfiles`'s background refresh re-derived
+   the active role from which profile *rows* exist and overrode the user's
+   choice. A second profile row is only written when its setup is finished, so
+   switching to a not-yet-finished workspace flipped for a moment and reverted.
+   The stored, explicit choice now always wins; row existence is only used when
+   no choice has been made.
+2. **The switcher was hidden.** Both the desktop menu and the mobile drawer only
+   rendered the Creator/Business toggle when *both* rows existed, so with one
+   profile there was nothing to click. Both workspaces are now always listed;
+   the one that isn't created yet is marked "Not set up" and opens its own setup
+   flow (never the other role's) when selected.
+
+All switch points — desktop menu, mobile drawer, add-profile — now run through a
+single `switchWorkspace(role)` handler.

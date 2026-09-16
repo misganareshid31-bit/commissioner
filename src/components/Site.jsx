@@ -343,6 +343,22 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   // the profile information and creating the record when the user finishes.
   // This keeps Creator and Business profiles independent as specified by the
   // independent-business profile plan.
+  // One handler for every workspace switch in the app. Switching is always
+  // allowed: if that profile does not exist yet, this opens its setup rather
+  // than leaving the user on a workspace they did not ask for.
+  const switchWorkspace = (role) => {
+    setAccountMenuOpen(false);
+    setNotifOpen(false);
+    setMenuOpen(false);
+    setAddingProfile(false);
+    if (role === activeRole) return;
+    const exists = role === 'creator' ? hasCreator : hasBusiness;
+    setActiveRole?.(role);
+    if (session?.user?.id) localStorage.setItem(`commissioner_active_role_${session.user.id}`, role);
+    if (!exists) { sessionStorage.setItem('commissioner_intended_role', role); openOnboarding?.(role); return; }
+    setPage('dashboard');
+  };
+
   const addOtherProfile = () => {
     const otherRole = isBusiness ? 'creator' : 'business';
     setAddingProfile(false);
@@ -478,23 +494,28 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                       <p className="text-sm font-bold truncate" style={{ color: '#111827' }}>{activeDisplayName}</p>
                     </div>
                   </div>
-                  {hasBothProfiles && (
-                    <div className="px-3 pb-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1.5" style={{ color: '#9CA3AF' }}>Switch workspace</p>
-                      <div className="flex gap-1.5">
-                        {[['creator', 'Creator', '#E6007A', '#C00062', '#FDE7F1'], ['business', 'Business', '#00D9FF', '#036377', '#ECFEFF']].map(([r, l, accent, ink, soft]) => (
+                  {/* Both workspaces are always offered. If the second profile
+                      has not been created yet, switching to it opens its setup
+                      instead of silently doing nothing. */}
+                  <div className="px-3 pb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1.5" style={{ color: '#9CA3AF' }}>Switch workspace</p>
+                    <div className="flex gap-1.5">
+                      {[['creator', 'Creator', '#E6007A', '#C00062', '#FDE7F1'], ['business', 'Business', '#00D9FF', '#036377', '#ECFEFF']].map(([r, l, accent, ink, soft]) => {
+                        const exists = r === 'creator' ? hasCreator : hasBusiness;
+                        return (
                           <button
                             key={r}
-                            onClick={() => { if (activeRole === r) { setAccountMenuOpen(false); return; } setActiveRole?.(r); setPage('dashboard'); setAccountMenuOpen(false); setMenuOpen(false); }}
-                            className="flex-1 px-2 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1.5"
+                            onClick={() => { switchWorkspace(r); }}
+                            className="flex-1 px-2 py-2 rounded-lg text-xs font-bold border flex flex-col items-center justify-center gap-1"
                             style={{ borderColor: activeRole === r ? accent : '#E5E7EB', background: activeRole === r ? soft : '#fff', color: activeRole === r ? ink : '#4B5563' }}
                           >
-                            <span className="w-2 h-2 rounded-full" style={{ background: accent }} />{l}
+                            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: accent }} />{l}</span>
+                            {!exists && <span className="text-[9px] font-semibold" style={{ color: '#9CA3AF' }}>Not set up</span>}
                           </button>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
                   <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
                   <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#111827' }}><LayoutDashboard size={16} style={{ color: '#6B7280' }} />Dashboard</button>
                   <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#111827' }}><Settings size={16} style={{ color: '#6B7280' }} />Account settings</button>
@@ -585,9 +606,8 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               {session ? (
                 <div className="flex flex-col gap-1">
                   <button
-                    onClick={() => hasBothProfiles && setAddingProfile(v => !v)}
-                    disabled={!hasBothProfiles}
-                    className="w-full mb-3 rounded-2xl border-2 p-3.5 text-left flex items-center gap-3 transition-all disabled:cursor-default"
+                    onClick={() => setAddingProfile(v => !v)}
+                    className="w-full mb-3 rounded-2xl border-2 p-3.5 text-left flex items-center gap-3 transition-all"
                     style={{
                       borderColor: isBusiness ? '#00D9FF' : '#E6007A',
                       background: isBusiness ? '#ECFEFF' : '#FFF0F7',
@@ -600,29 +620,34 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                       <span className="block text-sm font-bold truncate mt-0.5" style={{ color: '#111827' }}>{activeDisplayName}</span>
                       {activeUsername && <span className="block text-[10px] font-medium truncate mt-0.5" style={{ color: '#6B7280' }}>{activeUsername}</span>}
                     </span>
-                    {hasBothProfiles && <ChevronDown size={18} className={`shrink-0 transition-transform ${addingProfile ? 'rotate-180' : ''}`} style={{ color: isBusiness ? '#008FA8' : '#C00062' }} />}
+                    <ChevronDown size={18} className={`shrink-0 transition-transform ${addingProfile ? 'rotate-180' : ''}`} style={{ color: isBusiness ? '#008FA8' : '#C00062' }} />
                   </button>
-                  {hasBothProfiles && addingProfile && (
+                  {addingProfile && (
                     <div className="mb-3 rounded-2xl border-2 overflow-hidden" style={{ borderColor: '#D1D5DB' }}>
-                      <p className="px-4 pt-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: '#6B7280' }}>Switch account</p>
-                      {[['creator', 'Creator account', '#E6007A', '#FFF0F7'], ['business', 'Business account', '#00D9FF', '#ECFEFF']].map(([r, l, accent, bg]) => (
-                        <button
-                          key={r}
-                          onClick={() => { setActiveRole?.(r); setPage('dashboard'); setAddingProfile(false); setMenuOpen(false); }}
-                          className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 border-t-2"
-                          style={{
-                            borderColor: '#F3F4F6',
-                            background: activeRole === r ? bg : '#fff',
-                            color: activeRole === r ? (r === 'business' ? '#007A91' : '#B00059') : '#374151'
-                          }}
-                        >
-                          <span className="flex items-center gap-3 min-w-0">
-                            <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: accent, boxShadow: `0 0 0 3px ${accent}33` }} />
-                            <span className="text-sm font-bold">{l}</span>
-                          </span>
-                          {activeRole === r && <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: r === 'business' ? '#007A91' : '#B00059' }}>Active</span>}
-                        </button>
-                      ))}
+                      <p className="px-4 pt-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: '#6B7280' }}>Switch workspace</p>
+                      {[['creator', 'Creator account', '#E6007A', '#FFF0F7'], ['business', 'Business account', '#00D9FF', '#ECFEFF']].map(([r, l, accent, bg]) => {
+                        const exists = r === 'creator' ? hasCreator : hasBusiness;
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => switchWorkspace(r)}
+                            className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 border-t-2"
+                            style={{
+                              borderColor: '#F3F4F6',
+                              background: activeRole === r ? bg : '#fff',
+                              color: activeRole === r ? (r === 'business' ? '#007A91' : '#B00059') : '#374151'
+                            }}
+                          >
+                            <span className="flex items-center gap-3 min-w-0">
+                              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: accent, boxShadow: `0 0 0 3px ${accent}33` }} />
+                              <span className="text-sm font-bold">{l}</span>
+                            </span>
+                            {activeRole === r
+                              ? <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: r === 'business' ? '#007A91' : '#B00059' }}>Active</span>
+                              : (!exists && <span className="text-[10px] font-semibold" style={{ color: '#9CA3AF' }}>Set up</span>)}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
@@ -4365,15 +4390,22 @@ function useMyProfiles(session) {
     if (seq !== refreshSeq.current) return;
     setHasCreator(hc); setHasBusiness(hb);
 
-    // Never let a background refresh undo a switch the user just made.
+    // An explicit choice by the user always wins. This is the fix for the
+    // switch appearing to do nothing: previously, if the other profile row
+    // did not exist yet (a second profile is only written when its setup is
+    // finished), this refresh forced the role straight back — so the click
+    // flipped the workspace for a moment and then snapped back.
     const current = activeRole;
-    let next = current;
-    if (stored === 'creator' || stored === 'business') next = stored;
-    if (next === 'creator' && !hc) next = hb ? 'business' : 'creator';
-    if (next === 'business' && !hb) next = hc ? 'creator' : 'business';
-    if (!hc && hb) next = 'business';
-    if (hc && !hb) next = 'creator';
-    if (!stored && hc && hb) next = current === 'business' ? 'business' : 'creator';
+    let next;
+    if (stored === 'creator' || stored === 'business') {
+      next = stored;
+    } else if (hc && !hb) {
+      next = 'creator';
+    } else if (hb && !hc) {
+      next = 'business';
+    } else {
+      next = current;
+    }
     setActiveRoleState(next);
     if (typeof window !== 'undefined' && (next === 'creator' || next === 'business')) {
       localStorage.setItem(storageKey, next);
