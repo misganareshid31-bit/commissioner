@@ -72,7 +72,13 @@ create or replace function public.submit_creator_inquiry(
 ) returns uuid as $$
 declare new_id uuid;
 begin
-  if not exists (select 1 from public.creator_profiles where id=p_creator_profile_id and onboarded=true and approved=true) then
+  -- Admin approval only gates public discovery/search visibility, not whether a
+  -- page that is already live (has a name, has been onboarded) can receive a
+  -- private business inquiry. Requiring approved=true here made every
+  -- not-yet-approved page (including every freshly claimed/gifted profile)
+  -- reject the "Send inquiry" form with a confusing "creator profile is not
+  -- available" error even though the page itself loads and looks live.
+  if not exists (select 1 from public.creator_profiles where id=p_creator_profile_id and onboarded=true) then
     raise exception 'creator profile is not available';
   end if;
   if length(trim(coalesce(p_name,''))) < 1 or length(trim(coalesce(p_name,''))) > 100 then raise exception 'invalid name'; end if;

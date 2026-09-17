@@ -120,6 +120,9 @@ next.
 - Added `FIX-PROFILE-INSERT-RLS.sql` for authenticated self-inserts into creator/business profiles.
 - Added `SUPABASE-EMAIL-SETUP.md` documenting the exact email subjects and SMTP configuration required for reliable delivery.
 
+## 2026-09-17 — gifted profile inquiry fix
+- Fixed the "Work with <name>" business inquiry form on a creator's public page always failing with `creator profile is not available`. `submit_creator_inquiry()` required `approved = true`, so every not-yet-approved page — including every freshly gifted or freshly claimed profile — rejected the form even though the page itself loaded and looked live. Approval now only gates public search/discovery, as before; a live (`onboarded = true`) page can receive inquiries regardless of approval status. Patch: `FIX-GIFTED-PROFILE-INQUIRY-2026-09-17.sql`.
+
 ## 2026-09-11 — identity, discovery, completion and homepage pass
 
 - Removed the persistent desktop/mobile "Edit creator/business profile" action from the global upper navigation. Profile editing remains reachable from Account settings/onboarding.
