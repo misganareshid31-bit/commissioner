@@ -120,6 +120,12 @@ next.
 - Added `FIX-PROFILE-INSERT-RLS.sql` for authenticated self-inserts into creator/business profiles.
 - Added `SUPABASE-EMAIL-SETUP.md` documenting the exact email subjects and SMTP configuration required for reliable delivery.
 
+## 2026-09-17 — SEO basics
+- `index.html` had no meta description, Open Graph/Twitter tags, or canonical link, and a bare "Commissioner" title — added all of these.
+- `sitemap.xml` pointed at the old `commissioner-dusky.vercel.app` Vercel URL and listed `/creators`/`/businesses` as if they were separate crawlable pages (they aren't — those are in-app view states, not distinct URLs); corrected to the live `commissioner.com.et` homepage only.
+- `robots.txt` now points crawlers at the sitemap.
+- See `GOOGLE-SEARCH-VISIBILITY.md` for the remaining steps only you can do (Search Console verification/sitemap submission) — code changes alone won't get a new domain indexed.
+
 ## 2026-09-17 — gifted profile inquiry fix
 - Fixed the "Work with <name>" business inquiry form on a creator's public page always failing with `creator profile is not available`. `submit_creator_inquiry()` required `approved = true`, so every not-yet-approved page — including every freshly gifted or freshly claimed profile — rejected the form even though the page itself loaded and looked live. Approval now only gates public search/discovery, as before; a live (`onboarded = true`) page can receive inquiries regardless of approval status. Patch: `FIX-GIFTED-PROFILE-INQUIRY-2026-09-17.sql`.
 
