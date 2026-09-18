@@ -62,7 +62,7 @@ const GoogleButton = ({ onClick, disabled }) => (
 // UI never lets someone fire a second email inside this window. Keeps the
 // experience predictable and matches the "one minute is enough for now"
 // rule for every email-sending action (signup, resend, reset).
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 const isRateLimitMessage = (msg = '') => {
   const lower = msg.toLowerCase();
@@ -81,7 +81,7 @@ const RATE_LIMIT_MESSAGE = 'Too many attempts. Please wait 1 minute and try agai
 // the button spinning forever with no feedback (what reads to someone
 // as a stuck/504 signup). Every call below is wrapped with this so it
 // always resolves one way or another within a bounded time.
-const AUTH_TIMEOUT_MS = 15000;
+const AUTH_TIMEOUT_MS = 8000;
 const TIMEOUT_ERROR = { message: "That's taking too long. Check your connection and try again." };
 const withTimeout = (promise) => Promise.race([
   promise,
@@ -295,9 +295,9 @@ export default function Auth({ onAuthenticated }) {
       redirectTo,
     }));
     setLoading(false);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
-
     if (error) {
+      // Do not lock the user out for 30 seconds when the request itself failed.
+      // Supabase remains the source of truth for server-side rate limiting.
       const message = error.message || 'We could not send the reset email.';
       const lower = message.toLowerCase();
       if (lower.includes('redirect') || lower.includes('url')) {
@@ -310,6 +310,7 @@ export default function Auth({ onAuthenticated }) {
       return;
     }
 
+    setCooldown(RESEND_COOLDOWN_SECONDS);
     setEmail(normalizedEmail);
     setCheckEmailContext('reset');
     setMode('check-email');
@@ -407,12 +408,13 @@ export default function Auth({ onAuthenticated }) {
   if (mode === 'reset') {
     return (
       <form onSubmit={handleResetRequest} className="max-w-sm mx-auto bg-white border rounded-2xl p-6 cm-auth-shell" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-semibold mb-4" style={{ color: '#111827' }}>Reset your password</p>
+        <p className="text-lg font-bold mb-1" style={{ color: '#111827' }}>Reset your password</p>
+        <p className="text-xs mb-4" style={{ color: '#6B7280' }}>Enter your email and we’ll send a secure reset link.</p>
         <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 mb-4" style={{ borderColor: '#E5E7EB' }}>
           <Mail size={15} style={{ color: '#6B7280' }} />
           <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="flex-1 outline-none text-sm" />
         </div>
-        {cooldown > 0 && <p className="text-xs mb-3" style={{ color: '#B45309' }}>Try again in {cooldown}s.</p>}
+        {cooldown > 0 && <p className="text-xs mb-3" style={{ color: '#007E99' }}>A reset link was sent. You can request another in {cooldown}s.</p>}
         {error && <p className="text-xs mb-3" style={{ color: '#DC2626' }}>{error}</p>}
         <button disabled={loading || cooldown > 0} style={{ background: '#E6007A' }} className="w-full text-white text-sm font-semibold py-2.5 rounded-lg disabled:opacity-50">
           {loading ? 'Sending…' : cooldown > 0 ? `Wait ${cooldown}s` : 'Send reset link'}
@@ -493,7 +495,7 @@ export default function Auth({ onAuthenticated }) {
           </button>
         )}
 
-        {cooldown > 0 && <p className="text-xs mt-3" style={{ color: '#B45309' }}>Try again in {cooldown}s.</p>}
+        {cooldown > 0 && <p className="text-xs mt-3" style={{ color: '#007E99' }}>A recent email request is still processing. Please wait {cooldown}s.</p>}
         {error && <p className="text-xs mt-3" style={{ color: '#DC2626' }}>{error}</p>}
         {notice && !error && <p className="text-xs mt-3" style={{ color: '#036377' }}>{notice}</p>}
 

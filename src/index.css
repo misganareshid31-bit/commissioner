@@ -199,3 +199,55 @@ html, body { background: #07152F; }
   padding-top: 12px !important;
   padding-bottom: 12px !important;
 }
+
+
+/* === Final production UX pass: homepage + compact footer ===
+   The hero must never reserve a viewport-sized blank area. Keep a deliberate
+   but compact breathing space beneath the public navigation. */
+.cm-page-canvas > .cm-home-hero,
+.cm-home-hero {
+  min-height: 0 !important;
+  height: auto !important;
+  margin-top: 0 !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  padding-top: 64px !important;
+  padding-bottom: 40px !important;
+}
+.cm-page-canvas > .cm-home-hero > .grid {
+  margin-top: 0 !important;
+  transform: none !important;
+}
+
+/* Compact footer: roughly half the previous vertical footprint. */
+.cm-root footer {
+  margin-top: 24px !important;
+}
+.cm-root footer > .max-w-7xl {
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+  gap: 16px !important;
+}
+.cm-root footer > .max-w-7xl > div > .mb-4 {
+  margin-bottom: 8px !important;
+}
+.cm-root footer > .max-w-7xl ul {
+  row-gap: 4px !important;
+}
+.cm-root footer > .border-t {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+/* Keep the public home/auth canvases dark while leaving content surfaces intact. */
+.cm-page-canvas {
+  padding-top: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .cm-page-canvas > .cm-home-hero,
+  .cm-home-hero {
+    padding-top: 40px !important;
+    padding-bottom: 28px !important;
+  }
+}
