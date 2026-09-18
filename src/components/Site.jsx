@@ -710,8 +710,8 @@ const FOOTER_LINK_PAGES = {
 };
 
 const Footer = ({ setPage }) => (
-  <footer style={{ background: '#111827' }} className="text-white mt-24">
-    <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 grid grid-cols-2 md:grid-cols-5 gap-10">
+  <footer style={{ background: '#111827' }} className="text-white mt-12">
+    <div className="max-w-7xl mx-auto px-5 md:px-8 py-8 grid grid-cols-2 md:grid-cols-5 gap-6">
       <div className="col-span-2">
         <div className="flex items-center gap-2 mb-4">
           <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain" />
@@ -768,7 +768,7 @@ const Footer = ({ setPage }) => (
         </div>
       ))}
     </div>
-    <div className="border-t px-5 md:px-8 py-6 flex flex-col md:flex-row justify-between gap-3" style={{ borderColor: '#1F2937' }}>
+    <div className="border-t px-5 md:px-8 py-3 flex flex-col md:flex-row justify-between gap-3" style={{ borderColor: '#1F2937' }}>
       <p className="text-xs" style={{ color: '#6B7280' }}>© 2026 Commissioner. All rights reserved.</p>
     </div>
   </footer>
@@ -867,7 +867,7 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
   };
   return (
     <div className="overflow-hidden">
-      <section className="cm-home-hero relative max-w-7xl mx-auto px-5 md:px-8 pt-3 md:pt-5 pb-10 md:pb-12">
+      <section className="cm-home-hero relative max-w-7xl mx-auto px-5 md:px-8 pt-2 md:pt-2 pb-10 md:pb-12">
         <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: '#00D9FF' }} />
         <div className="absolute top-28 -left-28 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: '#E6007A' }} />
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">

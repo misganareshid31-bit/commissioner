@@ -168,3 +168,34 @@ html, body { background: #07152F; }
     linear-gradient(180deg, #07152F 0%, #061229 100%) !important; }
   .cm-page-canvas { min-height: calc(100vh - 56px); }
 }
+
+
+/* === Final homepage spacing correction ===
+   Keep the first homepage content immediately below the navigation. Do not
+   reserve a viewport-height hero area before the headline. */
+.cm-page-canvas { padding-top: 0 !important; }
+.cm-page-canvas > .cm-home-hero:first-child {
+  min-height: 0 !important;
+  height: auto !important;
+  margin-top: 0 !important;
+  padding-top: 8px !important;
+  padding-bottom: 40px !important;
+  justify-content: flex-start !important;
+  align-content: flex-start !important;
+}
+.cm-page-canvas > .cm-home-hero:first-child > .grid {
+  margin-top: 0 !important;
+  transform: none !important;
+}
+
+/* Keep the public footer compact rather than taking up a full screen. */
+.cm-root footer { margin-top: 48px !important; }
+.cm-root footer > .max-w-7xl {
+  padding-top: 32px !important;
+  padding-bottom: 32px !important;
+  gap: 24px !important;
+}
+.cm-root footer > .border-t {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
