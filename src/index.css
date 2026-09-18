@@ -138,3 +138,33 @@ body { background: var(--cm-soft); }
 @media (max-width: 768px) {
   .cm-root { background: var(--cm-soft) !important; }
 }
+
+/* === Commissioner dark background pass ===
+   The existing card, form, listing, and content styling stays intact. Only
+   the page canvas/background changes to the deep navy brand look.
+*/
+:root { color-scheme: dark; }
+html, body { background: #07152F; }
+.cm-root {
+  background:
+    radial-gradient(900px 520px at 100% 0%, rgba(0,217,255,.13), transparent 62%),
+    radial-gradient(760px 520px at 0% 18%, rgba(230,0,122,.12), transparent 60%),
+    linear-gradient(180deg, #07152F 0%, #061229 52%, #07152F 100%) !important;
+}
+.cm-page-canvas {
+  min-height: calc(100vh - 64px);
+  background:
+    radial-gradient(720px 420px at 92% 8%, rgba(0,217,255,.08), transparent 65%),
+    radial-gradient(620px 420px at 5% 28%, rgba(230,0,122,.07), transparent 64%),
+    linear-gradient(180deg, #07152F 0%, #081735 48%, #061229 100%);
+}
+.cm-page-canvas section[style*="#F8FAFC"] {
+  background: transparent !important;
+}
+@media (max-width: 768px) {
+  .cm-root { background:
+    radial-gradient(560px 360px at 100% 0%, rgba(0,217,255,.11), transparent 64%),
+    radial-gradient(500px 360px at 0% 16%, rgba(230,0,122,.10), transparent 62%),
+    linear-gradient(180deg, #07152F 0%, #061229 100%) !important; }
+  .cm-page-canvas { min-height: calc(100vh - 56px); }
+}

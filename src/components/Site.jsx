@@ -4866,9 +4866,10 @@ export default function Commissioner() {
   }
 
   return (
-    <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
+    <div className="cm-root min-h-screen" style={{ background: '#07152F' }}>
       <FontLoader />
       <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} openOnboarding={openOnboarding} />
+      <main className="cm-page-canvas">
       {page !== 'home' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
           <BackButton onClick={goBack} />
@@ -4931,6 +4932,7 @@ export default function Commissioner() {
           }} />
         </div>
       )}
+      </main>
       {page !== 'messages' && page !== 'onboarding' && page !== 'auth' && page !== 'account' && <Footer setPage={setPage} />}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border rounded-xl px-5 py-3 shadow-lg text-sm font-medium" style={{ borderColor: '#E5E7EB', color: '#111827' }}>
