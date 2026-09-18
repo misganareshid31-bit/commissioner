@@ -868,8 +868,6 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
   return (
     <div className="overflow-hidden">
       <section className="cm-home-hero relative max-w-7xl mx-auto px-5 md:px-8 pt-2 md:pt-2 pb-10 md:pb-12">
-        <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: '#00D9FF' }} />
-        <div className="absolute top-28 -left-28 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: '#E6007A' }} />
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>

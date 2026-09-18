@@ -33,20 +33,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .cm-root .rounded-3xl { border-radius: 28px; }
 .cm-root button { font-weight: 650; }
 .cm-root section:first-child { position: relative; }
-.cm-root section:first-child:before { content: ''; position: absolute; width: 420px; height: 420px; right: -140px; top: -90px; background: radial-gradient(circle, rgba(0,217,255,.14), transparent 68%); pointer-events:none; }
-.cm-root section:first-child:after { content: ''; position: absolute; width: 300px; height: 300px; left: -130px; top: 160px; background: radial-gradient(circle, rgba(230,0,122,.09), transparent 68%); pointer-events:none; }
-.cm-root section:first-child > * { position: relative; z-index: 1; }
 .cm-root .bg-white { box-shadow: 0 1px 2px rgba(15,23,42,.025), 0 10px 32px rgba(15,23,42,.035); }
 .cm-root .border { border-color: #e8ebf1 !important; }
 .cm-root .text-gray-500, .cm-root .text-gray-600 { color: #667085; }
 .cm-root input::placeholder, .cm-root textarea::placeholder { color: #98a2b3; }
 .cm-root .cm-beam { background: linear-gradient(90deg,#E6007A,#00D9FF); }
-@media (max-width: 768px) {
-  .cm-root section:first-child:before { width: 240px; height: 240px; right: -100px; }
-  .cm-root section:first-child:after { width: 200px; height: 200px; left: -100px; }
-}
-
-
 /* Homepage first-screen layout: keep the hero directly under the navbar.
    This deliberately avoids large vertical centering/blank space. */
 .cm-home-hero {
@@ -276,4 +267,306 @@ html, body { background: #07152F; }
 .cm-root textarea::placeholder {
   color: #98A2B3 !important;
   -webkit-text-fill-color: #98A2B3;
+}
+
+
+/* === Final Commissioner dark professional UI ===
+   No decorative hero glow blobs. The interface uses a restrained navy canvas,
+   white typography, and cyan/magenta only for actions and role accents.
+*/
+:root { color-scheme: dark; }
+html, body { background: #07152F !important; color: #FFFFFF; }
+body { min-width: 320px; }
+
+.cm-root,
+.cm-page-canvas {
+  background: #07152F !important;
+  color: #FFFFFF;
+}
+
+/* Dark surfaces make white typography readable everywhere. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97 {
+  background: #0D1B35 !important;
+  color: #FFFFFF !important;
+}
+.cm-root [style*="background: rgb(255, 255, 255)"],
+.cm-root [style*="background:#fff"],
+.cm-root [style*="background: #fff"],
+.cm-root [style*="background: '#fff'"] {
+  background: #0D1B35 !important;
+}
+.cm-root .border { border-color: #243653 !important; }
+
+/* Replace dark text on the dark page canvas with accessible white/light text.
+   Form inputs are explicitly restored to dark text on their lighter controls. */
+.cm-root .text-gray-900,
+.cm-root .text-gray-800,
+.cm-root .text-gray-700,
+.cm-root .text-gray-600,
+.cm-root .text-gray-500,
+.cm-root .text-gray-400 {
+  color: #E8EEF8 !important;
+}
+.cm-root [style*="#111827"]:not(input):not(textarea):not(select),
+.cm-root [style*="#374151"]:not(input):not(textarea):not(select),
+.cm-root [style*="#4B5563"]:not(input):not(textarea):not(select),
+.cm-root [style*="#667085"]:not(input):not(textarea):not(select),
+.cm-root [style*="#6B7280"]:not(input):not(textarea):not(select),
+.cm-root [style*="#98A2B3"]:not(input):not(textarea):not(select),
+.cm-root [style*="#1F2937"]:not(input):not(textarea):not(select),
+.cm-root [style*="#1f2937"]:not(input):not(textarea):not(select),
+.cm-root [style*="#334155"]:not(input):not(textarea):not(select),
+.cm-root [style*="#101828"]:not(input):not(textarea):not(select) {
+  color: #E8EEF8 !important;
+}
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  color: #111827 !important;
+  background: #FFFFFF !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder {
+  color: #667085 !important;
+  -webkit-text-fill-color: #667085 !important;
+}
+
+/* Navigation */
+.cm-root header {
+  background: rgba(7,21,47,.94) !important;
+  border-color: #243653 !important;
+}
+.cm-root header .text-sm,
+.cm-root header .text-xs { color: #E8EEF8; }
+.cm-root nav button { color: #D9E2F0 !important; }
+.cm-root nav button:hover { background: #132542 !important; color: #FFFFFF !important; }
+
+/* Keep intentional white text and brand accents intact. */
+.cm-root .text-white { color: #FFFFFF !important; }
+
+/* Auth is a self-contained, polished surface. */
+.cm-auth-card {
+  width: min(100%, 440px);
+  margin: 0 auto;
+  padding: 32px;
+  border: 1px solid #243653;
+  border-radius: 24px;
+  background: #0D1B35;
+  color: #FFFFFF;
+  box-shadow: 0 24px 70px rgba(0,0,0,.28);
+}
+.cm-auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+.cm-auth-brand img { width: 32px; height: 32px; object-fit: contain; }
+.cm-auth-heading h1,
+.cm-auth-card > h1 {
+  margin: 0;
+  color: #FFFFFF;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -.035em;
+  font-weight: 800;
+}
+.cm-auth-heading p,
+.cm-auth-subtitle,
+.cm-auth-muted {
+  margin: 8px 0 0;
+  color: #AFC0D6;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.cm-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 24px 0 18px;
+  padding: 4px;
+  border: 1px solid #243653;
+  border-radius: 13px;
+  background: #09162D;
+}
+.cm-auth-tabs button {
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 12px;
+  color: #AFC0D6;
+  background: transparent;
+  font-weight: 700;
+}
+.cm-auth-tabs button.is-active {
+  background: #FFFFFF;
+  color: #07152F;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+.cm-auth-role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cm-auth-role-grid button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid #29405F;
+  border-radius: 14px;
+  background: #101F3A;
+  color: #D9E2F0;
+}
+.cm-auth-role-grid button.is-active.creator {
+  border-color: #E6007A;
+  background: rgba(230,0,122,.10);
+}
+.cm-auth-role-grid button.is-active.business {
+  border-color: #00D9FF;
+  background: rgba(0,217,255,.10);
+}
+.cm-auth-role-grid strong,
+.cm-auth-role-grid small { display: block; }
+.cm-auth-role-grid small {
+  margin-top: 2px;
+  color: #91A5BE;
+  font-size: 11px;
+}
+.cm-auth-form { display: grid; gap: 12px; }
+.cm-auth-field {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px;
+  border: 1px solid #29405F;
+  border-radius: 13px;
+  background: #101F3A;
+  color: #91A5BE;
+}
+.cm-auth-field:focus-within {
+  border-color: #00D9FF;
+  box-shadow: 0 0 0 3px rgba(0,217,255,.12);
+}
+.cm-auth-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-auth-field input::placeholder {
+  color: #91A5BE !important;
+  -webkit-text-fill-color: #91A5BE !important;
+}
+.cm-auth-eye {
+  flex: 0 0 auto;
+  display: inline-flex;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: #91A5BE;
+}
+.cm-auth-forgot,
+.cm-auth-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #4FE3FF;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cm-auth-forgot { justify-content: flex-start; }
+.cm-auth-primary,
+.cm-auth-secondary,
+.cm-auth-danger {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 13px;
+  font-weight: 800;
+}
+.cm-auth-primary {
+  border: 0;
+  background: linear-gradient(135deg, #E6007A, #B80061);
+  color: #FFFFFF;
+  box-shadow: 0 10px 24px rgba(230,0,122,.18);
+}
+.cm-auth-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.cm-auth-secondary {
+  border: 1px solid #29405F;
+  background: #101F3A;
+  color: #E8EEF8;
+}
+.cm-auth-danger {
+  border: 1px solid rgba(248,113,113,.35);
+  background: rgba(248,113,113,.08);
+  color: #FFB4B4;
+}
+.cm-auth-submit { width: 100%; margin-top: 4px; }
+.cm-auth-primary:disabled,
+.cm-auth-secondary:disabled { opacity: .55; cursor: not-allowed; }
+.cm-auth-error,
+.cm-auth-notice,
+.cm-auth-info {
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cm-auth-error {
+  border: 1px solid rgba(248,113,113,.35);
+  background: rgba(248,113,113,.08);
+  color: #FFB4B4;
+}
+.cm-auth-notice {
+  border: 1px solid rgba(79,227,255,.25);
+  background: rgba(0,217,255,.07);
+  color: #AEEFFF;
+}
+.cm-auth-info {
+  margin: 18px 0;
+  border: 1px solid #243653;
+  background: #101F3A;
+  color: #AFC0D6;
+}
+.cm-password-meter { display: flex; align-items: center; gap: 9px; color: #91A5BE; font-size: 11px; }
+.cm-password-bars { display: flex; gap: 4px; flex: 1; }
+.cm-password-bars span { height: 4px; flex: 1; border-radius: 99px; background: #29405F; }
+.cm-password-bars span.is-filled { background: #00D9FF; }
+.cm-auth-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px; }
+.cm-auth-icon {
+  width: 46px; height: 46px; display: grid; place-items: center;
+  margin-bottom: 18px; border-radius: 14px;
+  color: #4FE3FF; background: rgba(0,217,255,.10);
+}
+.cm-auth-signed-in { text-align: center; }
+.cm-auth-signed-in .cm-auth-brand { justify-content: center; }
+.cm-auth-success-icon { color: #52E0A3; margin: 10px auto 8px; }
+.cm-auth-footer {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid #243653;
+  color: #8196B0; font-size: 11px; text-align: center;
+}
+@media (max-width: 520px) {
+  .cm-auth-card { padding: 24px 18px; border-radius: 20px; }
+  .cm-auth-actions { grid-template-columns: 1fr; }
 }

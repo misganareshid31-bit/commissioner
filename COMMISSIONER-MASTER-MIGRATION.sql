@@ -116,7 +116,7 @@ begin
   if not public.is_admin() then raise exception 'not authorized'; end if;
   new_token := encode(gen_random_bytes(16), 'hex');
   insert into public.creator_profiles(page_name, primary_niche, claim_token, verified, approved, onboarded, claimed)
-  values (nullif(trim(p_page_name), ''), nullif(trim(p_primary_niche), ''), new_token, false, false, false, false);
+  values (nullif(trim(p_page_name), ''), nullif(trim(p_primary_niche), ''), new_token, coalesce(p_verified, false), false, false, false);
   return new_token;
 end;
 $$;
@@ -137,7 +137,7 @@ begin
   if not public.is_admin() then raise exception 'not authorized'; end if;
   new_token := encode(gen_random_bytes(16), 'hex');
   insert into public.business_profiles(business_name, industry, claim_token, verified, approved, onboarded, claimed)
-  values (nullif(trim(p_business_name), ''), nullif(trim(p_industry), ''), new_token, false, false, false, false);
+  values (nullif(trim(p_business_name), ''), nullif(trim(p_industry), ''), new_token, coalesce(p_verified, false), false, false, false);
   return new_token;
 end;
 $$;
