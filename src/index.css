@@ -4,7 +4,7 @@
 
 /* Commissioner professional polish layer */
 :root { color-scheme: light; }
-body { margin: 0; background: #f8fafc; color: #111827; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: #f8fafc; color: #FFFFFF; -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font: inherit; }
 button { transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease; }
 button:hover { transform: translateY(-1px); }
@@ -35,8 +35,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .cm-root section:first-child { position: relative; }
 .cm-root .bg-white { box-shadow: 0 1px 2px rgba(15,23,42,.025), 0 10px 32px rgba(15,23,42,.035); }
 .cm-root .border { border-color: #e8ebf1 !important; }
-.cm-root .text-gray-500, .cm-root .text-gray-600 { color: #667085; }
-.cm-root input::placeholder, .cm-root textarea::placeholder { color: #98a2b3; }
+.cm-root .text-gray-500, .cm-root .text-gray-600 { color: #FFFFFF; }
+.cm-root input::placeholder, .cm-root textarea::placeholder { color: #D9E4F2; }
 .cm-root .cm-beam { background: linear-gradient(90deg,#E6007A,#00D9FF); }
 /* Homepage first-screen layout: keep the hero directly under the navbar.
    This deliberately avoids large vertical centering/blank space. */
@@ -64,8 +64,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   --cm-cyan-ink: #007E99;
   --cm-magenta: #E6007A;
   --cm-magenta-ink: #B80061;
-  --cm-ink: #101828;
-  --cm-muted: #667085;
+  --cm-ink: #FFFFFF;
+  --cm-muted: #FFFFFF;
   --cm-border: #E4E7EC;
   --cm-surface: #FFFFFF;
   --cm-soft: #F7F9FC;
@@ -260,13 +260,13 @@ html, body { background: #07152F; }
 .cm-root input,
 .cm-root textarea,
 .cm-root select {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF;
 }
 .cm-root input::placeholder,
 .cm-root textarea::placeholder {
-  color: #98A2B3 !important;
-  -webkit-text-fill-color: #98A2B3;
+  color: #D9E4F2 !important;
+  -webkit-text-fill-color: #D9E4F2;
 }
 
 
@@ -310,29 +310,29 @@ body { min-width: 320px; }
 .cm-root .text-gray-400 {
   color: #E8EEF8 !important;
 }
-.cm-root [style*="#111827"]:not(input):not(textarea):not(select),
-.cm-root [style*="#374151"]:not(input):not(textarea):not(select),
-.cm-root [style*="#4B5563"]:not(input):not(textarea):not(select),
-.cm-root [style*="#667085"]:not(input):not(textarea):not(select),
-.cm-root [style*="#6B7280"]:not(input):not(textarea):not(select),
-.cm-root [style*="#98A2B3"]:not(input):not(textarea):not(select),
-.cm-root [style*="#1F2937"]:not(input):not(textarea):not(select),
-.cm-root [style*="#1f2937"]:not(input):not(textarea):not(select),
-.cm-root [style*="#334155"]:not(input):not(textarea):not(select),
-.cm-root [style*="#101828"]:not(input):not(textarea):not(select) {
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#D9E4F2"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select),
+.cm-root [style*="#FFFFFF"]:not(input):not(textarea):not(select) {
   color: #E8EEF8 !important;
 }
 .cm-root input,
 .cm-root textarea,
 .cm-root select {
-  color: #111827 !important;
+  color: #FFFFFF !important;
   background: #FFFFFF !important;
-  -webkit-text-fill-color: #111827 !important;
+  -webkit-text-fill-color: #FFFFFF !important;
 }
 .cm-root input::placeholder,
 .cm-root textarea::placeholder {
-  color: #667085 !important;
-  -webkit-text-fill-color: #667085 !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
 }
 
 /* Navigation */
@@ -611,19 +611,19 @@ body { min-width: 320px; }
 }
 
 /* Override inline dark/black text declarations used by older page components. */
-.cm-root [style*="#000"],
-.cm-root [style*="#111827"],
-.cm-root [style*="#101828"],
-.cm-root [style*="#1F2937"],
-.cm-root [style*="#1f2937"],
-.cm-root [style*="#374151"],
-.cm-root [style*="#4B5563"],
-.cm-root [style*="#4b5563"],
-.cm-root [style*="#667085"],
-.cm-root [style*="#6B7280"],
-.cm-root [style*="#6b7280"],
-.cm-root [style*="#98A2B3"],
-.cm-root [style*="#98a2b3"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#FFFFFF"],
+.cm-root [style*="#D9E4F2"],
+.cm-root [style*="#D9E4F2"],
 .cm-root [style*="color: black"],
 .cm-root [style*="color:black"],
 .cm-root [style*="color: rgb(0, 0, 0)"] {
@@ -700,4 +700,44 @@ body { min-width: 320px; }
 .cm-root > .absolute.-top-28.-right-28,
 .cm-root > .absolute.top-28.-left-28 {
   display: none !important;
+}
+
+/* === FINAL ZERO-BLACK-TEXT PASS — 2026-09-18 ===
+/* React serializes JSX inline colors as rgb(...), so catch those too. */
+.cm-root [style*="rgb(0, 0, 0)"],
+.cm-root [style*="rgb(17, 24, 39)"],
+.cm-root [style*="rgb(16, 24, 40)"],
+.cm-root [style*="rgb(31, 41, 55)"],
+.cm-root [style*="rgb(55, 65, 81)"],
+.cm-root [style*="rgb(75, 85, 99)"],
+.cm-root [style*="rgb(102, 112, 133)"],
+.cm-root [style*="rgb(107, 114, 128)"] {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* Brand wordmark and all auth headings are explicitly white. */
+.cm-root .cm-auth-brand,
+.cm-root .cm-auth-brand span,
+.cm-root .cm-auth-brand strong,
+.cm-root .cm-auth-brand a,
+.cm-root .cm-auth-title,
+.cm-root .cm-auth-title * {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* No black/dark entered text anywhere in forms. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select,
+.cm-root option {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* Remove the old decorative radial glows as well as the two glow blobs. */
+.cm-root,
+.cm-page-canvas {
+  background-image: none !important;
 }
