@@ -76,6 +76,18 @@ const isUnconfirmedEmailMessage = (msg = '') => {
 
 const RATE_LIMIT_MESSAGE = 'Too many attempts. Please wait 1 minute and try again.';
 
+// Auth calls (signUp, signIn, resend, reset) sometimes hang instead of
+// erroring — a slow network or an unresponsive Supabase endpoint can leave
+// the button spinning forever with no feedback (what reads to someone
+// as a stuck/504 signup). Every call below is wrapped with this so it
+// always resolves one way or another within a bounded time.
+const AUTH_TIMEOUT_MS = 15000;
+const TIMEOUT_ERROR = { message: "That's taking too long. Check your connection and try again." };
+const withTimeout = (promise) => Promise.race([
+  promise,
+  new Promise(resolve => setTimeout(() => resolve({ data: null, error: TIMEOUT_ERROR }), AUTH_TIMEOUT_MS)),
+]);
+
 /* -------------------- main component -------------------- */
 
 export default function Auth({ onAuthenticated }) {
@@ -115,7 +127,7 @@ export default function Auth({ onAuthenticated }) {
     // Keep it simple for this Vite SPA: return to the same page after OAuth.
     const redirectTo = `${window.location.origin}/`;
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await withTimeout(supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
@@ -124,7 +136,7 @@ export default function Auth({ onAuthenticated }) {
           prompt: 'select_account',
         },
       },
-    });
+    }));
 
     if (error) {
       setLoading(false);
@@ -164,7 +176,7 @@ export default function Auth({ onAuthenticated }) {
 
     const normalizedEmail = email.trim().toLowerCase();
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await withTimeout(supabase.auth.signUp({
       email: normalizedEmail,
       password,
       options: {
@@ -173,7 +185,7 @@ export default function Auth({ onAuthenticated }) {
         data: { role },
         emailRedirectTo: window.location.origin,
       },
-    });
+    }));
     setLoading(false);
 
     if (error) {
@@ -211,7 +223,7 @@ export default function Auth({ onAuthenticated }) {
     if (cooldown) { setError(`Please wait ${cooldown}s before trying again.`); return; }
     const normalizedEmail = email.trim().toLowerCase();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    const { error } = await withTimeout(supabase.auth.signInWithPassword({ email: normalizedEmail, password }));
     setLoading(false);
     if (error) {
       const msg = error.message || 'Sign in failed.';
@@ -242,11 +254,11 @@ export default function Auth({ onAuthenticated }) {
     if (!silent) { setError(''); setNotice(''); }
     setLoading(true);
     if (silent) setNotice('Sending a fresh confirmation email…');
-    const { error } = await supabase.auth.resend({
+    const { error } = await withTimeout(supabase.auth.resend({
       type: 'signup',
       email: targetEmail,
       options: { emailRedirectTo: window.location.origin },
-    });
+    }));
     setLoading(false);
     setCooldown(RESEND_COOLDOWN_SECONDS);
     if (error) {
@@ -272,9 +284,9 @@ export default function Auth({ onAuthenticated }) {
 
     setLoading(true);
     const redirectTo = `${window.location.origin}/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+    const { error } = await withTimeout(supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo,
-    });
+    }));
     setLoading(false);
     setCooldown(RESEND_COOLDOWN_SECONDS);
 
@@ -304,7 +316,7 @@ export default function Auth({ onAuthenticated }) {
       setError('');
       setLoading(true);
       const redirectTo = `${window.location.origin}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      const { error } = await withTimeout(supabase.auth.resetPasswordForEmail(email, { redirectTo }));
       setLoading(false);
       setCooldown(RESEND_COOLDOWN_SECONDS);
       if (error) setError(isRateLimitMessage(error.message || '') ? RATE_LIMIT_MESSAGE : (error.message || 'We could not resend the reset email.'));

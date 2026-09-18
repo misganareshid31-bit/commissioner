@@ -12,10 +12,6 @@ import {
   LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX, Music2,
   LayoutDashboard, Network, ShieldCheck, CreditCard, Store, UserPlus, Repeat, Pencil
 } from 'lucide-react';
-import {
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
-  BarChart, Bar, CartesianGrid
-} from 'recharts';
 
 // Admin status is now determined server-side by the public.is_admin() RPC
 // (see ADMIN-ROLE-MIGRATION.sql), backed by a real admin_users table instead
@@ -146,14 +142,36 @@ async function fetchLiveBusinesses(limit = 48) {
 
 // Commissioner unlocks its networking features (Connect, messaging entry
 // points, and full marketplace visibility) once it has reached this many
-// verified creators AND verified businesses. Counts come straight from
-// creator_profiles / business_profiles — no seeded numbers.
+// verified creators AND verified businesses. This is only the fallback
+// used if the commissioner_launch_stats() RPC is unavailable (e.g. before
+// CONFIGURABLE-NETWORK-THRESHOLD-2026-09-18.sql has been run) — the real
+// number lives in the database (public.platform_settings) so it can be
+// changed by an admin without a redeploy.
 const LAUNCH_THRESHOLD = 50;
 
-// Counts verified, approved, onboarded profiles on each side. Uses
-// head:true count-only queries so this is cheap to call from the public
-// homepage as well as from gated actions.
+// Single source of truth for launch-gate stats, called from every page
+// that needs them. Reads the live counts and the live threshold in one
+// round trip via the commissioner_launch_stats() RPC, instead of each
+// caller running its own pair of count queries against a hardcoded 50.
 async function fetchLaunchStats() {
+  const { data, error } = await supabase.rpc('commissioner_launch_stats');
+  if (!error && data) {
+    const creatorThreshold = data.creator_threshold ?? data.threshold ?? LAUNCH_THRESHOLD;
+    const businessThreshold = data.business_threshold ?? data.threshold ?? LAUNCH_THRESHOLD;
+    const creatorCount = data.creator_count || 0;
+    const businessCount = data.business_count || 0;
+    return {
+      creatorCount,
+      businessCount,
+      threshold: creatorThreshold,
+      creatorThreshold,
+      businessThreshold,
+      unlocked: creatorCount >= creatorThreshold && businessCount >= businessThreshold,
+    };
+  }
+
+  // Fallback path — keeps the site working even if the RPC migration
+  // hasn't been applied to this database yet.
   const [{ count: creators }, { count: businesses }] = await Promise.all([
     supabase.from('creator_profiles').select('id', { count: 'exact', head: true })
       .eq('approved', true).eq('onboarded', true).eq('verified', true),
@@ -166,6 +184,8 @@ async function fetchLaunchStats() {
     creatorCount,
     businessCount,
     threshold: LAUNCH_THRESHOLD,
+    creatorThreshold: LAUNCH_THRESHOLD,
+    businessThreshold: LAUNCH_THRESHOLD,
     unlocked: creatorCount >= LAUNCH_THRESHOLD && businessCount >= LAUNCH_THRESHOLD,
   };
 }
@@ -408,7 +428,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b" style={{ borderColor: '#E5E7EB' }}>
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <button onClick={() => setPage('home')} className="flex items-center gap-2 shrink-0">
-          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
+          <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain" />
           <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
         </button>
 
@@ -572,7 +592,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           >
             <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
               <div className="flex items-center gap-2">
-                <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
+                <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain" />
                 <span className="cm-display font-bold text-lg" style={{ color: '#111827' }}>Commissioner</span>
               </div>
               <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-50">
@@ -694,7 +714,7 @@ const Footer = ({ setPage }) => (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 grid grid-cols-2 md:grid-cols-5 gap-10">
       <div className="col-span-2">
         <div className="flex items-center gap-2 mb-4">
-          <img src="/assets/logo-mark.png" alt="Commissioner" className="w-8 h-8 rounded-lg object-cover" />
+          <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain" />
           <span className="cm-display font-bold text-lg">Commissioner</span>
         </div>
         <p className="text-sm max-w-xs mb-4" style={{ color: '#9CA3AF' }}>Where creators and businesses connect professionally.</p>
@@ -3706,6 +3726,32 @@ const AdminPanel = ({ session }) => {
 
   const [launchStats, setLaunchStats] = useState(null);
   useEffect(() => { if (isAdmin) fetchLaunchStats().then(setLaunchStats); }, [isAdmin]);
+  const [thresholdDraft, setThresholdDraft] = useState({ creator: '', business: '' });
+  useEffect(() => {
+    if (launchStats) setThresholdDraft({ creator: String(launchStats.creatorThreshold ?? ''), business: String(launchStats.businessThreshold ?? '') });
+  }, [launchStats?.creatorThreshold, launchStats?.businessThreshold]);
+  const [savingThreshold, setSavingThreshold] = useState(false);
+  const [thresholdMessage, setThresholdMessage] = useState('');
+  const saveThreshold = async () => {
+    const c = parseInt(thresholdDraft.creator, 10);
+    const b = parseInt(thresholdDraft.business, 10);
+    if (!Number.isFinite(c) || !Number.isFinite(b) || c < 0 || b < 0) {
+      setThresholdMessage('Enter two whole numbers, 0 or higher.');
+      return;
+    }
+    setSavingThreshold(true);
+    setThresholdMessage('');
+    const { error } = await supabase.rpc('admin_set_network_threshold', { p_creator_threshold: c, p_business_threshold: b });
+    setSavingThreshold(false);
+    if (error) {
+      setThresholdMessage(error.message?.includes('does not exist')
+        ? 'This database hasn\u2019t had CONFIGURABLE-NETWORK-THRESHOLD-2026-09-18.sql applied yet.'
+        : (error.message || 'Could not save the threshold.'));
+      return;
+    }
+    setThresholdMessage('Saved.');
+    fetchLaunchStats().then(setLaunchStats);
+  };
 
   const loadRows = async () => {
     setLoadingRows(true);
@@ -4109,6 +4155,22 @@ const AdminPanel = ({ session }) => {
       )}
 
       <div className="mb-8"><LaunchProgressCard stats={launchStats} /></div>
+      <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB' }}>
+        <p className="text-sm font-bold" style={{ color: '#111827' }}>Network launch threshold</p>
+        <p className="text-xs mt-1 mb-4" style={{ color: '#6B7280' }}>How many verified creators and verified businesses are required before networking unlocks platform-wide. Takes effect immediately, no redeploy.</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block">
+            <span className="text-[11px] font-semibold" style={{ color: '#374151' }}>Verified creators needed</span>
+            <input type="number" min="0" value={thresholdDraft.creator} onChange={e => setThresholdDraft(d => ({ ...d, creator: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold" style={{ color: '#374151' }}>Verified businesses needed</span>
+            <input type="number" min="0" value={thresholdDraft.business} onChange={e => setThresholdDraft(d => ({ ...d, business: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+          </label>
+          <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#111827' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
+        </div>
+        {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
+      </div>
 
       <AdminNfcManager />
       <VerificationAdminQueue />
@@ -4544,7 +4606,20 @@ export default function Commissioner() {
   // stack disagreed, which is why Back sometimes left the app entirely.
   const skipHistoryPushRef = React.useRef(false);
   useEffect(() => {
-    window.history.replaceState({ ...(window.history.state || {}), cmPage: prevPageRef.current }, '');
+    // Guarantee a Commissioner homepage entry sits underneath whatever page
+    // we actually loaded on (a shared /creator/:id link, /join/:role, etc.).
+    // Without this, a single press of the browser's Back button on that
+    // first page has nothing of ours to land on and leaves the site
+    // entirely. With it, Back always resolves to our own popstate handler
+    // first, and that handler sends the person to 'home'.
+    const initialPage = prevPageRef.current;
+    if (initialPage !== 'home') {
+      const originalUrl = window.location.pathname + window.location.search;
+      window.history.replaceState({ cmPage: 'home' }, '', '/');
+      window.history.pushState({ cmPage: initialPage }, '', originalUrl);
+    } else {
+      window.history.replaceState({ ...(window.history.state || {}), cmPage: 'home' }, '');
+    }
   }, []);
   useEffect(() => {
     if (prevPageRef.current === page) return;
