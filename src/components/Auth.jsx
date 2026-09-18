@@ -6,12 +6,14 @@ import {
 } from 'lucide-react';
 
 const RESEND_COOLDOWN_SECONDS = 30;
-const AUTH_TIMEOUT_MS = 10000;
+// Auth/email operations can take longer than a normal API request because Supabase
+// may queue an authentication email. Do not show a false timeout after 10 seconds.
+const AUTH_TIMEOUT_MS = 30000;
 
 const withTimeout = (promise) => Promise.race([
   promise,
   new Promise(resolve => setTimeout(
-    () => resolve({ data: null, error: { message: 'The request timed out. Check your connection and try again.' } }),
+    () => resolve({ data: null, error: { message: 'Supabase is taking longer than expected. Please wait a moment and try again. If this happens repeatedly, check Supabase Authentication → SMTP / email settings.' } }),
     AUTH_TIMEOUT_MS
   )),
 ]);
@@ -161,6 +163,9 @@ export default function Auth({ onAuthenticated }) {
       return;
     }
 
+    // With Supabase email confirmation enabled, signUp queues the confirmation email
+    // automatically. Show the check-email screen even though the session is null.
+    // If email confirmation is disabled in Supabase, the user will be signed in directly.
     setEmail(normalizedEmail);
     setCooldown(RESEND_COOLDOWN_SECONDS);
     setCheckContext('signup');
