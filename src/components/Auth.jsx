@@ -194,7 +194,14 @@ export default function Auth({ onAuthenticated }) {
       // A normal validation/duplicate/configuration error should not lock the
       // whole form for a minute.
       if (isRateLimitMessage(msg)) setCooldown(RESEND_COOLDOWN_SECONDS);
-      setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
+      const lower = msg.toLowerCase();
+      if (lower.includes('redirect') || lower.includes('url')) {
+        setError(`Signup was blocked by the Supabase redirect configuration. Add ${window.location.origin}/ to Authentication → URL Configuration → Redirect URLs.`);
+      } else if (lower.includes('email') && (lower.includes('provider') || lower.includes('smtp') || lower.includes('confirmation'))) {
+        setError(`Commissioner reached Supabase, but email confirmation is not configured correctly. Check Authentication → Email and the project's SMTP/email settings.`);
+      } else {
+        setError(isRateLimitMessage(msg) ? RATE_LIMIT_MESSAGE : msg);
+      }
       return;
     }
 
@@ -336,7 +343,7 @@ export default function Auth({ onAuthenticated }) {
   /* ---- already signed in ---- */
   if (session) {
     return (
-      <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6" style={{ borderColor: '#E5E7EB' }}>
+      <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6 cm-auth-shell" style={{ borderColor: '#E5E7EB' }}>
         <div className="flex items-center gap-2 mb-4">
           <CheckCircle2 size={18} style={{ color: '#0E7A3B' }} />
           <p className="text-sm font-semibold" style={{ color: '#111827' }}>Signed in as {session.user.email}</p>
@@ -357,7 +364,7 @@ export default function Auth({ onAuthenticated }) {
   if (mode === 'check-email') {
     const isReset = checkEmailContext === 'reset';
     return (
-      <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6 text-center" style={{ borderColor: '#E5E7EB' }}>
+      <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6 text-center cm-auth-shell" style={{ borderColor: '#E5E7EB' }}>
         <Mail size={28} className="mx-auto mb-3" style={{ color: '#00A8CC' }} />
         <p className="text-sm font-semibold mb-1" style={{ color: '#111827' }}>Check your email</p>
         <p className="text-xs" style={{ color: '#6B7280' }}>
@@ -399,7 +406,7 @@ export default function Auth({ onAuthenticated }) {
   /* ---- forgot password ---- */
   if (mode === 'reset') {
     return (
-      <form onSubmit={handleResetRequest} className="max-w-sm mx-auto bg-white border rounded-2xl p-6" style={{ borderColor: '#E5E7EB' }}>
+      <form onSubmit={handleResetRequest} className="max-w-sm mx-auto bg-white border rounded-2xl p-6 cm-auth-shell" style={{ borderColor: '#E5E7EB' }}>
         <p className="text-sm font-semibold mb-4" style={{ color: '#111827' }}>Reset your password</p>
         <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 mb-4" style={{ borderColor: '#E5E7EB' }}>
           <Mail size={15} style={{ color: '#6B7280' }} />
@@ -419,7 +426,7 @@ export default function Auth({ onAuthenticated }) {
 
   /* ---- sign in / sign up ---- */
   return (
-    <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6" style={{ borderColor: '#E5E7EB' }}>
+    <div className="max-w-sm mx-auto bg-white border rounded-2xl p-6 cm-auth-shell" style={{ borderColor: '#E5E7EB' }}>
       <div className="flex border rounded-lg p-1 mb-5" style={{ borderColor: '#E5E7EB' }}>
         {['signin', 'signup'].map(m => (
           <button
@@ -445,9 +452,9 @@ export default function Auth({ onAuthenticated }) {
               onClick={() => setRole(r.id)}
               className="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold border rounded-lg py-2.5"
               style={{
-                borderColor: role === r.id ? '#E6007A' : '#E5E7EB',
-                background: role === r.id ? '#FDE7F1' : 'white',
-                color: role === r.id ? '#99154F' : '#374151',
+                borderColor: role === r.id ? (r.id === 'business' ? '#00D9FF' : '#E6007A') : '#E5E7EB',
+                background: role === r.id ? (r.id === 'business' ? '#ECFEFF' : '#FDE7F1') : 'white',
+                color: role === r.id ? (r.id === 'business' ? '#007E99' : '#B80061') : '#374151',
               }}
             >
               <r.icon size={15} /> {r.label}

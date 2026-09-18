@@ -62,3 +62,79 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 1023px) {
   .cm-home-hero { min-height: auto; }
 }
+
+
+/* === Commissioner visual system v2 ===
+   Brand rule: cyan + magenta are the only accent colors. White is the main
+   surface. Neutral ink is intentionally limited to accessible typography.
+*/
+:root {
+  --cm-cyan: #00D9FF;
+  --cm-cyan-ink: #007E99;
+  --cm-magenta: #E6007A;
+  --cm-magenta-ink: #B80061;
+  --cm-ink: #101828;
+  --cm-muted: #667085;
+  --cm-border: #E4E7EC;
+  --cm-surface: #FFFFFF;
+  --cm-soft: #F7F9FC;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--cm-soft); }
+.cm-root {
+  background:
+    radial-gradient(900px 420px at 100% -5%, rgba(0,217,255,.10), transparent 60%),
+    radial-gradient(760px 420px at -5% 12%, rgba(230,0,122,.08), transparent 58%),
+    var(--cm-soft) !important;
+}
+.cm-root main { position: relative; }
+.cm-root .bg-white {
+  background: rgba(255,255,255,.97) !important;
+  box-shadow: 0 10px 30px rgba(16,24,40,.055), 0 1px 3px rgba(16,24,40,.04);
+}
+.cm-root .border { border-color: var(--cm-border) !important; }
+.cm-root a { transition: color .16s ease, opacity .16s ease; }
+.cm-root button { border-radius: 12px; }
+.cm-root button:hover:not(:disabled) { transform: translateY(-1px); }
+.cm-root button:active:not(:disabled) { transform: translateY(0); }
+.cm-root input, .cm-root textarea, .cm-root select {
+  background: #fff;
+  border-color: var(--cm-border);
+}
+.cm-root input:focus, .cm-root textarea:focus, .cm-root select:focus {
+  border-color: var(--cm-cyan) !important;
+  box-shadow: 0 0 0 4px rgba(0,217,255,.12) !important;
+}
+.cm-display { font-weight: 760; }
+.cm-root .cm-card-hover {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.cm-root .cm-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(16,24,40,.09);
+}
+/* Make common navigation controls feel like one designed system. */
+.cm-root header, .cm-root nav {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.cm-root .cm-beam { background: linear-gradient(90deg, var(--cm-magenta), var(--cm-cyan)) !important; }
+/* Brand-gradient utility for places that need a stronger visual anchor. */
+.cm-brand-gradient {
+  background: linear-gradient(135deg, var(--cm-magenta), var(--cm-cyan));
+}
+.cm-brand-text {
+  background: linear-gradient(90deg, var(--cm-magenta), var(--cm-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Auth and empty-state surfaces get a more intentional composition. */
+.cm-auth-shell {
+  background: linear-gradient(145deg, rgba(230,0,122,.07), rgba(0,217,255,.08));
+  border: 1px solid var(--cm-border);
+  box-shadow: 0 24px 60px rgba(16,24,40,.08);
+}
+@media (max-width: 768px) {
+  .cm-root { background: var(--cm-soft) !important; }
+}

@@ -4623,12 +4623,16 @@ export default function Commissioner() {
   }, []);
   useEffect(() => {
     if (prevPageRef.current === page) return;
+    const transient = page === 'auth' || page === 'reset-password';
     if (skipHistoryPushRef.current) {
       skipHistoryPushRef.current = false;
-    } else {
+    } else if (!transient) {
+      // Only real screens become browser-history destinations. Authentication
+      // is an interaction layer, not a page users should have to revisit when
+      // pressing Back from their dashboard.
       window.history.pushState({ cmPage: page }, '', window.location.pathname + window.location.search);
+      setPageHistory(h => [...h, prevPageRef.current === 'auth' ? 'home' : prevPageRef.current]);
     }
-    setPageHistory(h => [...h, prevPageRef.current]);
     prevPageRef.current = page;
   }, [page]);
   useEffect(() => {
@@ -4788,9 +4792,11 @@ export default function Commissioner() {
           setPage('auth');
         }
       } else if (data.session) {
-        // Restore the dashboard only for a plain homepage visit. A direct
-        // /admin URL must remain on the admin control center after refresh.
-        setPage(p => (p === 'home' && !initialAdminRoute ? 'dashboard' : p));
+        // A signed-in user who opens commissioner.com.et should still see the
+        // public homepage. Dashboard is entered explicitly after sign-in or
+        // from the account/workspace controls. This also gives Back a clean
+        // destination: dashboard -> home, never dashboard -> dashboard.
+        setPage(p => (p === 'home' && !initialAdminRoute ? 'home' : p));
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
@@ -4818,9 +4824,9 @@ export default function Commissioner() {
       <div className="cm-root min-h-screen bg-white">
         <FontLoader />
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
-          <BackButton onClick={() => setPage(session ? 'dashboard' : 'auth')} />
+          <BackButton onClick={() => setPage(session ? 'home' : 'auth')} />
         </div>
-        <ResetPasswordPage onDone={() => setPage(session ? 'dashboard' : 'auth')} />
+        <ResetPasswordPage onDone={() => setPage(session ? 'home' : 'auth')} />
       </div>
     );
   }
@@ -4899,7 +4905,14 @@ export default function Commissioner() {
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} onEditProfile={() => openOnboarding(activeRole, { edit: true })} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
-        <div className="max-w-7xl mx-auto px-5 md:px-8 py-16">
+        <div className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16">
+          <div className="max-w-3xl mx-auto mb-8 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider bg-white border" style={{borderColor:'#E4E7EC'}}>
+              <span className="w-2 h-2 rounded-full" style={{background:'#E6007A'}}/> Commissioner access <span className="w-2 h-2 rounded-full" style={{background:'#00D9FF'}}/>
+            </div>
+            <h1 className="cm-display text-3xl md:text-4xl mt-4" style={{color:'#101828'}}>Build your professional presence.</h1>
+            <p className="text-sm md:text-base mt-2" style={{color:'#667085'}}>One account. Separate creator and business identities. A cleaner way to connect, discover, and collaborate.</p>
+          </div>
           <Auth onAuthenticated={(sess, intendedRole) => {
             if (intendedRole && sess?.user?.id) {
               localStorage.setItem(`commissioner_active_role_${sess.user.id}`, intendedRole);
