@@ -570,3 +570,134 @@ body { min-width: 320px; }
   .cm-auth-card { padding: 24px 18px; border-radius: 20px; }
   .cm-auth-actions { grid-template-columns: 1fr; }
 }
+
+/* === Global contrast pass — 2026-09-18 ===
+   Commissioner uses a dark canvas. No dark/black typography is allowed on
+   application surfaces, navigation, cards, menus, dialogs, or buttons.
+*/
+.cm-root,
+.cm-root * {
+  --cm-readable-text: #FFFFFF;
+}
+
+/* Override common Tailwind dark text utilities everywhere. */
+.cm-root .text-black,
+.cm-root .text-gray-950,
+.cm-root .text-gray-900,
+.cm-root .text-gray-800,
+.cm-root .text-gray-700,
+.cm-root .text-gray-600,
+.cm-root .text-gray-500,
+.cm-root .text-gray-400,
+.cm-root .text-slate-950,
+.cm-root .text-slate-900,
+.cm-root .text-slate-800,
+.cm-root .text-slate-700,
+.cm-root .text-slate-600,
+.cm-root .text-slate-500,
+.cm-root .text-zinc-950,
+.cm-root .text-zinc-900,
+.cm-root .text-zinc-800,
+.cm-root .text-zinc-700,
+.cm-root .text-zinc-600,
+.cm-root .text-zinc-500,
+.cm-root .text-neutral-950,
+.cm-root .text-neutral-900,
+.cm-root .text-neutral-800,
+.cm-root .text-neutral-700,
+.cm-root .text-neutral-600,
+.cm-root .text-neutral-500 {
+  color: #FFFFFF !important;
+}
+
+/* Override inline dark/black text declarations used by older page components. */
+.cm-root [style*="#000"],
+.cm-root [style*="#111827"],
+.cm-root [style*="#101828"],
+.cm-root [style*="#1F2937"],
+.cm-root [style*="#1f2937"],
+.cm-root [style*="#374151"],
+.cm-root [style*="#4B5563"],
+.cm-root [style*="#4b5563"],
+.cm-root [style*="#667085"],
+.cm-root [style*="#6B7280"],
+.cm-root [style*="#6b7280"],
+.cm-root [style*="#98A2B3"],
+.cm-root [style*="#98a2b3"],
+.cm-root [style*="color: black"],
+.cm-root [style*="color:black"],
+.cm-root [style*="color: rgb(0, 0, 0)"] {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* Menus, dropdowns, dialogs, cards and white-surface components are dark
+   so white typography remains readable consistently across every route. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97,
+.cm-root .bg-gray-50,
+.cm-root .bg-gray-100,
+.cm-root .bg-slate-50,
+.cm-root .bg-slate-100 {
+  background: #0D1B35 !important;
+  color: #FFFFFF !important;
+}
+
+/* Form controls are intentionally dark too: this removes the last source of
+   black text while keeping placeholders and entered values readable. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select,
+.cm-root option {
+  background: #0A1830 !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  border-color: #304666 !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder,
+.cm-root select::placeholder {
+  color: #B8C7DA !important;
+  -webkit-text-fill-color: #B8C7DA !important;
+  opacity: 1 !important;
+}
+
+/* Disabled controls stay readable instead of becoming near-black/gray text. */
+.cm-root button:disabled,
+.cm-root input:disabled,
+.cm-root textarea:disabled,
+.cm-root select:disabled {
+  color: #B8C7DA !important;
+  -webkit-text-fill-color: #B8C7DA !important;
+}
+
+/* Plain buttons/links that previously inherited dark text. Explicit white
+   text is retained on branded and neutral action buttons. */
+.cm-root button,
+.cm-root a {
+  color: #FFFFFF;
+}
+.cm-root button.text-gray-500,
+.cm-root button.text-gray-600,
+.cm-root button.text-gray-700,
+.cm-root button.text-gray-800,
+.cm-root button.text-gray-900 {
+  color: #FFFFFF !important;
+}
+
+/* Preserve semantic status colors only where they communicate state; these
+   are bright enough for the dark canvas. */
+.cm-root [style*="#B42318"],
+.cm-root [style*="#9A4A0C"],
+.cm-root [style*="#0E7A3B"],
+.cm-root [style*="#036377"] {
+  color: #FFFFFF !important;
+}
+
+/* Never recreate the removed decorative glow blobs. */
+.cm-root > .absolute.-top-28.-right-28,
+.cm-root > .absolute.top-28.-left-28 {
+  display: none !important;
+}
