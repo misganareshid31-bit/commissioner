@@ -1034,3 +1034,72 @@ html, body { background: #F7FBFF !important; color: #17324D !important; }
 .cm-root .bg-white button[style*="background: '#E6007A'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
 .cm-root .bg-white button[style*="background:'#00D9FF'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
 .cm-root .bg-white button[style*="background: '#00D9FF'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
+/* === FINAL CONTRAST REPAIR — 2026-09-20 ===
+   Bright canvas + dark readable typography. This layer intentionally comes last
+   so older contrast passes cannot turn light-surface text white again. */
+:root { color-scheme: light !important; }
+html, body { background: #F7FAFC !important; color: #17324D !important; }
+.cm-root, .cm-page-canvas { color: #17324D !important; }
+.cm-root p, .cm-root h1, .cm-root h2, .cm-root h3, .cm-root h4, .cm-root h5, .cm-root h6,
+.cm-root label, .cm-root li, .cm-root span, .cm-root div, .cm-root a,
+.cm-root button, .cm-root input, .cm-root textarea, .cm-root select {
+  -webkit-text-fill-color: #17324D;
+}
+/* Default application text is dark ink on the bright professional canvas. */
+.cm-root p, .cm-root h1, .cm-root h2, .cm-root h3, .cm-root h4, .cm-root h5, .cm-root h6,
+.cm-root label, .cm-root li, .cm-root a, .cm-root button { color: #17324D !important; }
+/* Muted copy remains clearly readable. */
+.cm-root .text-gray-400, .cm-root .text-gray-500, .cm-root .text-gray-600,
+.cm-root .text-slate-500, .cm-root .text-slate-600 { color: #526B82 !important; -webkit-text-fill-color:#526B82 !important; }
+/* White cards use dark ink, never white text. */
+.cm-root .bg-white, .cm-root .bg-white\/90, .cm-root .bg-white\/95, .cm-root .bg-white\/97 {
+  color: #17324D !important;
+}
+.cm-root .bg-white *, .cm-root .bg-white\/90 *, .cm-root .bg-white\/95 *, .cm-root .bg-white\/97 * {
+  -webkit-text-fill-color: currentColor;
+}
+/* Branded solid controls deliberately keep white lettering. */
+.cm-root button[style*="background:'#E6007A'"],
+.cm-root button[style*="background: '#E6007A'"],
+.cm-root button[style*="background:'#0E7C93'"],
+.cm-root button[style*="background: '#0E7C93'"],
+.cm-root button.bg-pink-600, .cm-root button.bg-pink-700,
+.cm-root .cm-message-action, .cm-root .cm-category-pill.is-active {
+  color: #FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important;
+}
+.cm-root button[style*="background:'#E6007A'"] *,
+.cm-root button[style*="background: '#E6007A'"] *,
+.cm-root button[style*="background:'#0E7C93'"] *,
+.cm-root button[style*="background: '#0E7C93'"] *,
+.cm-root .cm-message-action *, .cm-root .cm-category-pill.is-active * {
+  color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important;
+}
+/* Category pills: readable dark ink on white, white on active magenta. */
+.cm-root .cm-category-pill { color:#23425F !important; -webkit-text-fill-color:#23425F !important; background:#FFFFFF !important; border-color:#C9D8E5 !important; }
+.cm-root .cm-category-pill.is-active { color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important; background:linear-gradient(135deg,#D50070,#7C3AED) !important; border-color:#D50070 !important; }
+/* Workspace banner: explicit contrast for heading, description and badge. */
+.cm-root .cm-workspace-banner { color:#17324D !important; }
+.cm-root .cm-workspace-banner .cm-workspace-label { color:#6D28D9 !important; -webkit-text-fill-color:#6D28D9 !important; }
+.cm-root .cm-workspace-banner .cm-workspace-description { color:#36556F !important; -webkit-text-fill-color:#36556F !important; }
+.cm-root .cm-workspace-banner .cm-workspace-pill { color:#6D28D9 !important; -webkit-text-fill-color:#6D28D9 !important; background:#FFFFFF !important; }
+/* Header/navigation and hamburger are always visible. */
+.cm-root header.bg-white\/90, .cm-root header.bg-white\/90 * { color:#17324D !important; -webkit-text-fill-color:#17324D !important; }
+.cm-root header.bg-white\/90 .cm-brand-text { color:transparent !important; -webkit-text-fill-color:transparent !important; }
+.cm-root .cm-menu-button { color:#17324D !important; -webkit-text-fill-color:#17324D !important; background:linear-gradient(135deg,#E8FBFF,#FFF0F7) !important; border:1px solid #BFDDE8 !important; box-shadow:0 6px 18px rgba(23,50,77,.12) !important; }
+.cm-root .cm-menu-button svg { color:#17324D !important; stroke:#17324D !important; }
+/* Message action: colorful and unmistakable. */
+.cm-root .cm-message-action { background:linear-gradient(135deg,#E6007A 0%,#7C3AED 52%,#00A8C4 100%) !important; color:#FFFFFF !important; box-shadow:0 10px 24px rgba(124,58,237,.22) !important; }
+.cm-root .cm-message-action svg { color:#FFFFFF !important; stroke:#FFFFFF !important; }
+/* Inputs/selects: dark entered text and slate placeholder on white. */
+.cm-root input, .cm-root textarea, .cm-root select, .cm-root option { color:#17324D !important; -webkit-text-fill-color:#17324D !important; background:#FFFFFF !important; }
+.cm-root input::placeholder, .cm-root textarea::placeholder { color:#647A8F !important; -webkit-text-fill-color:#647A8F !important; opacity:1 !important; }
+/* Explicit white text classes on light surfaces become readable ink, except branded controls above. */
+.cm-root .bg-white .text-white, .cm-root .bg-white\/90 .text-white, .cm-root .bg-white\/95 .text-white,
+.cm-root .bg-white [style*="color: '#FFFFFF'"], .cm-root .bg-white [style*="color:'#FFFFFF'"] {
+  color:#17324D !important; -webkit-text-fill-color:#17324D !important;
+}
+.cm-root .bg-white button[style*="background:'#E6007A'"], .cm-root .bg-white button[style*="background: '#E6007A'"] { color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important; }
+/* Keep status/accent text colorful rather than washing it out. */
+.cm-root .text-pink-600, .cm-root .text-pink-700 { color:#B80061 !important; -webkit-text-fill-color:#B80061 !important; }
+.cm-root .text-cyan-600, .cm-root .text-cyan-700 { color:#007E99 !important; -webkit-text-fill-color:#007E99 !important; }
