@@ -741,3 +741,46 @@ body { min-width: 320px; }
 .cm-page-canvas {
   background-image: none !important;
 }
+
+
+/* === ADMIN/WHITE-SURFACE CONTRAST FIX — 2026-09-20 ===
+   White cards and gift-profile forms stay white. White typography is never
+   allowed to disappear on those surfaces; it is converted to dark ink or
+   Commissioner cyan/magenta accents. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97 {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+}
+.cm-root .bg-white .text-white,
+.cm-root .bg-white [style*="#FFFFFF"],
+.cm-root .bg-white [style*="rgb(255, 255, 255)"],
+.cm-root .bg-white\/90 [style*="#FFFFFF"],
+.cm-root .bg-white\/95 [style*="#FFFFFF"],
+.cm-root .bg-white\/97 [style*="#FFFFFF"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root .bg-white button.text-white[style*="background: #FFFFFF"],
+.cm-root .bg-white button.text-white[style*="background:#FFFFFF"] {
+  color: #07152F !important;
+}
+/* Form labels/inputs on white admin and onboarding surfaces. */
+.cm-root .bg-white input,
+.cm-root .bg-white textarea,
+.cm-root .bg-white select,
+.cm-root .bg-white option {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root .bg-white input::placeholder,
+.cm-root .bg-white textarea::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+}
+/* Admin gift-builder labels are intentionally dark on the white card. */
+.cm-root .cm-admin-gift-surface { color: #07152F !important; }
+

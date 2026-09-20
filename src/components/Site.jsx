@@ -1027,7 +1027,7 @@ const ExploreTabs = ({ active, onChange, primaryLabel }) => (
   </div>
 );
 
-const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appliedIds, onApply }) => {
+const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appliedIds, onApply, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('primary');
   const [launchStats, setLaunchStats] = useState(null);
   const [allCreators, setAllCreators] = useState([]);
@@ -1044,7 +1044,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
 
   if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Explore creators</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Discover creators and the campaigns businesses have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
 
-  if (launchStats && !launchStats.unlocked) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-16"><LaunchGateNotice stats={launchStats}/></div>;
+  if (launchStats && !launchStats.unlocked && !isAdmin) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-16"><LaunchGateNotice stats={launchStats}/></div>;
 
   const cities = [...new Set(allCreators.map(c => c.city).filter(Boolean))];
 
@@ -3476,13 +3476,13 @@ const VerificationDetails = ({ type, id, compact=false }) => {
     {claim?.checked_at&&<p className="text-[10px] mt-3" style={{color:'#9CA3AF'}}>Last checked {new Date(claim.checked_at).toLocaleDateString()}</p>}
   </div>;
 };
-const Businesses = ({ onConnect, session, setPage, appliedIds, onApply }) => {
+const Businesses = ({ onConnect, session, setPage, appliedIds, onApply, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('primary');
   const [launchStats, setLaunchStats] = useState(null);
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
   useEffect(()=>{fetchLaunchStats().then(setLaunchStats);supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan,created_at').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Explore businesses</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Browse businesses and the campaigns they have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
-  if (launchStats && !launchStats.unlocked) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-16"><LaunchGateNotice stats={launchStats}/></div>;
+  if (launchStats && !launchStats.unlocked && !isAdmin) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-16"><LaunchGateNotice stats={launchStats}/></div>;
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Find businesses</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
@@ -4184,18 +4184,18 @@ const AdminPanel = ({ session }) => {
 
       <div className="mb-8"><LaunchProgressCard stats={launchStats} /></div>
       <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-bold" style={{ color: '#FFFFFF' }}>Network launch threshold</p>
-        <p className="text-xs mt-1 mb-4" style={{ color: '#FFFFFF' }}>How many verified creators and verified businesses are required before networking unlocks platform-wide. Takes effect immediately, no redeploy.</p>
+        <p className="text-sm font-bold" style={{ color: '#07152F' }}>Network launch threshold</p>
+        <p className="text-xs mt-1 mb-4" style={{ color: '#334155' }}>How many verified creators and verified businesses are required before networking unlocks platform-wide. Takes effect immediately, no redeploy.</p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="block">
-            <span className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>Verified creators needed</span>
+            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Verified creators needed</span>
             <input type="number" min="0" value={thresholdDraft.creator} onChange={e => setThresholdDraft(d => ({ ...d, creator: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
           </label>
           <label className="block">
-            <span className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>Verified businesses needed</span>
+            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Verified businesses needed</span>
             <input type="number" min="0" value={thresholdDraft.business} onChange={e => setThresholdDraft(d => ({ ...d, business: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
           </label>
-          <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#FFFFFF' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
+          <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#FFFFFF' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
         </div>
         {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
       </div>
@@ -4205,8 +4205,8 @@ const AdminPanel = ({ session }) => {
 
       <div className="bg-white border rounded-2xl p-6 mb-8" style={{ borderColor: '#E5E7EB' }}>
         <div className="mb-4">
-          <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Create a gift profile + NFC card</p>
-          <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>
+          <p className="text-sm font-semibold" style={{ color: '#07152F' }}>Create a gift profile + NFC card</p>
+          <p className="text-xs mt-1" style={{ color: '#334155' }}>
             Create an open-ended profile for anyone you want to gift. Leave the name empty and the recipient can fill in their own name, bio, socials, photo, and other details from the claim page.
           </p>
         </div>
@@ -4217,7 +4217,7 @@ const AdminPanel = ({ session }) => {
               key={t}
               onClick={() => { setClaimType(t); setNewLink(''); setCreateError(''); }}
               className="text-sm font-semibold px-4 py-1.5 rounded-md capitalize"
-              style={{ background: claimType === t ? '#FFFFFF' : 'transparent', color: claimType === t ? 'white' : '#FFFFFF' }}
+              style={{ background: claimType === t ? '#FFFFFF' : 'transparent', color: claimType === t ? '#07152F' : '#334155' }}
             >
               {t}
             </button>
@@ -4235,11 +4235,11 @@ const AdminPanel = ({ session }) => {
           </button>
         </div>
 
-        <label className="flex items-start gap-2 text-sm mb-4" style={{ color: '#FFFFFF' }}>
+        <label className="flex items-start gap-2 text-sm mb-4" style={{ color: '#07152F' }}>
           <input type="checkbox" checked={giftMode} onChange={e => setGiftMode(e.target.checked)} className="mt-0.5" />
           <span>
             <span className="font-semibold">Open-ended gift</span>
-            <span className="block text-xs mt-0.5" style={{ color: '#FFFFFF' }}>No niche/industry is locked in. The recipient chooses their profile details after tapping the card.</span>
+            <span className="block text-xs mt-0.5" style={{ color: '#475569' }}>No niche/industry is locked in. The recipient chooses their profile details after tapping the card.</span>
           </span>
         </label>
 
@@ -4262,9 +4262,9 @@ const AdminPanel = ({ session }) => {
           )}
         </div>
 
-        <div className="border rounded-xl p-4 mb-4" style={{ borderColor: '#E5E7EB', background: '#FAFAFA' }}>
-          <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Full gift page details</p>
-          <p className="text-xs mb-4" style={{ color: '#FFFFFF' }}>This is the same full information set available in the normal creator setup. You can prepare the page completely for the recipient before giving them the NFC card.</p>
+        <div className="border rounded-xl p-4 mb-4" style={{ borderColor: '#E5E7EB', background: '#FFFFFF' }}>
+          <p className="text-sm font-semibold mb-3" style={{ color: '#07152F' }}>Full gift page details</p>
+          <p className="text-xs mb-4" style={{ color: '#475569' }}>This is the same full information set available in the normal creator setup. You can prepare the page completely for the recipient before giving them the NFC card.</p>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <OnboardingField label="Username" placeholder="@username" value={username} onChange={e => setUsername(e.target.value)} />
             <OnboardingField label="Location" placeholder="Addis Ababa, Ethiopia" icon={MapPin} required value={location} onChange={e => setLocation(e.target.value)} />
@@ -4307,7 +4307,7 @@ const AdminPanel = ({ session }) => {
           </div>
         </div>
 
-        <p className="text-xs mb-4" style={{ color: '#FFFFFF' }}>New gift pages start unverified. Verification is granted only through the admin review queue after the profile is complete.</p>
+        <p className="text-xs mb-4" style={{ color: '#475569' }}>New gift pages start unverified. Verification is granted only through the admin review queue after the profile is complete.</p>
 
         <button onClick={handleCreate} disabled={creating || setupStatus !== 'ready'} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {creating ? 'Creating…' : 'Create gift page'}
@@ -4921,8 +4921,8 @@ export default function Commissioner() {
       )}
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
       {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
-      {page === 'creators' && <Creators session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} />}
-      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'creators' && <Creators session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} />}
+      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
       {page === 'marketplace' && <Marketplace session={session} onMessage={async (owner, listingId) => {
         if (!session) { setPage('auth'); return; }
         const id = owner?.auth_user_id || owner?.authUserId;
