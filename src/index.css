@@ -1035,71 +1035,35 @@ html, body { background: #F7FBFF !important; color: #17324D !important; }
 .cm-root .bg-white button[style*="background:'#00D9FF'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
 .cm-root .bg-white button[style*="background: '#00D9FF'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
 
-/* === FINAL CONTRAST REPAIR — 2026-09-20 ===
-   Bright canvas + dark readable typography. This layer intentionally comes last
-   so older contrast passes cannot turn light-surface text white again. */
+/* === Commissioner brand canvas + footer + interaction fixes === */
 :root { color-scheme: light !important; }
-html, body { background: #F7FAFC !important; color: #17324D !important; }
-.cm-root, .cm-page-canvas { color: #17324D !important; }
-.cm-root p, .cm-root h1, .cm-root h2, .cm-root h3, .cm-root h4, .cm-root h5, .cm-root h6,
-.cm-root label, .cm-root li, .cm-root span, .cm-root div, .cm-root a,
-.cm-root button, .cm-root input, .cm-root textarea, .cm-root select {
-  -webkit-text-fill-color: #17324D;
+html, body { background: #f7f9ff !important; color: #172033 !important; }
+.cm-root, .cm-page-canvas {
+  background:
+    radial-gradient(900px 520px at 100% 0%, rgba(0,217,255,.20), transparent 62%),
+    radial-gradient(820px 560px at 0% 16%, rgba(230,0,122,.18), transparent 60%),
+    radial-gradient(720px 480px at 55% 88%, rgba(124,58,237,.08), transparent 64%),
+    linear-gradient(135deg,#fbfdff 0%,#f3f7ff 48%,#fff7fb 100%) !important;
+  color: #172033;
 }
-/* Default application text is dark ink on the bright professional canvas. */
-.cm-root p, .cm-root h1, .cm-root h2, .cm-root h3, .cm-root h4, .cm-root h5, .cm-root h6,
-.cm-root label, .cm-root li, .cm-root a, .cm-root button { color: #17324D !important; }
-/* Muted copy remains clearly readable. */
-.cm-root .text-gray-400, .cm-root .text-gray-500, .cm-root .text-gray-600,
-.cm-root .text-slate-500, .cm-root .text-slate-600 { color: #526B82 !important; -webkit-text-fill-color:#526B82 !important; }
-/* White cards use dark ink, never white text. */
-.cm-root .bg-white, .cm-root .bg-white\/90, .cm-root .bg-white\/95, .cm-root .bg-white\/97 {
-  color: #17324D !important;
-}
-.cm-root .bg-white *, .cm-root .bg-white\/90 *, .cm-root .bg-white\/95 *, .cm-root .bg-white\/97 * {
-  -webkit-text-fill-color: currentColor;
-}
-/* Branded solid controls deliberately keep white lettering. */
-.cm-root button[style*="background:'#E6007A'"],
-.cm-root button[style*="background: '#E6007A'"],
-.cm-root button[style*="background:'#0E7C93'"],
-.cm-root button[style*="background: '#0E7C93'"],
-.cm-root button.bg-pink-600, .cm-root button.bg-pink-700,
-.cm-root .cm-message-action, .cm-root .cm-category-pill.is-active {
-  color: #FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important;
-}
-.cm-root button[style*="background:'#E6007A'"] *,
-.cm-root button[style*="background: '#E6007A'"] *,
-.cm-root button[style*="background:'#0E7C93'"] *,
-.cm-root button[style*="background: '#0E7C93'"] *,
-.cm-root .cm-message-action *, .cm-root .cm-category-pill.is-active * {
-  color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important;
-}
-/* Category pills: readable dark ink on white, white on active magenta. */
-.cm-root .cm-category-pill { color:#23425F !important; -webkit-text-fill-color:#23425F !important; background:#FFFFFF !important; border-color:#C9D8E5 !important; }
-.cm-root .cm-category-pill.is-active { color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important; background:linear-gradient(135deg,#D50070,#7C3AED) !important; border-color:#D50070 !important; }
-/* Workspace banner: explicit contrast for heading, description and badge. */
-.cm-root .cm-workspace-banner { color:#17324D !important; }
-.cm-root .cm-workspace-banner .cm-workspace-label { color:#6D28D9 !important; -webkit-text-fill-color:#6D28D9 !important; }
-.cm-root .cm-workspace-banner .cm-workspace-description { color:#36556F !important; -webkit-text-fill-color:#36556F !important; }
-.cm-root .cm-workspace-banner .cm-workspace-pill { color:#6D28D9 !important; -webkit-text-fill-color:#6D28D9 !important; background:#FFFFFF !important; }
-/* Header/navigation and hamburger are always visible. */
-.cm-root header.bg-white\/90, .cm-root header.bg-white\/90 * { color:#17324D !important; -webkit-text-fill-color:#17324D !important; }
-.cm-root header.bg-white\/90 .cm-brand-text { color:transparent !important; -webkit-text-fill-color:transparent !important; }
-.cm-root .cm-menu-button { color:#17324D !important; -webkit-text-fill-color:#17324D !important; background:linear-gradient(135deg,#E8FBFF,#FFF0F7) !important; border:1px solid #BFDDE8 !important; box-shadow:0 6px 18px rgba(23,50,77,.12) !important; }
-.cm-root .cm-menu-button svg { color:#17324D !important; stroke:#17324D !important; }
-/* Message action: colorful and unmistakable. */
-.cm-root .cm-message-action { background:linear-gradient(135deg,#E6007A 0%,#7C3AED 52%,#00A8C4 100%) !important; color:#FFFFFF !important; box-shadow:0 10px 24px rgba(124,58,237,.22) !important; }
-.cm-root .cm-message-action svg { color:#FFFFFF !important; stroke:#FFFFFF !important; }
-/* Inputs/selects: dark entered text and slate placeholder on white. */
-.cm-root input, .cm-root textarea, .cm-root select, .cm-root option { color:#17324D !important; -webkit-text-fill-color:#17324D !important; background:#FFFFFF !important; }
-.cm-root input::placeholder, .cm-root textarea::placeholder { color:#647A8F !important; -webkit-text-fill-color:#647A8F !important; opacity:1 !important; }
-/* Explicit white text classes on light surfaces become readable ink, except branded controls above. */
-.cm-root .bg-white .text-white, .cm-root .bg-white\/90 .text-white, .cm-root .bg-white\/95 .text-white,
-.cm-root .bg-white [style*="color: '#FFFFFF'"], .cm-root .bg-white [style*="color:'#FFFFFF'"] {
-  color:#17324D !important; -webkit-text-fill-color:#17324D !important;
-}
-.cm-root .bg-white button[style*="background:'#E6007A'"], .cm-root .bg-white button[style*="background: '#E6007A'"] { color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important; }
-/* Keep status/accent text colorful rather than washing it out. */
-.cm-root .text-pink-600, .cm-root .text-pink-700 { color:#B80061 !important; -webkit-text-fill-color:#B80061 !important; }
-.cm-root .text-cyan-600, .cm-root .text-cyan-700 { color:#007E99 !important; -webkit-text-fill-color:#007E99 !important; }
+.cm-page-canvas::before { content:""; position:fixed; inset:64px 0 0; pointer-events:none; z-index:0; background:radial-gradient(480px 240px at 18% 32%,rgba(230,0,122,.07),transparent 70%),radial-gradient(520px 260px at 82% 58%,rgba(0,217,255,.08),transparent 70%); }
+.cm-page-canvas > * { position:relative; z-index:1; }
+.cm-footer { background:linear-gradient(135deg,#07152f 0%,#101a3a 55%,#20102f 100%) !important; color:#fff !important; border-top:1px solid rgba(0,217,255,.25); }
+.cm-footer-heading { color:#fff !important; }
+.cm-footer-muted { color:#c9d5e7 !important; }
+.cm-footer-link { color:#dce7f5 !important; }
+.cm-footer-link:hover { color:#fff !important; }
+.cm-footer-social { width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.24);color:#fff;background:linear-gradient(135deg,rgba(230,0,122,.85),rgba(0,217,255,.65)); }
+.cm-footer-input { border:1px solid #43516b !important; background:#17233f !important; color:#fff !important; border-radius:10px !important; padding:.65rem .75rem; }
+.cm-footer-input::placeholder { color:#9fb0c4 !important; }
+.cm-footer-feedback-btn { width:100%; border:0; border-radius:10px; padding:.65rem .8rem; font-size:.75rem; font-weight:700; color:#fff; background:linear-gradient(135deg,#E6007A,#7C3AED,#00A8C4); }
+.cm-footer-status { color:#b9e8ff !important; }
+.cm-footer-bottom { border-top:1px solid rgba(255,255,255,.14); color:#dce7f5 !important; }
+.cm-field-label { display:block; margin-bottom:.35rem; font-size:.75rem; font-weight:700; color:#39465e; }
+.cm-field { width:100%; border:1px solid #d7dfeb !important; background:#fff !important; color:#172033 !important; border-radius:11px; padding:.7rem .8rem; outline:none; }
+.cm-field::placeholder { color:#7a879d !important; }
+.cm-field:focus { border-color:#00a8c4 !important; box-shadow:0 0 0 4px rgba(0,217,255,.12); }
+/* Override legacy dark-pass text rules that made white text disappear on white cards. */
+.cm-root .bg-white h1,.cm-root .bg-white h2,.cm-root .bg-white h3,.cm-root .bg-white p,.cm-root .bg-white label,.cm-root .bg-white span { color:inherit; }
+.cm-root .bg-white { color:#172033; }
+@media (max-width:768px){.cm-page-canvas::before{inset:56px 0 0}.cm-footer{margin-top:24px!important}}
