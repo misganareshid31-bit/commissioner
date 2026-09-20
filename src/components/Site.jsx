@@ -3974,14 +3974,32 @@ const AdminPanel = ({ session }) => {
 
   const setPlan = async (row, plan, expiresAt) => {
     setBusyId(row.id + 'plan');
-    const table = row.kind === 'business' ? 'business_profiles' : 'creator_profiles';
-    const { error } = await supabase.from(table).update({ plan, plan_expires_at: expiresAt || null }).eq('id', row.id);
-    setBusyId(null);
-    if (error) {
-      setCreateError(`Could not update plan: ${error.message}`);
+    setCreateError('');
+    const kind = row.kind === 'business' ? 'business' : 'creator';
+    // Use the secure admin RPC so plan changes work even when normal profile
+    // UPDATE policies intentionally block direct client-side writes.
+    const { error: planError } = await supabase.rpc('admin_set_profile_plan', {
+      p_kind: kind,
+      p_profile_id: row.id,
+      p_plan: plan === 'elite' ? 'premium' : plan
+    });
+    if (planError) {
+      setBusyId(null);
+      setCreateError(`Could not update plan: ${planError.message}`);
       return;
     }
-    loadRows();
+    // Keep the existing expiry editor working when the admin changes it.
+    if (expiresAt !== undefined) {
+      const table = kind === 'business' ? 'business_profiles' : 'creator_profiles';
+      const { error: expiryError } = await supabase.from(table)
+        .update({ plan_expires_at: expiresAt || null })
+        .eq('id', row.id);
+      if (expiryError) {
+        setCreateError(`Plan changed, but the expiry date could not be updated: ${expiryError.message}`);
+      }
+    }
+    setBusyId(null);
+    await loadRows();
   };
 
   const deletePage = async (row) => {
@@ -4090,31 +4108,23 @@ const AdminPanel = ({ session }) => {
         <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t" style={{ borderColor: '#F3F4F6' }}>
           <span className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>Plan:</span>
           <select
-            value={r.plan || (r.kind === 'business' ? 'starter' : 'basic')}
+            value={r.plan === 'elite' ? 'premium' : (r.plan || 'basic')}
             disabled={busyId === r.id + 'plan'}
             onChange={e => setPlan(r, e.target.value, r.plan_expires_at)}
             className="text-[11px] font-semibold border rounded-lg px-2 py-1"
             style={{ borderColor: '#E5E7EB' }}
           >
-            {r.kind === 'business' ? (
-              <>
-                <option value="starter">Starter</option>
-                <option value="growth">Growth</option>
-                <option value="enterprise">Enterprise</option>
-              </>
-            ) : (
-              <>
-                <option value="basic">Basic</option>
-                <option value="pro">Pro</option>
-                <option value="elite">Elite</option>
-              </>
-            )}
+            <>
+              <option value="basic">Basic</option>
+              <option value="pro">Pro</option>
+              <option value="premium">Premium</option>
+            </>
           </select>
           <input
             type="date"
             value={r.plan_expires_at ? r.plan_expires_at.slice(0, 10) : ''}
             disabled={busyId === r.id + 'plan'}
-            onChange={e => setPlan(r, r.plan || (r.kind === 'business' ? 'starter' : 'basic'), e.target.value ? new Date(e.target.value).toISOString() : null)}
+            onChange={e => setPlan(r, r.plan === 'elite' ? 'premium' : (r.plan || 'basic'), e.target.value ? new Date(e.target.value).toISOString() : null)}
             className="text-[11px] border rounded-lg px-2 py-1"
             style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}
             title="Plan expires on (leave blank for no expiry)"
