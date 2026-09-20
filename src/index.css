@@ -784,3 +784,197 @@ body { min-width: 320px; }
 /* Admin gift-builder labels are intentionally dark on the white card. */
 .cm-root .cm-admin-gift-surface { color: #07152F !important; }
 
+
+/* === FINAL CONTRAST AUDIT — 5-PASS VISIBILITY FIX — 2026-09-20 ===
+   Rule: white surfaces use dark/navy ink or cyan/magenta accents.
+   Dark navy surfaces use white/light ink. No low-contrast text is permitted. */
+
+/* PASS 1: restore the main canvas to readable light typography. */
+html, body { color: #F7FAFF !important; }
+.cm-root { color: #F7FAFF !important; }
+.cm-root .cm-page-canvas { color: #F7FAFF !important; }
+.cm-root .cm-page-canvas .text-black,
+.cm-root .cm-page-canvas [style*="color: #000"],
+.cm-root .cm-page-canvas [style*="color:#000"],
+.cm-root .cm-page-canvas [style*="color: black"],
+.cm-root .cm-page-canvas [style*="color:black"],
+.cm-root .cm-page-canvas [style*="rgb(0, 0, 0)"] {
+  color: #F7FAFF !important;
+  -webkit-text-fill-color: #F7FAFF !important;
+}
+
+/* PASS 2: white cards, panels, dropdowns and forms always use dark ink. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97,
+.cm-root [style*="background: #fff"],
+.cm-root [style*="background:#fff"],
+.cm-root [style*="background: #FFFFFF"],
+.cm-root [style*="background:#FFFFFF"],
+.cm-root [style*="background: rgb(255, 255, 255)"] {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+}
+
+/* PASS 3: eliminate white-on-white text inside those surfaces, including
+   inline React colors and Tailwind text-white classes. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97,
+.cm-root [style*="background: #fff"],
+.cm-root [style*="background:#fff"],
+.cm-root [style*="background: #FFFFFF"],
+.cm-root [style*="background:#FFFFFF"],
+.cm-root [style*="background: rgb(255, 255, 255)"] {
+  --cm-surface-ink: #07152F;
+}
+.cm-root .bg-white .text-white,
+.cm-root .bg-white\/90 .text-white,
+.cm-root .bg-white\/95 .text-white,
+.cm-root .bg-white\/97 .text-white,
+.cm-root [style*="background: #fff"] .text-white,
+.cm-root [style*="background:#fff"] .text-white,
+.cm-root [style*="background: #FFFFFF"] .text-white,
+.cm-root [style*="background:#FFFFFF"] .text-white,
+.cm-root [style*="background: rgb(255, 255, 255)"] .text-white,
+.cm-root .bg-white [style*="color: #FFFFFF"],
+.cm-root .bg-white [style*="color:#FFFFFF"],
+.cm-root .bg-white [style*="color: rgb(255, 255, 255)"],
+.cm-root .bg-white\/90 [style*="color: #FFFFFF"],
+.cm-root .bg-white\/95 [style*="color: #FFFFFF"],
+.cm-root .bg-white\/97 [style*="color: #FFFFFF"],
+.cm-root [style*="background: #fff"] [style*="color: #FFFFFF"],
+.cm-root [style*="background:#fff"] [style*="color:#FFFFFF"],
+.cm-root [style*="background: #FFFFFF"] [style*="color: #FFFFFF"],
+.cm-root [style*="background:#FFFFFF"] [style*="color:#FFFFFF"],
+.cm-root [style*="background: rgb(255, 255, 255)"] [style*="color: rgb(255, 255, 255)"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+
+/* White-surface utility classes and common gray text are deliberately dark. */
+.cm-root .bg-white .text-gray-400,
+.cm-root .bg-white .text-gray-500,
+.cm-root .bg-white .text-gray-600,
+.cm-root .bg-white .text-gray-700,
+.cm-root .bg-white .text-gray-800,
+.cm-root .bg-white .text-gray-900,
+.cm-root .bg-white .text-slate-500,
+.cm-root .bg-white .text-slate-600,
+.cm-root .bg-white .text-slate-700,
+.cm-root .bg-white .text-slate-800,
+.cm-root .bg-white .text-slate-900,
+.cm-root .bg-white\/90 .text-gray-500,
+.cm-root .bg-white\/90 .text-gray-600,
+.cm-root .bg-white\/95 .text-gray-500,
+.cm-root .bg-white\/97 .text-gray-500 {
+  color: #07152F !important;
+}
+
+/* PASS 4: inputs and selects are readable according to their actual surface. */
+.cm-root .bg-white input,
+.cm-root .bg-white textarea,
+.cm-root .bg-white select,
+.cm-root [style*="background: #fff"] input,
+.cm-root [style*="background:#fff"] input,
+.cm-root [style*="background: #FFFFFF"] input,
+.cm-root [style*="background:#FFFFFF"] input,
+.cm-root [style*="background: rgb(255, 255, 255)"] input,
+.cm-root .bg-white textarea,
+.cm-root .bg-white select {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root .bg-white input::placeholder,
+.cm-root .bg-white textarea::placeholder,
+.cm-root [style*="background: #fff"] input::placeholder,
+.cm-root [style*="background:#fff"] input::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+  opacity: 1 !important;
+}
+
+/* PASS 5: fix the homepage upper navigation/panel specifically. */
+.cm-root header.bg-white\/90 {
+  background: rgba(255,255,255,.96) !important;
+  color: #07152F !important;
+}
+.cm-root header.bg-white\/90 .text-white,
+.cm-root header.bg-white\/90 [style*="color: #FFFFFF"],
+.cm-root header.bg-white\/90 [style*="color:#FFFFFF"],
+.cm-root header.bg-white\/90 [style*="color: rgb(255, 255, 255)"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root header.bg-white\/90 .cm-brand-text {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+.cm-root header.bg-white\/90 nav button:hover,
+.cm-root header.bg-white\/90 nav button:focus-visible {
+  color: #07152F !important;
+}
+
+/* Cyan/magenta remain available as high-contrast accents on white surfaces. */
+.cm-root .bg-white .text-cyan-600,
+.cm-root .bg-white .text-cyan-700 { color: #007E99 !important; }
+.cm-root .bg-white .text-pink-600,
+.cm-root .bg-white .text-pink-700 { color: #B80061 !important; }
+
+/* Never allow an explicitly black text declaration to remain on the navy
+   canvas; white is the readable fallback. White-surface rules above win. */
+.cm-root [style*="color: #000000"],
+.cm-root [style*="color:#000000"],
+.cm-root [style*="color: #000"],
+.cm-root [style*="color:#000"],
+.cm-root [style*="color: black"],
+.cm-root [style*="color:black"] {
+  color: #F7FAFF !important;
+  -webkit-text-fill-color: #F7FAFF !important;
+}
+
+/* Re-assert white-surface priority after the black-text fallback. */
+.cm-root .bg-white [style*="color: #000000"],
+.cm-root .bg-white [style*="color:#000000"],
+.cm-root .bg-white [style*="color: #000"],
+.cm-root .bg-white [style*="color:#000"],
+.cm-root .bg-white [style*="color: black"],
+.cm-root .bg-white [style*="color:black"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+
+/* Light-accent surfaces are audited too: white text is replaced with dark
+   ink when the background is pale enough that white would be hard to read. */
+.cm-root [style*="background: '#FDE7F1'"],
+.cm-root [style*="background:'#FDE7F1'"],
+.cm-root [style*="background: '#E0FBFF'"],
+.cm-root [style*="background:'#E0FBFF'"],
+.cm-root [style*="background: '#F8FAFC'"],
+.cm-root [style*="background:'#F8FAFC'"],
+.cm-root [style*="background: '#F7F9FC'"],
+.cm-root [style*="background:'#F7F9FC'"],
+.cm-root [style*="background: '#FFF1E5'"],
+.cm-root [style*="background:'#FFF1E5'"],
+.cm-root [style*="background: '#E9FBEF'"],
+.cm-root [style*="background:'#E9FBEF'"] {
+  color: #07152F !important;
+}
+.cm-root [style*="background: '#FDE7F1'"] [style*="color: '#FFFFFF'"],
+.cm-root [style*="background:'#FDE7F1'"] [style*="color:'#FFFFFF'"],
+.cm-root [style*="background: '#E0FBFF'"] [style*="color: '#FFFFFF'"],
+.cm-root [style*="background:'#E0FBFF'"] [style*="color:'#FFFFFF'"],
+.cm-root [style*="background: '#F8FAFC'"] [style*="color: '#FFFFFF'"],
+.cm-root [style*="background:'#F8FAFC'"] [style*="color:'#FFFFFF'"],
+.cm-root [style*="background: '#F7F9FC'"] [style*="color: '#FFFFFF'"],
+.cm-root [style*="background:'#F7F9FC'"] [style*="color:'#FFFFFF'"],
+.cm-root [style*="background: '#FFF1E5'"] [style*="color: '#FFFFFF'"],
+.cm-root [style*="background:'#FFF1E5'"] [style*="color:'#FFFFFF'"],
+.cm-root [style*="background: '#E9FBEF'"] [style*="color: '#FFFFFF'"],
+.cm-root [style*="background:'#E9FBEF'"] [style*="color:'#FFFFFF'"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
