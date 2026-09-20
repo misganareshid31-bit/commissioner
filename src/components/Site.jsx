@@ -4943,7 +4943,7 @@ export default function Commissioner() {
   }
 
   return (
-    <div className="cm-root min-h-screen" style={{ background: '#07152F' }}>
+    <div className="cm-root min-h-screen" style={{ background: '#F8FAFC' }}>
       <FontLoader />
       <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} openOnboarding={openOnboarding} />
       <main className="cm-page-canvas">
