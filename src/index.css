@@ -978,3 +978,104 @@ html, body { color: #F7FAFF !important; }
   color: #07152F !important;
   -webkit-text-fill-color: #07152F !important;
 }
+
+/* === FINAL LIGHT-THEME RECOVERY — 2026-09-20 ===
+   Keep the audited high-contrast light UI after a hard refresh. The previous
+   dark-canvas pass was overriding the light visual system at the end of the
+   stylesheet, which made the app return to blue/black after reload.
+*/
+:root { color-scheme: light !important; }
+html, body {
+  background: #F7F9FC !important;
+  color: #0F172A !important;
+}
+body { -webkit-font-smoothing: antialiased; }
+.cm-root {
+  min-height: 100vh !important;
+  background: #F7F9FC !important;
+  color: #0F172A !important;
+}
+.cm-page-canvas {
+  min-height: calc(100vh - 64px);
+  background: #F7F9FC !important;
+  color: #0F172A !important;
+}
+.cm-root header,
+.cm-root nav {
+  background: rgba(255,255,255,.96) !important;
+  color: #0F172A !important;
+  border-color: #E5E7EB !important;
+}
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97 {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+.cm-root .bg-gray-50,
+.cm-root .bg-gray-100,
+.cm-root .bg-slate-50,
+.cm-root .bg-slate-100 {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+.cm-root .text-white,
+.cm-root .text-gray-950,
+.cm-root .text-gray-900,
+.cm-root .text-gray-800,
+.cm-root .text-gray-700,
+.cm-root .text-gray-600,
+.cm-root .text-gray-500,
+.cm-root .text-gray-400,
+.cm-root .text-slate-950,
+.cm-root .text-slate-900,
+.cm-root .text-slate-800,
+.cm-root .text-slate-700,
+.cm-root .text-slate-600,
+.cm-root .text-slate-500,
+.cm-root .text-zinc-950,
+.cm-root .text-zinc-900,
+.cm-root .text-zinc-800,
+.cm-root .text-zinc-700,
+.cm-root .text-zinc-600,
+.cm-root .text-zinc-500,
+.cm-root .text-neutral-950,
+.cm-root .text-neutral-900,
+.cm-root .text-neutral-800,
+.cm-root .text-neutral-700,
+.cm-root .text-neutral-600,
+.cm-root .text-neutral-500 {
+  color: #0F172A !important;
+}
+/* Old inline white typography must become readable on light cards. */
+.cm-root [style*="color: '#FFFFFF'"]:not(button):not(a),
+.cm-root [style*="color:'#FFFFFF'"]:not(button):not(a),
+.cm-root [style*="color: #FFFFFF"]:not(button):not(a),
+.cm-root [style*="color:#FFFFFF"]:not(button):not(a),
+.cm-root [style*="color: rgb(255, 255, 255)"]:not(button):not(a) {
+  color: #0F172A !important;
+  -webkit-text-fill-color: #0F172A !important;
+}
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #D7DEE8 !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder { color: #64748B !important; }
+/* Preserve white labels on deliberately colored buttons. */
+.cm-root button.text-white,
+.cm-root button[style*="background: '#07152F'"],
+.cm-root button[style*="background:'#07152F'"],
+.cm-root button[style*="background: '#0095F6'"],
+.cm-root button[style*="background:'#0095F6'"],
+.cm-root .cm-brand-gradient button,
+.cm-root .cm-brand-gradient {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root a { color: #036377; }
+.cm-root .border { border-color: #E5E7EB !important; }
