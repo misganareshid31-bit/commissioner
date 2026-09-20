@@ -1004,7 +1004,31 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
   );
 };
 
-const Creators = ({ session, savedIds, toggleSave, onHire, onView }) => {
+const ExploreTabs = ({ active, onChange, primaryLabel }) => (
+  <div className="flex items-center gap-2 border-b mb-8" style={{ borderColor: '#27415F' }} role="tablist" aria-label="Explore sections">
+    {[
+      { id: 'primary', label: primaryLabel },
+      { id: 'campaigns', label: 'Campaigns' },
+    ].map(tab => (
+      <button
+        key={tab.id}
+        role="tab"
+        aria-selected={active === tab.id}
+        onClick={() => onChange(tab.id)}
+        className="px-4 py-3 text-sm font-bold border-b-2 -mb-px transition-colors"
+        style={{
+          color: active === tab.id ? '#FFFFFF' : '#9FB0C4',
+          borderColor: active === tab.id ? '#E6007A' : 'transparent'
+        }}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+);
+
+const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appliedIds, onApply }) => {
+  const [activeTab, setActiveTab] = useState('primary');
   const [launchStats, setLaunchStats] = useState(null);
   const [allCreators, setAllCreators] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1017,6 +1041,8 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView }) => {
     fetchLaunchStats().then(setLaunchStats);
     fetchLiveCreators().then(list => { setAllCreators(list); setLoading(false); });
   }, []);
+
+  if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Explore creators</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Discover creators and the campaigns businesses have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
 
   if (launchStats && !launchStats.unlocked) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-16"><LaunchGateNotice stats={launchStats}/></div>;
 
@@ -1040,6 +1066,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView }) => {
         <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Find creators</h1>
         <p className="text-sm" style={{ color: '#FFFFFF' }}>{loading ? 'Loading…' : `${filtered.length} creators match your search`}</p>
       </div>
+      <ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" />
 
       <div className="flex flex-col md:flex-row gap-3 mb-8">
         <div className="flex items-center gap-2 bg-white border rounded-xl px-3 py-2.5 flex-1" style={{ borderColor: '#E5E7EB' }}>
@@ -3449,14 +3476,17 @@ const VerificationDetails = ({ type, id, compact=false }) => {
     {claim?.checked_at&&<p className="text-[10px] mt-3" style={{color:'#9CA3AF'}}>Last checked {new Date(claim.checked_at).toLocaleDateString()}</p>}
   </div>;
 };
-const Businesses = ({ onConnect }) => {
+const Businesses = ({ onConnect, session, setPage, appliedIds, onApply }) => {
+  const [activeTab, setActiveTab] = useState('primary');
   const [launchStats, setLaunchStats] = useState(null);
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
   useEffect(()=>{fetchLaunchStats().then(setLaunchStats);supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan,created_at').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
+  if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Explore businesses</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Browse businesses and the campaigns they have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
   if (launchStats && !launchStats.unlocked) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-16"><LaunchGateNotice stats={launchStats}/></div>;
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Find businesses</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
+    <ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" />
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search business, industry, city…" className="flex-1 outline-none text-sm"/></div><select value={category} onChange={e=>setCategory(e.target.value)} className="border rounded-xl px-3 py-3 text-sm bg-white" style={{borderColor:'#E5E7EB'}}><option>All</option>{BUSINESS_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
     {loading?<p className="py-16 text-center text-sm" style={{color:'#FFFFFF'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#FFFFFF'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.plan==='premium'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#FFFFFF',color:'#00D9FF'}}>Premium</span>}{b.plan==='pro'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Pro</span>}</div><p className="text-xs" style={{color:'#FFFFFF'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#FFFFFF'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b,'view')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>View profile</button><button onClick={()=>onConnect?.(b,'connect')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white" style={{background:'#FFFFFF'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
     {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
@@ -4589,14 +4619,20 @@ export default function Commissioner() {
   // Without this, /admin was rewritten to index.html correctly but React
   // initialized to the homepage and the Admin screen appeared to disappear.
   const initialAdminRoute = window.location.pathname.replace(/\/+$/, '') === '/admin';
-  const [page, setPage] = useState(initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home'));
+  // Password-reset emails return through one stable callback route. Supabase
+  // puts the recovery session in the URL hash; detect it immediately so the
+  // reset screen can render even if the auth event arrives before/after the
+  // component listener is attached.
+  const initialRecoveryRoute = window.location.pathname.replace(/\/+$/, '') === '/auth/callback' &&
+    /(^|&)type=recovery(&|$)/.test(window.location.hash.replace(/^#/, ''));
+  const [page, setPage] = useState(initialRecoveryRoute ? 'reset-password' : (initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home')));
   const [editingProfile, setEditingProfile] = useState(false);
   // Which setup flow the onboarding screen should show. This is set
   // explicitly whenever we enter onboarding, so a stale /join/... URL left in
   // the address bar can never decide it for us.
   const [onboardingRoleState, setOnboardingRoleState] = useState(initialJoinRole);
   const [pageHistory, setPageHistory] = useState([]);
-  const prevPageRef = React.useRef(initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home'));
+  const prevPageRef = React.useRef(initialRecoveryRoute ? 'reset-password' : (initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home')));
 
   // Back now uses real browser history: every in-app screen change pushes a
   // history entry, and the browser's own Back button (or gesture, or the
@@ -4612,7 +4648,13 @@ export default function Commissioner() {
     // first, and that handler sends the person to 'home'.
     const initialPage = prevPageRef.current;
     if (initialPage !== 'home') {
-      const originalUrl = window.location.pathname + window.location.search;
+      const originalUrl = window.location.pathname + window.location.search + window.location.hash;
+      // Keep the recovery callback URL intact until Supabase exchanges the
+      // token and the user finishes choosing a new password.
+      if (initialPage === 'reset-password') {
+        window.history.replaceState({ cmPage: 'reset-password' }, '', originalUrl);
+        return;
+      }
       window.history.replaceState({ cmPage: 'home' }, '', '/');
       window.history.pushState({ cmPage: initialPage }, '', originalUrl);
     } else {
@@ -4769,6 +4811,10 @@ export default function Commissioner() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      if (initialRecoveryRoute) {
+        setPage('reset-password');
+        return;
+      }
       if (initialJoinRole) {
         if (data.session) {
           // Already logged in and landed on /join/creator or /join/business
@@ -4875,8 +4921,8 @@ export default function Commissioner() {
       )}
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
       {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
-      {page === 'creators' && <Creators session={session} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} />}
-      {page === 'businesses' && <Businesses onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'creators' && <Creators session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} />}
+      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
       {page === 'marketplace' && <Marketplace session={session} onMessage={async (owner, listingId) => {
         if (!session) { setPage('auth'); return; }
         const id = owner?.auth_user_id || owner?.authUserId;

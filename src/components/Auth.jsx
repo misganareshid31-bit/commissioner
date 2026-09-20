@@ -5,7 +5,7 @@ import {
   ShieldCheck, UserRound
 } from 'lucide-react';
 
-const RESEND_COOLDOWN_SECONDS = 30;
+const RESEND_COOLDOWN_SECONDS = 60;
 // Auth/email operations can take longer than a normal API request because Supabase
 // may queue an authentication email. Do not show a false timeout after 10 seconds.
 const AUTH_TIMEOUT_MS = 30000;
@@ -74,6 +74,7 @@ export default function Auth({ onAuthenticated }) {
   const [session, setSession] = useState(null);
   const [checkContext, setCheckContext] = useState('signup');
   const [cooldown, setCooldown] = useState(0);
+  const [resendSent, setResendSent] = useState(false);
 
   useEffect(() => {
     sessionStorage.removeItem('commissioner_intended_role');
@@ -95,27 +96,33 @@ export default function Auth({ onAuthenticated }) {
 
   const clearMessages = () => { setError(''); setNotice(''); };
 
-  const sendConfirmation = async (targetEmail, silent = false) => {
-    if (cooldown) return;
+  const sendConfirmation = async (targetEmail) => {
+    if (loading || cooldown) return;
     clearMessages();
     setLoading(true);
     const { error: resendError } = await withTimeout(
       supabase.auth.resend({
         type: 'signup',
         email: targetEmail,
-        options: { emailRedirectTo: window.location.origin + '/' },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
     );
     setLoading(false);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
 
     if (resendError) {
-      setError(isRateLimitMessage(resendError.message) ? 'Too many attempts. Please wait a minute and try again.' : resendError.message);
+      if (isRateLimitMessage(resendError.message)) {
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+        setError('Please wait a moment before requesting another email.');
+      } else {
+        setError(resendError.message);
+      }
       return;
     }
+    setResendSent(true);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
     setCheckContext('signup');
     setMode('check-email');
-    if (silent) setNotice('Your email is not confirmed yet. A fresh confirmation link has been sent.');
+    setNotice('A new confirmation email was sent.');
   };
 
   const handleSignUp = async (event) => {
@@ -138,7 +145,7 @@ export default function Auth({ onAuthenticated }) {
         password,
         options: {
           data: { role },
-          emailRedirectTo: window.location.origin + '/',
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
     );
@@ -146,10 +153,9 @@ export default function Auth({ onAuthenticated }) {
 
     if (signUpError) {
       const msg = signUpError.message || 'We could not create your account.';
-      if (isRateLimitMessage(msg)) setCooldown(RESEND_COOLDOWN_SECONDS);
       const lower = msg.toLowerCase();
       if (lower.includes('redirect') || lower.includes('url')) {
-        setError(`Supabase blocked the email redirect. Add ${window.location.origin}/ to Authentication → URL Configuration → Redirect URLs.`);
+        setError(`Supabase blocked the email redirect. Add ${window.location.origin}/auth/callback to Authentication → URL Configuration → Redirect URLs.`);
       } else if (lower.includes('smtp') || lower.includes('confirmation')) {
         setError('The account reached Supabase, but email delivery is not configured correctly. Check Authentication → SMTP / email settings.');
       } else {
@@ -167,7 +173,7 @@ export default function Auth({ onAuthenticated }) {
     // automatically. Show the check-email screen even though the session is null.
     // If email confirmation is disabled in Supabase, the user will be signed in directly.
     setEmail(normalizedEmail);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
+    setResendSent(false);
     setCheckContext('signup');
     setMode('check-email');
   };
@@ -188,10 +194,12 @@ export default function Auth({ onAuthenticated }) {
     const msg = signInError.message || 'Sign in failed.';
     if (isUnconfirmedEmailMessage(msg)) {
       setEmail(normalizedEmail);
-      await sendConfirmation(normalizedEmail, true);
+      setCheckContext('signup');
+      setResendSent(false);
+      setNotice('Your email is not confirmed yet. You can request a new confirmation email below.');
+      setMode('check-email');
       return;
     }
-    if (isRateLimitMessage(msg)) setCooldown(RESEND_COOLDOWN_SECONDS);
     setError(isRateLimitMessage(msg) ? 'Too many attempts. Please wait a minute and try again.' : msg);
   };
 
@@ -205,7 +213,7 @@ export default function Auth({ onAuthenticated }) {
     }
 
     setLoading(true);
-    const redirectTo = `${window.location.origin}/reset-password`;
+    const redirectTo = `${window.location.origin}/auth/callback`;
     const { error: resetError } = await withTimeout(
       supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo })
     );
@@ -217,7 +225,7 @@ export default function Auth({ onAuthenticated }) {
       if (lower.includes('redirect') || lower.includes('url')) {
         setError(`Add ${redirectTo} to Supabase Authentication → URL Configuration → Redirect URLs.`);
       } else if (isRateLimitMessage(msg)) {
-        setError('Too many attempts. Please wait a minute and try again.');
+        setError('Please wait a moment before requesting another email.');
       } else {
         setError(msg);
       }
@@ -225,7 +233,7 @@ export default function Auth({ onAuthenticated }) {
     }
 
     setEmail(normalizedEmail);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
+    setResendSent(false);
     setCheckContext('reset');
     setMode('check-email');
   };
@@ -236,11 +244,21 @@ export default function Auth({ onAuthenticated }) {
       clearMessages();
       setLoading(true);
       const { error: resetError } = await withTimeout(
-        supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
+        supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/callback` })
       );
       setLoading(false);
+      if (resetError) {
+        if (isRateLimitMessage(resetError.message)) {
+          setCooldown(RESEND_COOLDOWN_SECONDS);
+          setError('Please wait a moment before requesting another email.');
+        } else {
+          setError(resetError.message);
+        }
+        return;
+      }
+      setResendSent(true);
       setCooldown(RESEND_COOLDOWN_SECONDS);
-      if (resetError) setError(isRateLimitMessage(resetError.message) ? 'Too many attempts. Please wait a minute and try again.' : resetError.message);
+      setNotice('A new password-reset email was sent.');
     } else {
       await sendConfirmation(email);
     }
@@ -282,12 +300,12 @@ export default function Auth({ onAuthenticated }) {
             ? <>We sent a secure password-reset link to <strong>{email}</strong>.</>
             : <>We sent a confirmation link to <strong>{email}</strong>. Open it to activate your Commissioner account.</>}
         </p>
-        <div className="cm-auth-info">Nothing arrived? Check Spam/Junk. You can safely request another email after the timer ends.</div>
+        <div className="cm-auth-info">Nothing arrived? Check Spam or Junk. When you're ready, use Resend email below. A short timer appears only after a resend is actually sent.</div>
         {error && <div className="cm-auth-error" role="alert">{error}</div>}
         {notice && !error && <div className="cm-auth-notice">{notice}</div>}
         <div className="cm-auth-actions">
           <button type="button" className="cm-auth-primary" disabled={loading || cooldown > 0} onClick={resendFromCheck}>
-            {loading ? 'Sending…' : cooldown ? `Resend in ${cooldown}s` : 'Resend email'}
+            {loading ? 'Sending…' : cooldown ? `Resend in ${cooldown}s` : resendSent ? 'Resend email' : 'Resend email'}
           </button>
           <button type="button" className="cm-auth-secondary" onClick={() => { setMode(reset ? 'reset' : 'signup'); clearMessages(); }}>
             <ArrowLeft size={15} /> Back
@@ -378,11 +396,10 @@ export default function Auth({ onAuthenticated }) {
           </button>
         )}
 
-        {cooldown > 0 && <div className="cm-auth-notice">Please wait {cooldown}s before requesting another email.</div>}
         {error && <div className="cm-auth-error" role="alert">{error}</div>}
         {notice && !error && <div className="cm-auth-notice">{notice}</div>}
 
-        <button className="cm-auth-primary cm-auth-submit" disabled={loading || cooldown > 0}>
+        <button className="cm-auth-primary cm-auth-submit" disabled={loading}>
           {loading ? (signup ? 'Creating account…' : 'Signing in…') : (signup ? 'Create account' : 'Sign in')}
         </button>
       </form>
