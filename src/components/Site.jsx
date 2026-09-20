@@ -574,7 +574,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           )}
         </div>
 
-        <button className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>
+        <button className="lg:hidden cm-menu-button w-10 h-10 rounded-xl flex items-center justify-center" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
@@ -1094,7 +1094,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
           <button
             key={n}
             onClick={() => setNiche(n)}
-            className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full border"
+            className={`shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full border cm-category-pill ${niche === n ? 'is-active' : ''}`}
             style={{
               background: niche === n ? '#E6007A' : 'white',
               color: niche === n ? 'white' : '#FFFFFF',
@@ -1417,7 +1417,7 @@ const CreatorInquiryInbox = ({ profile }) => {
   const [items,setItems]=useState([]);
   useEffect(()=>{if(profile?.id)supabase.from('creator_inquiries').select('id,name,email,company,budget,message,status,created_at').eq('creator_profile_id',profile.id).order('created_at',{ascending:false}).limit(20).then(({data})=>setItems(data||[]));},[profile?.id]);
   if(!items.length)return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-1" style={{color:'#FFFFFF'}}>Business inquiries</p><p className="text-xs" style={{color:'#FFFFFF'}}>No inquiries yet. Businesses and clients can reach you through the Work With Me form on your public profile.</p></div>;
-  return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Business inquiries</p><span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{items.length} recent</span></div><div className="flex flex-col gap-3">{items.map(i=><div key={i.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>{i.name}{i.company?` · ${i.company}`:''}</p><p className="text-xs mt-0.5" style={{color:'#FFFFFF'}}>{i.email}{i.budget?` · Budget: ${i.budget}`:''}</p></div><span className="text-[10px] font-semibold uppercase" style={{color:i.status==='new'?'#E6007A':'#FFFFFF'}}>{i.status}</span></div><p className="text-xs leading-6 mt-3" style={{color:'#FFFFFF'}}>{i.message}</p></div>)}</div></div>;
+  return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Business inquiries</p><span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{items.length} recent</span></div><div className="flex flex-col gap-3">{items.map(i=><div key={i.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>{i.name}{i.company?` · ${i.company}`:''}</p><p className="text-xs mt-0.5 cm-workspace-description">{i.email}{i.budget?` · Budget: ${i.budget}`:''}</p></div><span className="text-[10px] font-semibold uppercase" style={{color:i.status==='new'?'#E6007A':'#FFFFFF'}}>{i.status}</span></div><p className="text-xs leading-6 mt-3" style={{color:'#FFFFFF'}}>{i.message}</p></div>)}</div></div>;
 };
 
 const hasProfileValue = (value) => {
@@ -1673,16 +1673,16 @@ const Dashboard = ({ session, activeRole, setPage }) => {
   return (
     <div>
       <div className="max-w-7xl mx-auto px-5 md:px-8 pt-8">
-        <div className="border rounded-2xl px-4 py-3 flex items-center justify-between gap-4" style={{borderColor: isBusiness ? '#DDD6FE' : '#BAE6FD', background: isBusiness ? '#FAF5FF' : '#F0F9FF'}}>
+        <div className="border rounded-2xl px-4 py-3 flex items-center justify-between gap-4 cm-workspace-banner" style={{borderColor: isBusiness ? '#DDD6FE' : '#BAE6FD', background: isBusiness ? '#FAF5FF' : '#F0F9FF'}}>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider" style={{color: isBusiness ? '#7C3AED' : '#036377'}}>
+            <p className="text-[11px] font-bold uppercase tracking-wider cm-workspace-label" style={{color: isBusiness ? '#7C3AED' : '#036377'}}>
               {isBusiness ? 'Business workspace' : 'Creator workspace'}
             </p>
-            <p className="text-xs mt-0.5" style={{color:'#FFFFFF'}}>
+            <p className="text-xs mt-0.5 cm-workspace-description">
               {isBusiness ? 'Manage your company identity, find creators and build partnerships.' : 'Manage your personal creator identity, discover businesses and grow partnerships.'}
             </p>
           </div>
-          <span className="hidden sm:inline-flex text-[11px] font-semibold px-2.5 py-1.5 rounded-full" style={{background:'#fff', color: isBusiness ? '#7C3AED' : '#036377'}}>
+          <span className="hidden sm:inline-flex text-[11px] font-semibold px-2.5 py-1.5 rounded-full cm-workspace-pill" style={{background:'#fff', color: isBusiness ? '#7C3AED' : '#036377'}}>
             {isBusiness ? 'Business' : 'Creator'}
           </span>
         </div>

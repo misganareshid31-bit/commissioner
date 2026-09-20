@@ -978,3 +978,59 @@ html, body { color: #F7FAFF !important; }
   color: #07152F !important;
   -webkit-text-fill-color: #07152F !important;
 }
+
+/* === Bright professional visibility pass (2026-09-20) === */
+:root { color-scheme: light !important; }
+html, body { background: #F7FBFF !important; color: #17324D !important; }
+.cm-root {
+  background:
+    radial-gradient(900px 500px at 100% 0%, rgba(0, 217, 255, .16), transparent 62%),
+    radial-gradient(760px 500px at 0% 15%, rgba(230, 0, 122, .11), transparent 60%),
+    linear-gradient(135deg, #F7FBFF 0%, #F8F7FF 48%, #FFF8FC 100%) !important;
+  color: #17324D !important;
+}
+.cm-page-canvas {
+  background:
+    radial-gradient(720px 420px at 94% 4%, rgba(0,217,255,.10), transparent 64%),
+    radial-gradient(620px 420px at 4% 24%, rgba(230,0,122,.075), transparent 64%),
+    linear-gradient(180deg, #F9FCFF 0%, #F8F9FF 52%, #FFF9FC 100%) !important;
+}
+.cm-root header.bg-white\/90 {
+  background: rgba(255,255,255,.94) !important;
+  box-shadow: 0 8px 30px rgba(33,61,94,.08);
+}
+.cm-root header.bg-white\/90 nav button,
+.cm-root header.bg-white\/90 > div > button,
+.cm-root header.bg-white\/90 [aria-label="Notifications"],
+.cm-root header.bg-white\/90 [aria-label="Messages"] {
+  color: #17324D !important;
+  -webkit-text-fill-color: #17324D !important;
+}
+.cm-root header.bg-white\/90 .text-white { color: #17324D !important; }
+.cm-root .cm-brand-text { color: transparent !important; -webkit-text-fill-color: transparent !important; }
+.cm-root .cm-category-pill { color: #23425F !important; background: rgba(255,255,255,.92); }
+.cm-root .cm-category-pill.is-active { color: #fff !important; background: linear-gradient(135deg,#E6007A,#C9009C) !important; }
+.cm-root .cm-workspace-banner { color: #23425F !important; }
+.cm-root .cm-workspace-banner .cm-workspace-description { color: #49657D !important; }
+.cm-root .cm-workspace-banner .cm-workspace-label { color: #7C3AED !important; }
+.cm-root .cm-workspace-banner .cm-workspace-pill { color: #7C3AED !important; }
+.cm-root .cm-message-action {
+  background: linear-gradient(135deg,#E6007A,#7C3AED 52%,#00A8C4) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(124,58,237,.20);
+}
+.cm-root .cm-message-action svg { color: #fff !important; stroke: currentColor; }
+.cm-root .cm-menu-button {
+  color: #17324D !important;
+  background: linear-gradient(135deg,#ECFEFF,#FFF0F8) !important;
+  border: 1px solid #CDEAF2 !important;
+  box-shadow: 0 5px 16px rgba(33,61,94,.10);
+}
+.cm-root .cm-menu-button svg { stroke: #17324D !important; }
+/* Text that was explicitly white on light surfaces becomes readable ink. */
+.cm-root .bg-white [style*="color:'#FFFFFF'"],
+.cm-root .bg-white [style*="color: '#FFFFFF'"] { color: #23425F !important; -webkit-text-fill-color: #23425F !important; }
+.cm-root .bg-white button[style*="background:'#E6007A'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.cm-root .bg-white button[style*="background: '#E6007A'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.cm-root .bg-white button[style*="background:'#00D9FF'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.cm-root .bg-white button[style*="background: '#00D9FF'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
