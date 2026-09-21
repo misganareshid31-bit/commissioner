@@ -1,6 +1,28 @@
 -- Commissioner: fix Admin Site Controls RPC signature and targeted Connect/Message support
 -- 2026-09-22
 
+-- Create the singleton table first. The RPC returns this table's composite type,
+-- so PostgreSQL must know the type before the function is created.
+create table if not exists public.commissioner_site_controls (
+  id boolean primary key default true,
+  site_closed boolean not null default false,
+  site_message text not null default 'Commissioner is temporarily under development. Please check back soon.',
+  disabled_pages jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now(),
+  constraint commissioner_site_controls_singleton check (id = true)
+);
+
+insert into public.commissioner_site_controls (id)
+values (true)
+on conflict (id) do nothing;
+
+alter table public.commissioner_site_controls enable row level security;
+
+drop policy if exists "Anyone can read site controls" on public.commissioner_site_controls;
+create policy "Anyone can read site controls"
+on public.commissioner_site_controls for select
+using (true);
+
 -- The deployed database may contain an older overload whose argument order was:
 --   (jsonb, boolean, text)
 -- while the current UI calls:
