@@ -4392,7 +4392,7 @@ const AdminPanel = ({ session }) => {
         </>
       )}
       </>}
-      </div>
+      </div>}
       </div>
   );
 };
@@ -5097,8 +5097,8 @@ export default function Commissioner() {
           }} />
         </div>
       )}
-      </main>
       </>}
+      </main>
       {page !== 'messages' && page !== 'onboarding' && page !== 'auth' && page !== 'account' && !availabilityBlocked && <Footer setPage={setPage} />}
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border rounded-xl px-5 py-3 shadow-lg text-sm font-medium" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>
