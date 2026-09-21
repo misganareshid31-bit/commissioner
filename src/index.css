@@ -702,7 +702,7 @@ body { min-width: 320px; }
   display: none !important;
 }
 
-/* === FINAL ZERO-BLACK-TEXT PASS — 2026-09-18 ===
+/* === FINAL ZERO-BLACK-TEXT PASS — 2026-09-18 === */
 /* React serializes JSX inline colors as rgb(...), so catch those too. */
 .cm-root [style*="rgb(0, 0, 0)"],
 .cm-root [style*="rgb(17, 24, 39)"],
@@ -1125,7 +1125,7 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 .cm-marketplace-page .bg-white h3,.cm-marketplace-page .bg-white p[style*="#FFFFFF"],.cm-marketplace-page .bg-white span[style*="#FFFFFF"] { color:#172033 !important; }
 .cm-marketplace-page .bg-white p.text-xs[style*="#FFFFFF"] { color:#526078 !important; }
 
-/* === Admin readability hardening (2026-09-22) ===
+/* === Admin readability hardening (2026-09-22) === */
 .cm-admin-shell { color:#172033 !important; }
 .cm-admin-shell h1,
 .cm-admin-shell h2,
@@ -1158,3 +1158,4 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 .cm-admin-shell button[style*="background:'#07152F'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
 .cm-admin-shell .cm-admin-panel-card button[style*="background: '#E6007A'"],
 .cm-admin-shell .cm-admin-panel-card button[style*="background:'#E6007A'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
