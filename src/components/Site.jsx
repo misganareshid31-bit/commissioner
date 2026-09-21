@@ -4047,12 +4047,12 @@ const AdminPanel = ({ session }) => {
       <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
         <div className="flex items-start justify-between gap-3 mb-2">
           <div>
-            <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#FFFFFF' }}>
+            <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: '#172033' }}>
               {r.displayName || <span style={{ color: '#9CA3AF' }}>Unnamed</span>}
               {r.verified && <VerifiedBadge />}
               <KindTag kind={r.kind} />
             </p>
-            <p className="text-xs" style={{ color: '#FFFFFF' }}>
+            <p className="text-xs" style={{ color: '#172033' }}>
               {r.username ? `@${r.username}` : ''} {r.displayTag ? `· ${r.displayTag}` : ''} {r.city ? `· ${r.city}` : ''}
             </p>
           </div>
@@ -4064,11 +4064,11 @@ const AdminPanel = ({ session }) => {
               <button onClick={() => writeNfc(rowLink)} disabled={nfcWriting} className="text-[11px] font-semibold disabled:opacity-50" style={{ color: '#99154F' }}>
                 {nfcWriting ? 'Writing…' : 'Write NFC'}
               </button>
-              {rowSetupLink && <button onClick={() => copyLink(rowSetupLink)} className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>Copy setup link</button>}
+              {rowSetupLink && <button onClick={() => copyLink(rowSetupLink)} className="text-[11px] font-semibold" style={{ color: '#172033' }}>Copy setup link</button>}
             </div>
           )}
         </div>
-        {r.bio && <p className="text-xs mb-3" style={{ color: '#FFFFFF' }}>{r.bio}</p>}
+        {r.bio && <p className="text-xs mb-3" style={{ color: '#172033' }}>{r.bio}</p>}
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => deletePage(r)}
@@ -4085,7 +4085,7 @@ const AdminPanel = ({ session }) => {
               className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
               style={r.approved
                 ? { background: '#E9FBEF', color: '#0E7A3B', borderColor: '#0E7A3B' }
-                : { background: 'white', color: '#FFFFFF', borderColor: '#E5E7EB' }}
+                : { background: 'white', color: '#172033', borderColor: '#E5E7EB' }}
             >
               {r.approved ? 'Approved ✓' : 'Approve'}
             </button>
@@ -4094,13 +4094,13 @@ const AdminPanel = ({ session }) => {
             className="text-[11px] font-semibold px-3 py-1.5 rounded-full border"
             style={r.verified
               ? { background: '#E0FBFF', color: '#036377', borderColor: '#00D9FF' }
-              : { background: '#F9FAFB', color: '#FFFFFF', borderColor: '#E5E7EB' }}
+              : { background: '#F9FAFB', color: '#172033', borderColor: '#E5E7EB' }}
           >
             {r.verified ? 'Verified ✓' : 'Verification required'}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t" style={{ borderColor: '#F3F4F6' }}>
-          <span className="text-[11px] font-semibold" style={{ color: '#FFFFFF' }}>Plan:</span>
+          <span className="text-[11px] font-semibold" style={{ color: '#172033' }}>Plan:</span>
           <select
             value={r.plan === 'elite' ? 'premium' : (r.plan || 'basic')}
             disabled={busyId === r.id + 'plan'}
@@ -4120,7 +4120,7 @@ const AdminPanel = ({ session }) => {
             disabled={busyId === r.id + 'plan'}
             onChange={e => setPlan(r, r.plan === 'elite' ? 'premium' : (r.plan || 'basic'), e.target.value ? new Date(e.target.value).toISOString() : null)}
             className="text-[11px] border rounded-lg px-2 py-1"
-            style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}
+            style={{ borderColor: '#E5E7EB', color: '#172033' }}
             title="Plan expires on (leave blank for no expiry)"
           />
           {r.plan_expires_at && <span className="text-[10px]" style={{ color: '#9CA3AF' }}>expires {new Date(r.plan_expires_at).toLocaleDateString()}</span>}
@@ -4130,13 +4130,13 @@ const AdminPanel = ({ session }) => {
   };
 
   if (!adminChecked) {
-    return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Checking access…</div>;
+    return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#172033' }}>Checking access…</div>;
   }
   if (!isAdmin) {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
-        <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>Not authorized</p>
-        <p className="text-xs" style={{ color: '#FFFFFF' }}>This page is only available to the site admin.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>Not authorized</p>
+        <p className="text-xs" style={{ color: '#172033' }}>This page is only available to the site admin.</p>
       </div>
     );
   }
@@ -4145,8 +4145,8 @@ const AdminPanel = ({ session }) => {
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-10 cm-admin-shell">
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="cm-display font-bold text-2xl" style={{ color: '#FFFFFF' }}>Admin</h1>
-          <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Create gift profiles, prepare NFC cards, and approve published profiles.</p>
+          <h1 className="cm-display font-bold text-2xl" style={{ color: '#172033' }}>Admin</h1>
+          <p className="text-xs mt-1" style={{ color: '#172033' }}>Create gift profiles, prepare NFC cards, and approve published profiles.</p>
         </div>
         <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>
           <Zap size={12} /> NTAG215 ready
@@ -4295,10 +4295,10 @@ const AdminPanel = ({ session }) => {
             <ImageUploadTile label="Profile photo" shape="circle" previewUrl={avatarPreview} onFile={f => handleAdminImage(f, 'avatar')} />
             <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={f => handleAdminImage(f, 'banner')} />
           </div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Bio</label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#172033' }}>Bio</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell people about this person and what they do" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none mb-4" style={{ borderColor: '#E5E7EB' }} />
           {claimType === 'creator' && <>
-            <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>Social platforms</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#172033' }}>Social platforms</p>
             <div className="flex flex-col gap-2 mb-4">
               {PLATFORM_LIST.map(row => <div key={row.p} className="grid grid-cols-3 gap-2">
                 <input placeholder={`${row.p} handle`} value={socials[row.p]?.handle || ''} onChange={e => updateSocial(row.p, 'handle', e.target.value)} className="border rounded-lg px-3 py-2 text-xs outline-none" style={{ borderColor: '#E5E7EB' }} />
@@ -4306,7 +4306,7 @@ const AdminPanel = ({ session }) => {
                 <input placeholder="Engagement %" value={socials[row.p]?.engagement || ''} onChange={e => updateSocial(row.p, 'engagement', e.target.value)} className="border rounded-lg px-3 py-2 text-xs outline-none" style={{ borderColor: '#E5E7EB' }} />
               </div>)}
             </div>
-            <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>Audience & metrics</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#172033' }}>Audience & metrics</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               <input placeholder="Audience age" value={audience.age} onChange={e => setAudience(a => ({...a, age:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
               <input placeholder="Audience gender" value={audience.gender} onChange={e => setAudience(a => ({...a, gender:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
@@ -4314,7 +4314,7 @@ const AdminPanel = ({ session }) => {
               <input placeholder="Average views" value={audience.avg_views} onChange={e => setAudience(a => ({...a, avg_views:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
               <input placeholder="Average reach" value={audience.avg_reach} onChange={e => setAudience(a => ({...a, avg_reach:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />
             </div>
-            <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>Services & pricing</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#172033' }}>Services & pricing</p>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {Object.keys(pricing).map(k => <input key={k} placeholder={k.replace('_',' ')} value={pricing[k]} onChange={e => setPricing(p => ({...p,[k]:e.target.value}))} className="border rounded-lg px-3 py-2 text-xs" style={{borderColor:'#E5E7EB'}} />)}
             </div>
@@ -4338,7 +4338,7 @@ const AdminPanel = ({ session }) => {
             <p className="text-xs font-semibold mb-2" style={{ color: '#036377' }}>Official creator page — write this URL to the NFC card</p>
             <div className="flex items-center gap-2">
               <p className="text-xs flex-1 truncate cm-mono" style={{ color: '#036377' }}>{newLink}</p>
-              <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#FFFFFF' }}>Open</button>
+              <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#172033' }}>Open</button>
               <button onClick={() => copyLink(newLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>
                 {copied === newLink ? 'Copied!' : 'Copy'}
               </button>
@@ -4358,7 +4358,7 @@ const AdminPanel = ({ session }) => {
             {setupLink && <div className="mt-4 pt-3 border-t" style={{ borderColor: '#BFEFF5' }}>
               <p className="text-[11px] font-semibold mb-1" style={{ color: '#036377' }}>Private setup link (give this to the recipient)</p>
               <div className="flex items-center gap-2">
-                <p className="text-[11px] flex-1 truncate cm-mono" style={{ color: '#FFFFFF' }}>{setupLink}</p>
+                <p className="text-[11px] flex-1 truncate cm-mono" style={{ color: '#172033' }}>{setupLink}</p>
                 <button onClick={() => copyLink(setupLink)} className="text-xs font-semibold shrink-0" style={{ color: '#036377' }}>{copied === setupLink ? 'Copied!' : 'Copy setup link'}</button>
               </div>
             </div>}
@@ -4367,28 +4367,28 @@ const AdminPanel = ({ session }) => {
       </div>
 
       {loadingRows ? (
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>Loading…</p>
+        <p className="text-sm" style={{ color: '#172033' }}>Loading…</p>
       ) : (
         <>
           {pending.length > 0 && (
             <div className="mb-8">
-              <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Pending approval ({pending.length})</p>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#172033' }}>Pending approval ({pending.length})</p>
               <div className="flex flex-col gap-3">{pending.map(r => <RowCard key={r.kind + r.id} r={r} />)}</div>
             </div>
           )}
           {waiting.length > 0 && (
             <div className="mb-8">
-              <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Gift/NFC cards not yet claimed ({waiting.length})</p>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#172033' }}>Gift/NFC cards not yet claimed ({waiting.length})</p>
               <div className="flex flex-col gap-3">{waiting.map(r => <RowCard key={r.kind + r.id} r={r} />)}</div>
             </div>
           )}
           {live.length > 0 && (
             <div>
-              <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Live on the site ({live.length})</p>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#172033' }}>Live on the site ({live.length})</p>
               <div className="flex flex-col gap-3">{live.map(r => <RowCard key={r.kind + r.id} r={r} />)}</div>
             </div>
           )}
-          {rows.length === 0 && <p className="text-sm" style={{ color: '#FFFFFF' }}>No profiles yet.</p>}
+          {rows.length === 0 && <p className="text-sm" style={{ color: '#172033' }}>No profiles yet.</p>}
         </>
       )}
       </>}

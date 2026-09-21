@@ -1124,3 +1124,37 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 .cm-marketplace-page .bg-white button[style*="background: '#FFFFFF'"] { background:#eef3ff !important; color:#172033 !important; }
 .cm-marketplace-page .bg-white h3,.cm-marketplace-page .bg-white p[style*="#FFFFFF"],.cm-marketplace-page .bg-white span[style*="#FFFFFF"] { color:#172033 !important; }
 .cm-marketplace-page .bg-white p.text-xs[style*="#FFFFFF"] { color:#526078 !important; }
+
+/* === Admin readability hardening (2026-09-22) ===
+.cm-admin-shell { color:#172033 !important; }
+.cm-admin-shell h1,
+.cm-admin-shell h2,
+.cm-admin-shell h3,
+.cm-admin-shell p,
+.cm-admin-shell label,
+.cm-admin-shell span,
+.cm-admin-shell button,
+.cm-admin-shell input,
+.cm-admin-shell select,
+.cm-admin-shell textarea { text-shadow:none; }
+.cm-admin-shell .cm-admin-panel-card,
+.cm-admin-shell .cm-admin-tab-content { color:#172033; }
+.cm-admin-shell input,
+.cm-admin-shell select,
+.cm-admin-shell textarea { color:#172033 !important; -webkit-text-fill-color:#172033 !important; background:#fff !important; }
+.cm-admin-shell input::placeholder,
+.cm-admin-shell textarea::placeholder { color:#64748B !important; -webkit-text-fill-color:#64748B !important; }
+.cm-admin-shell .cm-admin-tabs button { color:#334155 !important; -webkit-text-fill-color:#334155 !important; }
+.cm-admin-shell .cm-admin-tabs button.is-active { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.cm-admin-shell .cm-admin-secondary-btn,
+.cm-admin-shell .cm-admin-small-btn,
+.cm-admin-shell .cm-admin-filter { color:#24344E !important; -webkit-text-fill-color:#24344E !important; }
+.cm-admin-shell .cm-admin-filter.is-active,
+.cm-admin-shell .cm-admin-primary-btn { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.cm-admin-shell .cm-admin-small-btn.danger { color:#B42318 !important; -webkit-text-fill-color:#B42318 !important; }
+.cm-admin-shell [style*="color: '#FFFFFF'"],
+.cm-admin-shell [style*="color:'#FFFFFF'"] { color:#172033 !important; -webkit-text-fill-color:#172033 !important; }
+.cm-admin-shell button[style*="background: '#07152F'"],
+.cm-admin-shell button[style*="background:'#07152F'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
+.cm-admin-shell .cm-admin-panel-card button[style*="background: '#E6007A'"],
+.cm-admin-shell .cm-admin-panel-card button[style*="background:'#E6007A'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
