@@ -1304,7 +1304,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
             ) : filtered.map(c => (
               <button key={c.id} onClick={() => selectConversation(c.id)} className="w-full text-left flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: '#F3F4F6', background: active === c.id ? '#FDE7F1' : 'white' }}>
                 <Avatar name={c.other_name || 'Member'} size={40} tone={c.tone || 0} src={c.other_avatar_url} />
-                <div className="flex-1 min-w-0"><div className="flex items-center justify-between"><p className="text-sm font-semibold truncate" style={{ color: '#FFFFFF' }}>{c.other_name || 'Commissioner member'}</p><span className="text-[11px] shrink-0" style={{ color: '#9CA3AF' }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleDateString() : ''}</span></div><p className="text-xs truncate" style={{ color: c.unread_count ? '#FFFFFF' : '#FFFFFF', fontWeight: c.unread_count ? 600 : 400 }}>{c.last_message || 'No messages yet'}</p></div>
+                <div className="flex-1 min-w-0"><div className="flex items-center justify-between"><p className="text-sm font-semibold truncate" style={{ color: '#FFFFFF' }}>{c.other_name || 'Commissioner member'}</p><span className="text-[11px] shrink-0" style={{ color: '#9CA3AF' }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleDateString() : ''}</span></div><p className="text-xs truncate" style={{ color: c.unread_count ? '#172033' : '#526078', fontWeight: c.unread_count ? 600 : 400 }}>{c.last_message || 'No messages yet'}</p></div>
                 {c.unread_count > 0 && <span style={{ background: '#E6007A' }} className="min-w-5 h-5 px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0">{c.unread_count}</span>}
               </button>
             ))}
@@ -1317,7 +1317,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
             <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#E5E7EB' }}>
               <div className="flex items-center gap-3"><Avatar name={activeConvo.other_name || 'Member'} size={36} tone={activeConvo.tone || 0} src={activeConvo.other_avatar_url} /><div><p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{activeConvo.other_name || 'Commissioner member'}</p><p className="text-[11px]" style={{ color: '#FFFFFF' }}>{activeConvo.other_type === 'business' ? 'Business' : 'Creator'}</p></div></div>
               <div className="flex items-center gap-2">
-                <button style={{ background: '#E0FBFF', color: '#036377' }} className="text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5"><Briefcase size={13} /> Campaign workspace</button>
+                
                 <div className="relative">
                   <button onClick={() => setThreadMenuOpen(o => !o)} className="w-8 h-8 rounded-lg flex items-center justify-center border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}><MoreHorizontal size={15} /></button>
                   {threadMenuOpen && (
@@ -1332,10 +1332,10 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
             <div className="flex-1 overflow-y-auto cm-scroll px-5 py-5 flex flex-col gap-3" style={{ background: '#F8FAFC' }}>
               {threadLoading ? <p className="text-center text-xs" style={{ color: '#FFFFFF' }}>Loading…</p> : messages.map(m => {
                 const mine = m.sender_id === session.user.id;
-                return <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[78%] px-4 py-2.5 rounded-2xl text-sm" style={{ background: mine ? '#E6007A' : 'white', color: mine ? 'white' : '#FFFFFF', border: mine ? 'none' : '1px solid #E5E7EB', borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6 }}><p className="whitespace-pre-wrap break-words">{m.body}</p><p className="text-[10px] mt-1 opacity-70 text-right">{new Date(m.created_at).toLocaleString()}</p></div></div>;
+                return <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[78%] px-4 py-2.5 rounded-2xl text-sm" style={{ background: mine ? '#E6007A' : 'white', color: mine ? 'white' : '#172033', border: mine ? 'none' : '1px solid #E5E7EB', borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6 }}><p className="whitespace-pre-wrap break-words">{m.body}</p><p className="text-[10px] mt-1 opacity-70 text-right">{new Date(m.created_at).toLocaleString()}</p></div></div>;
               })}
             </div>
-            <form onSubmit={e => { e.preventDefault(); send(); }} className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }}><button type="button" style={{ color: '#00A8CC' }} title="Attachments are coming next"><Paperclip size={18} /></button><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message" className="flex-1 outline-none text-sm px-2" maxLength={4000} /><button type="submit" disabled={sending || !draft.trim()} style={{ background: '#E6007A', opacity: sending || !draft.trim() ? .5 : 1 }} className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0"><Send size={15} /></button></form>
+            <form onSubmit={e => { e.preventDefault(); send(); }} className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: '#E5E7EB' }}><input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message" className="flex-1 outline-none text-sm px-2" maxLength={4000} /><button type="submit" disabled={sending || !draft.trim()} style={{ background: '#E6007A', opacity: sending || !draft.trim() ? .5 : 1 }} className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0"><Send size={15} /></button></form>
           </div>
         )}
       </div>
@@ -3412,9 +3412,19 @@ const ClaimGate = ({ token, session, setPage }) => {
 
   if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Loading NFC profile…</div>;
   if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
-  if (state.kind === 'public_business') return <PublicBusinessProfile profile={state.profile} />;
-  if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#FFFFFF' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
-  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#FFFFFF' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest supabase-schema.sql migration, then try again.</p></div>;
+  if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} />;
+  if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
+  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest NFC ownership hardening migration, then try again.</p></div>;
+  if (!session) return (
+    <div className="max-w-lg mx-auto px-5 md:px-8 py-24">
+      <div className="bg-white border rounded-2xl p-7 text-center" style={{borderColor:'#E5E7EB'}}>
+        <ShieldCheck size={30} className="mx-auto mb-4" style={{color:'#7C3AED'}}/>
+        <h1 className="cm-display font-bold text-2xl" style={{color:'#172033'}}>Claim your Commissioner card</h1>
+        <p className="text-sm mt-2 leading-6" style={{color:'#526078'}}>Sign in or create your Commissioner account first. Your account will be linked to this gifted NFC profile so only you can edit it.</p>
+        <button onClick={()=>{ const returnTo=`/?claim=${encodeURIComponent(token)}`; window.location.href=`/?auth=1&returnTo=${encodeURIComponent(returnTo)}`; }} className="mt-6 text-white text-sm font-semibold px-5 py-3 rounded-xl" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED,#00A8C4)'}}>Sign in to claim</button>
+      </div>
+    </div>
+  );
   return state.kind === 'business' ? <BusinessClaimForm token={token} /> : <CreatorClaimForm token={token} />;
 };
 
@@ -3423,7 +3433,7 @@ const ClaimGate = ({ token, session, setPage }) => {
 /* ========================= Commissioner trust + marketplace ========================= */
 
 const TrustChip = ({ children, tone='cyan' }) => {
-  const tones={green:['#E9FBEF','#0E7A3B'],cyan:['#E0FBFF','#036377'],amber:['#FFF7E6','#9A4A0C'],gray:['#F3F4F6','#FFFFFF']};
+  const tones={green:['#E9FBEF','#0E7A3B'],cyan:['#E0FBFF','#036377'],amber:['#FFF7E6','#9A4A0C'],gray:['#F3F4F6','#526078']};
   const [bg,fg]=tones[tone]||tones.cyan;
   return <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{background:bg,color:fg}}><CheckCircle2 size={12}/>{children}</span>;
 };

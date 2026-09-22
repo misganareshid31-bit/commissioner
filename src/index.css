@@ -1159,3 +1159,64 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 .cm-admin-shell .cm-admin-panel-card button[style*="background: '#E6007A'"],
 .cm-admin-shell .cm-admin-panel-card button[style*="background:'#E6007A'"] { color:#fff !important; -webkit-text-fill-color:#fff !important; }
 
+
+/* === FINAL LAUNCH READABILITY + INTERACTION HARDENING — 2026-09-22 ===
+   White surfaces must never inherit the old white-on-white text pass.
+   Dark canvas sections keep their white typography; only white/light surfaces
+   are corrected here. */
+.cm-root .bg-white,
+.cm-root [style*="background: #FFFFFF"],
+.cm-root [style*="background:'#FFFFFF'"],
+.cm-root [style*="background: rgb(255, 255, 255)"] {
+  color: #172033;
+}
+.cm-root .bg-white [style*="color: #FFFFFF"],
+.cm-root .bg-white [style*="color:'#FFFFFF'"],
+.cm-root .bg-white [style*="color: rgb(255, 255, 255)"],
+.cm-root .bg-white .text-white {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+.cm-root [style*="background: #FFFFFF"] [style*="color: #FFFFFF"],
+.cm-root [style*="background:'#FFFFFF'"] [style*="color:'#FFFFFF'"],
+.cm-root [style*="background: rgb(255, 255, 255)"] [style*="color: rgb(255, 255, 255)"] {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+/* White buttons with white labels were an actual visibility defect. */
+.cm-root button.text-white[style*="background: #FFFFFF"],
+.cm-root button.text-white[style*="background:'#FFFFFF'"],
+.cm-root button.text-white[style*="background: rgb(255, 255, 255)"] {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: linear-gradient(135deg,#E6007A,#7C3AED,#00A8C4) !important;
+  border: 0 !important;
+}
+/* Form controls always use dark ink on light inputs. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  color: #172033;
+  -webkit-text-fill-color: #172033;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder,
+.cm-root select::placeholder {
+  color: #718096 !important;
+  -webkit-text-fill-color: #718096 !important;
+}
+/* Neutral buttons/links on light surfaces remain readable. */
+.cm-root .bg-white button:not(.text-white) { color: #172033; }
+.cm-root .bg-white a { color: #036377; }
+.cm-root .bg-white .text-gray-700 { color: #334155 !important; }
+.cm-root .bg-white .text-gray-600 { color: #475569 !important; }
+.cm-root .bg-white .text-gray-500 { color: #64748B !important; }
+/* Preserve intentionally colored labels, badges and icons. */
+.cm-root .bg-white [class*="text-red"],
+.cm-root .bg-white [class*="text-green"],
+.cm-root .bg-white [class*="text-purple"],
+.cm-root .bg-white [class*="text-cyan"] { -webkit-text-fill-color: currentColor; }
+
+/* Better keyboard/focus affordance for the launch build. */
+.cm-root button:disabled { cursor: not-allowed; }
+.cm-root a, .cm-root button { -webkit-tap-highlight-color: transparent; }

@@ -40,3 +40,16 @@ The Admin page now has **New open-ended gift profile**. Leave the recipient name
 ## NTAG215 writing
 
 The built-in **Write to NTAG215** button uses the browser Web NFC API and writes a standard URL/NDEF record. Web NFC writing requires an HTTPS deployment and a supported NFC-capable Android browser/device (commonly Chrome). Desktop browsers generally cannot physically write an NFC tag. If Web NFC is unavailable, use the **Copy** button with an NFC-writing app.
+
+## 2026-09-22 ownership hardening
+
+Before distributing gifted NFC cards, run `20260922_NFC_OWNERSHIP_HARDENING.sql` in Supabase SQL Editor after the existing Commissioner migrations. Gifted claim links remain permanent, but claiming now requires a signed-in Commissioner account and binds the profile to that account. The anonymous NFC lookup no longer returns the claim token or account owner ID.
+
+Recommended acceptance test:
+1. Create a new open-ended gift profile in Admin → NFC.
+2. Open its claim URL while signed out: the site must require sign-in.
+3. Create/sign in to the recipient account and return to the same URL.
+4. Complete the profile and save it.
+5. Confirm the profile's official URL is `/creator/<id>` or `/business/<id>`.
+6. Tap the same NFC card again. It must open the official profile, not the setup form.
+7. Sign out and sign in as a different account. The second account must not be able to edit the gifted profile.

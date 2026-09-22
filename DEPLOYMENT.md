@@ -120,3 +120,7 @@ This migration makes registered Creator and Business profiles publicly viewable 
 
 ### Final admin verification controls
 After the existing migrations, run `20260911_ADMIN_VERIFICATION_PLAN_FINAL.sql` last. It normalizes admin-assigned plans to **Basic, Pro, Premium**, adds atomic verify+plan and unverify RPCs, and keeps plan/verification changes admin-only.
+
+### NFC launch-hardening migration — 2026-09-22
+
+Run `20260922_NFC_OWNERSHIP_HARDENING.sql` after the existing migrations before distributing gifted cards. It makes NFC claim ownership authenticated, binds the gifted profile to the recipient's `auth.uid()`, and limits the anonymous NFC resolver to public profile fields.
