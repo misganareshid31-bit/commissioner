@@ -1221,7 +1221,7 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 .cm-root button:disabled { cursor: not-allowed; }
 .cm-root a, .cm-root button { -webkit-tap-highlight-color: transparent; }
 
-/* === UNIFIED PROFILE SURFACES — 2026-09-22 ===
+/* === UNIFIED PROFILE SURFACES — 2026-09-22 === */
 .cm-profile-card{position:relative;overflow:hidden;background:#fff;border:1px solid #D9E2EE;border-radius:24px;box-shadow:0 14px 38px rgba(30,48,80,.10);display:flex;flex-direction:column;min-height:100%;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
 .cm-profile-card:hover{transform:translateY(-3px);box-shadow:0 20px 48px rgba(30,48,80,.14);border-color:#C9D7E8}
 .cm-profile-cover{height:108px;position:relative;overflow:hidden;background:linear-gradient(135deg,#EEF7FF,#F8F4FF)}
