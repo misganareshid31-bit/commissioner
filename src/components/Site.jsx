@@ -4119,15 +4119,16 @@ const AdminPanel = ({ session }) => {
       </div>
 
       <div className="cm-admin-tabs">
-        {[['overview','Overview'],['accounts','Accounts'],['verification','Verification'],['nfc','NFC'],['campaigns','Campaigns'],['marketplace','Marketplace'],['feedback','Feedback'],['controls','Site controls']].map(([id,label]) => <button key={id} onClick={()=>setAdminTab(id)} className={adminTab===id?'is-active':''}>{label}{id==='feedback' ? <span className="cm-admin-tab-dot">●</span> : null}</button>)}
+        {[['overview','Overview'],['accounts','Accounts'],['verification','Verification'],['nfc','NFC'],['campaigns','Campaigns'],['marketplace','Marketplace'],['promotions','Promotions'],['feedback','Feedback'],['controls','Site controls']].map(([id,label]) => <button key={id} onClick={()=>setAdminTab(id)} className={adminTab===id?'is-active':''}>{label}{id==='feedback' ? <span className="cm-admin-tab-dot">●</span> : null}</button>)}
       </div>
 
       {adminTab==='campaigns' && <AdminCampaignManager />}
       {adminTab==='marketplace' && <AdminMarketplaceManager />}
+      {adminTab==='promotions' && <AdminPromotions />}
       {adminTab==='feedback' && <AdminFeedbackInbox />}
       {adminTab==='controls' && <AdminSiteControls />}
 
-      {!['feedback','controls','campaigns','marketplace'].includes(adminTab) && <div className="cm-admin-tab-content">
+      {!['feedback','controls','campaigns','marketplace','promotions'].includes(adminTab) && <div className="cm-admin-tab-content">
 
       {setupStatus === 'checking' && (
         <div className="border rounded-2xl p-4 mb-6" style={{ borderColor: '#BAE6FD', background: '#F0F9FF' }}>
@@ -4416,6 +4417,51 @@ const AdminFeedbackInbox = () => {
       <div className="flex gap-2 shrink-0">{r.status !== 'reviewed' && <button disabled={busy===r.id} onClick={()=>update(r.id,'reviewed')} className="cm-admin-small-btn">{busy===r.id?'Saving…':'Mark reviewed'}</button>}{r.status !== 'archived' && <button disabled={busy===r.id} onClick={()=>update(r.id,'archived')} className="cm-admin-small-btn danger">Archive</button>}</div>
     </article>)}</div>}
   </section>;
+};
+
+
+const AdminPromotions = () => {
+  const empty = { advertiser_name:'', headline:'', description:'', image_url:'', button_text:'Learn more', destination_url:'', placement:'all', audience:'everyone', starts_at:'', ends_at:'', status:'draft' };
+  const [rows,setRows]=useState([]); const [form,setForm]=useState(empty); const [editing,setEditing]=useState(null); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [message,setMessage]=useState('');
+  const load=async()=>{setLoading(true);const {data,error}=await supabase.rpc('admin_list_promotions');setLoading(false);if(error){setMessage(error.message||'Could not load promotions.');return;}setRows(data||[])};
+  useEffect(()=>{load()},[]);
+  const save=async(e)=>{e.preventDefault();setSaving(true);setMessage('');
+    const args={p_advertiser_name:form.advertiser_name,p_headline:form.headline,p_description:form.description,p_image_url:form.image_url,p_button_text:form.button_text,p_destination_url:form.destination_url,p_placement:form.placement,p_audience:form.audience,p_starts_at:form.starts_at?new Date(form.starts_at).toISOString():new Date().toISOString(),p_ends_at:form.ends_at?new Date(form.ends_at).toISOString():null,p_status:form.status};
+    const result=editing?await supabase.rpc('admin_update_promotion',{p_id:editing,...args}):await supabase.rpc('admin_create_promotion',args);setSaving(false);
+    if(result.error){setMessage(result.error.message||'Could not save promotion.');return;}setMessage(editing?'Promotion updated.':'Promotion created.');setEditing(null);setForm(empty);load();
+  };
+  const edit=(r)=>setForm({...r,starts_at:r.starts_at?new Date(r.starts_at).toISOString().slice(0,16):'',ends_at:r.ends_at?new Date(r.ends_at).toISOString().slice(0,16):''})||setEditing(r.id);
+  const status=async(r,next)=>{const {error}=await supabase.rpc('admin_set_promotion_status',{p_id:r.id,p_status:next});if(error)setMessage(error.message||'Could not update promotion.');else load()};
+  const remove=async(r)=>{if(!window.confirm(`Delete promotion “${r.headline}”?`))return;const {error}=await supabase.rpc('admin_delete_promotion',{p_id:r.id});if(error)setMessage(error.message||'Could not delete promotion.');else load()};
+  return <section className="cm-admin-panel-card">
+    <div className="flex items-start justify-between gap-4 mb-5"><div><p className="text-sm font-bold" style={{color:'#07152F'}}>Paid promotions</p><p className="text-xs mt-1" style={{color:'#526078'}}>Only Commissioner admins can create and publish sponsored advertisements.</p></div><button onClick={load} className="cm-admin-secondary-btn">Refresh</button></div>
+    {message&&<p className="text-xs mb-4" style={{color:'#B42318'}}>{message}</p>}
+    <form onSubmit={save} className="border rounded-2xl p-4 mb-6" style={{borderColor:'#E5E7EB'}}>
+      <p className="text-sm font-bold mb-3" style={{color:'#172033'}}>{editing?'Edit promotion':'Create promotion'}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <input required className="cm-field" placeholder="Advertiser name" value={form.advertiser_name} onChange={e=>setForm(f=>({...f,advertiser_name:e.target.value}))}/>
+        <input required className="cm-field" placeholder="Headline" value={form.headline} onChange={e=>setForm(f=>({...f,headline:e.target.value}))}/>
+        <textarea className="cm-field resize-none md:col-span-2" rows="2" placeholder="Short description" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/>
+        <input className="cm-field" placeholder="Image URL (optional)" value={form.image_url} onChange={e=>setForm(f=>({...f,image_url:e.target.value}))}/>
+        <input className="cm-field" placeholder="Destination URL" required value={form.destination_url} onChange={e=>setForm(f=>({...f,destination_url:e.target.value}))}/>
+        <input className="cm-field" placeholder="Button text" value={form.button_text} onChange={e=>setForm(f=>({...f,button_text:e.target.value}))}/>
+        <select className="cm-field" value={form.placement} onChange={e=>setForm(f=>({...f,placement:e.target.value}))}><option value="all">All supported pages</option><option value="home">Home</option><option value="creators">Explore creators</option><option value="businesses">Explore businesses</option><option value="marketplace">Marketplace</option><option value="campaigns">Campaigns</option></select>
+        <select className="cm-field" value={form.audience} onChange={e=>setForm(f=>({...f,audience:e.target.value}))}><option value="everyone">Everyone</option><option value="creators">Creators</option><option value="businesses">Businesses</option></select>
+        <label className="text-xs font-semibold" style={{color:'#172033'}}>Starts<input type="datetime-local" className="cm-field mt-1" value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))}/></label>
+        <label className="text-xs font-semibold" style={{color:'#172033'}}>Ends (optional)<input type="datetime-local" className="cm-field mt-1" value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))}/></label>
+        <select className="cm-field" value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="draft">Draft</option><option value="active">Active</option><option value="paused">Paused</option><option value="ended">Ended</option></select>
+      </div>
+      <div className="flex gap-2 mt-3"><button disabled={saving} className="cm-admin-primary-btn">{saving?'Saving…':editing?'Save changes':'Create promotion'}</button>{editing&&<button type="button" className="cm-admin-secondary-btn" onClick={()=>{setEditing(null);setForm(empty)}}>Cancel</button>}</div>
+    </form>
+    {loading?<p className="text-sm" style={{color:'#526078'}}>Loading promotions…</p>:!rows.length?<div className="cm-admin-empty">No promotions yet.</div>:<div className="space-y-3">{rows.map(r=><article key={r.id} className="cm-admin-feedback-row"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><b className="text-sm" style={{color:'#172033'}}>{r.headline}</b><span className={`cm-admin-status ${r.status==='active'?'reviewed':r.status==='draft'?'new':'archived'}`}>{r.status}</span></div><p className="text-xs mt-1" style={{color:'#526078'}}>{r.advertiser_name} · {r.placement} · {r.audience}</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Impressions {r.impressions||0} · Clicks {r.clicks||0}</p></div><div className="flex gap-2 flex-wrap justify-end"><button onClick={()=>edit(r)} className="cm-admin-small-btn">Edit</button>{r.status==='active'?<button onClick={()=>status(r,'paused')} className="cm-admin-small-btn">Pause</button>:<button onClick={()=>status(r,'active')} className="cm-admin-small-btn">Publish</button>}<button onClick={()=>remove(r)} className="cm-admin-small-btn danger">Delete</button></div></article>)}</div>}
+  </section>;
+};
+
+const SponsoredPromotion = ({ page }) => {
+  const [ad,setAd]=useState(null);
+  useEffect(()=>{let cancelled=false;const load=async()=>{const {data,error}=await supabase.from('commissioner_promotions').select('*').eq('status','active').lte('starts_at',new Date().toISOString()).or('ends_at.is.null,ends_at.gt.'+new Date().toISOString()).order('created_at',{ascending:false});if(cancelled||error)return;const eligible=(data||[]).filter(x=>x.placement==='all'||x.placement===page);if(eligible[0]){setAd(eligible[0]);supabase.rpc('track_promotion_impression',{p_id:eligible[0].id});}};load();return()=>{cancelled=true}},[page]);
+  if(!ad)return null;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5"><div className="rounded-2xl border overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}><div className="flex flex-col md:flex-row"><div className="flex-1 p-5"><div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{background:'#F3F4F6',color:'#526078'}}>Sponsored</span><span className="text-[11px]" style={{color:'#64748B'}}>{ad.advertiser_name}</span></div><h3 className="cm-display font-bold text-xl" style={{color:'#172033'}}>{ad.headline}</h3>{ad.description&&<p className="text-sm mt-1" style={{color:'#526078'}}>{ad.description}</p>}<a href={ad.destination_url} target="_blank" rel="noreferrer" onClick={()=>supabase.rpc('track_promotion_click',{p_id:ad.id})} className="inline-flex mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white" style={{background:'#07152F'}}>{ad.button_text}</a></div>{ad.image_url&&<img src={ad.image_url} alt="Sponsored promotion" className="w-full md:w-64 h-44 md:h-auto object-cover"/>}</div></div></div>;
 };
 
 const AdminSiteControls = ({ onChanged }) => {
@@ -5011,10 +5057,10 @@ export default function Commissioner() {
       )}
       {availabilityBlocked ? <MaintenanceScreen message={siteControls.site_message} pageLabel={siteControls.site_closed ? null : pageLabels[page]} /> : <>
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
-      {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
-      {page === 'creators' && <Creators session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} />}
-      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
-      {page === 'marketplace' && <Marketplace session={session} activeRole={activeRole} onMessage={async (owner, listingId) => {
+      {!authRedirect && page === 'home' && <><SponsoredPromotion page="home"/><Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} /></>}
+      {page === 'creators' && <><SponsoredPromotion page="creators"/><Creators session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} /></>}
+      {page === 'businesses' && <><SponsoredPromotion page="businesses"/><Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} /></>}
+      {page === 'marketplace' && <><SponsoredPromotion page="marketplace"/><Marketplace session={session} activeRole={activeRole} onMessage={async (owner, listingId) => {
         if (!session) { setPage('auth'); return; }
         const id = owner?.auth_user_id || owner?.authUserId;
         if (!id || id === session.user.id) return;
@@ -5024,10 +5070,10 @@ export default function Commissioner() {
           setMessageConversationId(data); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages'); return;
         }
         setMessageConversationId(null); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages');
-      }} />}
+      }} /></>}
       {page === 'network' && <B2BNetwork session={session} initialBusiness={selectedBusiness} />}
       {page === 'trust' && <TrustCenter session={session} activeRole={activeRole} />}
-      {page === 'campaigns' && <Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} />}
+      {page === 'campaigns' && <><SponsoredPromotion page="campaigns"/><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>}
       {page === 'spotlight' && <Spotlight />}
       {page === 'messages' && <Messages session={session} initialRecipientId={messageRecipientId} initialConversationId={messageConversationId} marketplaceContact={marketplaceContact} />}
       {page === 'pricing' && <Pricing />}
