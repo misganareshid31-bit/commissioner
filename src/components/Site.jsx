@@ -1630,7 +1630,7 @@ const Dashboard = ({ session, activeRole, setPage }) => {
   );
 };
 
-const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
+const BusinessOnboarding = ({ session, setPage, editMode = false, onSwitchRole }) => {
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''});
   const [logoFile,setLogoFile]=useState(null); const [logoPreview,setLogoPreview]=useState('');
@@ -1643,7 +1643,7 @@ const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
   // the owner can request verification later from Trust Center.
   setPage(editMode?'account':'dashboard');}catch(err){setError(err.message||'Something went wrong.');}finally{setSaving(false);setUploadingLogo(false);}};
   const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold text-gray-700">{label}{required?' *':''}</span><input value={form[key]||''} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10 cm-business-onboarding"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#172033'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#526078'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#FFFFFF':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#526078'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#172033'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#526078'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#39465E'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#526078'}}>Your required profile is complete. Finishing now will create/update the business profile. Verification is optional and can be requested later from Trust Center.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10 cm-business-onboarding"><div className="mb-8"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#172033'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1></div>{!editMode && onSwitchRole && <button type="button" onClick={() => onSwitchRole('creator')} className="shrink-0 text-xs font-bold px-3 py-2 rounded-lg border" style={{color:'#C00062',borderColor:'#F6B7D5',background:'#FFF0F7'}}>Set up creator instead</button>}</div><p className="text-sm mt-2 max-w-xl" style={{color:'#526078'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#FFFFFF':'#9CA3AF'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold text-gray-700">About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#526078'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#172033'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#526078'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#39465E'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#526078'}}>Your required profile is complete. Finishing now will create/update the business profile. Verification is optional and can be requested later from Trust Center.</p></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>step===1?setPage('dashboard'):setStep(s=>s-1)} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -2183,7 +2183,7 @@ const ImageUploadTile = ({ label, shape, previewUrl, onFile, uploading }) => {
   );
 };
 
-const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
+const Onboarding = ({ session, setPage, editMode = false, onSaved, onSwitchRole }) => {
   const [step, setStep] = useState(0);
 
   // Basic info
@@ -2368,10 +2368,15 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
+    <div className="max-w-2xl mx-auto px-5 md:px-8 py-12 cm-creator-onboarding">
       <div className="mb-8">
-        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#FFFFFF' }}>{editMode ? 'Edit your creator profile' : 'Set up your creator profile'}</h1>
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>Step {step + 1} of {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[step]}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#FFFFFF' }}>{editMode ? 'Edit your creator profile' : 'Set up your creator profile'}</h1>
+            <p className="text-sm" style={{ color: '#FFFFFF' }}>Step {step + 1} of {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[step]}</p>
+          </div>
+          {!editMode && onSwitchRole && <button type="button" onClick={() => onSwitchRole('business')} className="shrink-0 text-xs font-bold px-3 py-2 rounded-lg border" style={{ color: '#036377', borderColor: '#BAE6FD', background: '#F0F9FF' }}>Set up business instead</button>}
+        </div>
         {!editMode && <><div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${setupCompletion}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{`${setupCompletion}% complete`}</span></div><p className="text-[11px] mt-2" style={{color:'#FFFFFF'}}>Required information is counted. Optional details never block 100% completion.</p></>}
       </div>
 
@@ -2608,7 +2613,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
 
 /* ---------------------------------- app ---------------------------------- */
 
-const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness, setActiveRole, refreshMyProfiles, onEditProfile }) => {
+const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness, setActiveRole, refreshMyProfiles, onEditProfile, onSetupProfile }) => {
   const [newPassword, setNewPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState('');
@@ -2648,7 +2653,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
   };
 
   return (
-    <div className="max-w-xl mx-auto px-5 md:px-8 py-12">
+    <div className="max-w-xl mx-auto px-5 md:px-8 py-12 cm-account-settings">
       <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#FFFFFF' }}>Account settings</h1>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
@@ -2667,7 +2672,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
             </button>
           ))}
         </div>
-        {(!hasCreator || !hasBusiness) && <button onClick={async () => { const role = !hasCreator ? 'creator' : 'business'; await supabase.rpc(role === 'creator' ? 'add_creator_profile' : 'add_business_profile'); refreshMyProfiles?.(); setActiveRole?.(role); window.history.pushState({}, '', `/join/${role}`); setPage('onboarding'); }} className="mt-4 text-xs font-semibold" style={{ color: '#036377' }}>+ Set up your {hasCreator ? 'business' : 'creator'} profile</button>}
+        {(!hasCreator || !hasBusiness) && <button onClick={() => onSetupProfile?.(!hasCreator ? 'creator' : 'business')} className="mt-4 text-xs font-semibold" style={{ color: '#036377' }}>+ Set up your {hasCreator ? 'business' : 'creator'} profile</button>}
       </div>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
@@ -4812,11 +4817,6 @@ export default function Commissioner() {
       return;
     }
     const already = role === 'creator' ? hasCreator : hasBusiness;
-    if (!already) {
-      const rpcName = role === 'creator' ? 'add_creator_profile' : 'add_business_profile';
-      await supabase.rpc(rpcName);
-      refreshMyProfiles();
-    }
     setActiveRole(role);
     const table = role === 'creator' ? 'creator_profiles' : 'business_profiles';
     const { data: existingProfile } = await supabase.from(table).select('onboarded').eq('auth_user_id', session.user.id).maybeSingle();
@@ -4914,11 +4914,9 @@ export default function Commissioner() {
           // profile exists, then make it the active one.
           localStorage.setItem(`commissioner_active_role_${data.session.user.id}`, initialJoinRole);
           setActiveRole(initialJoinRole);
-          const rpcName = initialJoinRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
           const table = initialJoinRole === 'creator' ? 'creator_profiles' : 'business_profiles';
-          supabase.rpc(rpcName).then(async () => {
+          supabase.from(table).select('onboarded').eq('auth_user_id', data.session.user.id).maybeSingle().then(({ data: existingProfile }) => {
             refreshMyProfiles(); setActiveRole(initialJoinRole);
-            const { data: existingProfile } = await supabase.from(table).select('onboarded').eq('auth_user_id', data.session.user.id).maybeSingle();
             if (existingProfile?.onboarded) setPage('dashboard');
           });
         } else {
@@ -5038,9 +5036,9 @@ export default function Commissioner() {
       {page === 'dashboard' && <Dashboard session={session} activeRole={activeRole} setPage={setPage} />}
       {page === 'dashboard' && session && !tourSeen && <NavTour onDone={dismissTour} />}
       {page === 'onboarding' && session && (onboardingRole === 'business'
-        ? <BusinessOnboarding session={session} setPage={(p) => { setEditingProfile(false); setPage(p); }} editMode={editingProfile} />
-        : <Onboarding session={session} setPage={setPage} editMode={editingProfile} onSaved={() => { setEditingProfile(false); setPage('account'); }} />)}
-      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} onEditProfile={() => openOnboarding(activeRole, { edit: true })} /> : <Auth onAuthenticated={() => setPage('account')} />)}
+        ? <BusinessOnboarding session={session} setPage={(p) => { setEditingProfile(false); setPage(p); }} editMode={editingProfile} onSwitchRole={(role) => openOnboarding(role)} />
+        : <Onboarding session={session} setPage={setPage} editMode={editingProfile} onSaved={() => { setEditingProfile(false); setPage('account'); }} onSwitchRole={(role) => openOnboarding(role)} />)}
+      {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} onEditProfile={() => openOnboarding(activeRole, { edit: true })} onSetupProfile={(role) => openOnboarding(role)} /> : <Auth onAuthenticated={() => setPage('account')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16">
@@ -5054,12 +5052,10 @@ export default function Commissioner() {
           <Auth onAuthenticated={(sess, intendedRole) => {
             if (intendedRole && sess?.user?.id) {
               localStorage.setItem(`commissioner_active_role_${sess.user.id}`, intendedRole);
-              const rpcName = intendedRole === 'creator' ? 'add_creator_profile' : 'add_business_profile';
-              supabase.rpc(rpcName).then(async () => {
+              const table = intendedRole === 'creator' ? 'creator_profiles' : 'business_profiles';
+              supabase.from(table).select('onboarded').eq('auth_user_id', sess.user.id).maybeSingle().then(({ data: existingProfile }) => {
                 refreshMyProfiles();
                 setActiveRole(intendedRole);
-                const table = intendedRole === 'creator' ? 'creator_profiles' : 'business_profiles';
-                const { data: existingProfile } = await supabase.from(table).select('onboarded').eq('auth_user_id', sess.user.id).maybeSingle();
                 if (existingProfile?.onboarded) { setPage('dashboard'); return; }
                 openOnboarding(intendedRole);
               });

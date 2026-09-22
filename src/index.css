@@ -1248,3 +1248,22 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 .cm-market-media{position:absolute;right:14px;top:12px;width:92px;height:84px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 8px 20px rgba(20,35,65,.12);z-index:2}.cm-market-media img,.cm-market-media video{width:100%;height:100%;object-fit:cover;display:block}.cm-marketplace-card .cm-profile-cover{padding-right:110px}.cm-marketplace-card .cm-profile-cover-label{max-width:calc(100% - 120px)}.cm-profile-price{margin:12px 0 0;color:#172033;font-size:14px;font-weight:900}.cm-campaign-title{margin:15px 0 0;color:#172033;font-size:16px;font-weight:850;line-height:1.3}.cm-campaign-budget{position:absolute;right:14px;top:14px;z-index:2;background:#fff;color:#036377;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:800;box-shadow:0 6px 16px rgba(30,48,80,.10)}
 .cm-business-onboarding h1{color:#172033!important}.cm-business-onboarding>p,.cm-business-onboarding .onboarding-muted{color:#526078!important}
 @media(max-width:640px){.cm-profile-card-body{padding-left:15px;padding-right:15px}.cm-profile-cover{height:96px}.cm-profile-footer{align-items:flex-end}.cm-profile-actions{flex-wrap:wrap;justify-content:flex-end}.cm-profile-primary,.cm-profile-secondary{padding:8px 9px}.cm-market-media{width:78px;height:70px}.cm-marketplace-card .cm-profile-cover{padding-right:90px}}
+
+/* Light-surface contrast hardening: never render white body copy on white cards. */
+.cm-account-settings .bg-white [style*="color: rgb(255, 255, 255)"],
+.cm-account-settings .bg-white [style*="color: #FFFFFF"],
+.cm-account-settings .bg-white [style*="color:#FFFFFF"] { color:#172033 !important; -webkit-text-fill-color:#172033 !important; }
+.cm-account-settings .bg-white .text-xs[style*="color: rgb(255, 255, 255)"],
+.cm-account-settings .bg-white .text-sm[style*="color: rgb(255, 255, 255)"] { color:#526078 !important; -webkit-text-fill-color:#526078 !important; }
+.cm-creator-onboarding .bg-white [style*="color: rgb(255, 255, 255)"],
+.cm-creator-onboarding .bg-white [style*="color: #FFFFFF"],
+.cm-creator-onboarding .bg-white [style*="color:#FFFFFF"] { color:#172033 !important; -webkit-text-fill-color:#172033 !important; }
+.cm-business-onboarding .bg-white [style*="color: rgb(255, 255, 255)"],
+.cm-business-onboarding .bg-white [style*="color: #FFFFFF"],
+.cm-business-onboarding .bg-white [style*="color:#FFFFFF"] { color:#172033 !important; -webkit-text-fill-color:#172033 !important; }
+.cm-account-settings .bg-white button.text-white,
+.cm-account-settings .bg-white button[style*="background: rgb(230, 0, 122)"],
+.cm-account-settings .bg-white button[style*="background: #E6007A"] {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
