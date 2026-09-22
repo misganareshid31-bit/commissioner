@@ -1267,3 +1267,37 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
   color:#fff !important;
   -webkit-text-fill-color:#fff !important;
 }
+/* === LIGHT SURFACE READABILITY + ACTIVE ROLE SWITCH — 2026-09-22 === */
+.cm-account-settings .bg-white,
+.cm-account-settings .bg-white * { color: #172033; }
+.cm-account-settings .bg-white p.text-xs,
+.cm-account-settings .bg-white p.text-sm { color: #526078; }
+.cm-account-settings .bg-white button { color: #172033 !important; }
+.cm-account-settings .bg-white input,
+.cm-account-settings .bg-white textarea,
+.cm-account-settings .bg-white select { color: #172033 !important; -webkit-text-fill-color: #172033 !important; }
+.cm-account-settings .bg-white button[style*="background: #FFFFFF"] { background: #0E7C93 !important; color: #FFFFFF !important; }
+/* Exact light-page sections: these rules intentionally override the legacy
+   global white-text audit so headings and explanatory copy remain visible. */
+.cm-root .cm-discover-section .cm-display[style*="#FFFFFF"],
+.cm-root .cm-business-network .cm-display[style*="#FFFFFF"],
+.cm-root .cm-trust-center .cm-display[style*="#FFFFFF"] {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+.cm-root .cm-discover-section p[style*="#FFFFFF"],
+.cm-root .cm-business-network p[style*="#FFFFFF"],
+.cm-root .cm-trust-center p[style*="#FFFFFF"] {
+  color: #526078 !important;
+  -webkit-text-fill-color: #526078 !important;
+}
+.cm-root .cm-trust-center .bg-white h2[style*="#FFFFFF"],
+.cm-root .cm-trust-center .bg-white p[style*="#FFFFFF"] {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+}
+.cm-root .cm-trust-center .bg-white h2 + p { color: #526078 !important; -webkit-text-fill-color: #526078 !important; }
+.cm-root .cm-trust-center .bg-white textarea + * { color: #526078; }
+.cm-root .cm-business-network .text-center[style*="#FFFFFF"],
+.cm-root .cm-business-network .py-16[style*="#FFFFFF"] { color: #526078 !important; -webkit-text-fill-color: #526078 !important; }
+
