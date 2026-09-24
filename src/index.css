@@ -1220,3 +1220,34 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 /* Better keyboard/focus affordance for the launch build. */
 .cm-root button:disabled { cursor: not-allowed; }
 .cm-root a, .cm-root button { -webkit-tap-highlight-color: transparent; }
+
+
+/* === Contrast correction: dark UI means no white-on-white controls ===
+   Commissioner uses dark/navy surfaces. White typography is reserved for
+   those dark surfaces; form controls follow the same surface instead of using
+   a white background with white text. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  background: #0D1B35 !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  border-color: #2A4665 !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder {
+  color: #9FB0C4 !important;
+  -webkit-text-fill-color: #9FB0C4 !important;
+}
+.cm-root select option {
+  background: #0D1B35;
+  color: #FFFFFF;
+}
+/* Explicit white surfaces are converted to the same dark card surface so
+   inline white text can never disappear into a white card. */
+.cm-root [style*="background: white"],
+.cm-root [style*="background:'white'"],
+.cm-root [style*="background: '#FFFFFF'"],
+.cm-root [style*="background:'#FFFFFF'"] {
+  background: #0D1B35 !important;
+}
