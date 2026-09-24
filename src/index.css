@@ -1281,8 +1281,15 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
    Dark/navy surfaces: white/light ink.
    Never place white text on a white surface and never place dark text on the
    dark page canvas. This final layer intentionally overrides older passes. */
-html, body { background: #07152F !important; color: #F7FAFF !important; }
-.cm-root, .cm-page-canvas { background: #07152F !important; color: #F7FAFF !important; }
+html, body { background: #f7f9ff !important; color: #172033 !important; }
+.cm-root, .cm-page-canvas {
+  background:
+    radial-gradient(900px 520px at 100% 0%, rgba(0,217,255,.20), transparent 62%),
+    radial-gradient(820px 560px at 0% 16%, rgba(230,0,122,.18), transparent 60%),
+    radial-gradient(720px 480px at 55% 88%, rgba(124,58,237,.08), transparent 64%),
+    linear-gradient(135deg,#fbfdff 0%,#f3f7ff 48%,#fff7fb 100%) !important;
+  color: #172033;
+}
 
 /* All white cards, menus, dialogs and forms are genuinely white. */
 .cm-root .bg-white,
@@ -1347,8 +1354,8 @@ html, body { background: #07152F !important; color: #F7FAFF !important; }
 .cm-auth-card textarea::placeholder { color: #91A5BE !important; -webkit-text-fill-color: #91A5BE !important; }
 
 /* Direct copy on the navy canvas is light. */
-.cm-page-canvas > *:not(.bg-white) { color: #F7FAFF; }
-.cm-page-canvas h1, .cm-page-canvas h2, .cm-page-canvas h3 { color: #F7FAFF; }
+.cm-page-canvas > *:not(.bg-white) { color: #172033; }
+.cm-page-canvas h1, .cm-page-canvas h2, .cm-page-canvas h3 { color: #172033; }
 
 /* Common white cards with explicit dark inner copy stay dark. */
 .cm-root .cm-admin-panel-card,

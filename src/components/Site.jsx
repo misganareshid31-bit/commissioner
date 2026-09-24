@@ -888,7 +888,7 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>
-            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#FFFFFF' }}>Where <span style={{ color: '#FF4FA6' }}>creators</span> and <span style={{ color: '#4FE3FF' }}>businesses</span> connect professionally.</h1>
+            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#07152F' }}>Where <span style={{ color: '#FF4FA6' }}>creators</span> and <span style={{ color: '#4FE3FF' }}>businesses</span> connect professionally.</h1>
             <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#C7D2E1' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <button onClick={() => setPage('explore')} style={{ background: '#E6007A' }} className="text-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-100">Explore creators <ArrowRight size={16}/></button>
@@ -919,7 +919,7 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
         </div>
       </section>
 
-      <section style={{ background:'#07152F' }} className="py-16">
+      <section style={{ background:'#F8FAFC' }} className="py-16">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
           <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#FF4FA6'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#9FB0C4'}}>Only approved, onboarded profiles from Commissioner are shown here.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find creators</button><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find businesses</button></div></div>
           {(creators.length || businesses.length) ? <div className="grid lg:grid-cols-2 gap-5">
