@@ -87,7 +87,7 @@ async function fetchLiveCreators(limit = 48) {
   const { data, error } = await supabase
     .from('creator_profiles_ranked')
     .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified, plan')
-    .eq('approved', true).eq('onboarded', true)
+    .eq('onboarded', true)
     .order('effective_plan_rank', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -121,7 +121,7 @@ async function fetchLiveBusinesses(limit = 48) {
   const { data, error } = await supabase
     .from('business_profiles')
     .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, verified, approved, onboarded, plan, created_at')
-    .eq('approved', true).eq('onboarded', true)
+    .eq('onboarded', true)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
@@ -174,9 +174,9 @@ async function fetchLaunchStats() {
   // hasn't been applied to this database yet.
   const [{ count: creators }, { count: businesses }] = await Promise.all([
     supabase.from('creator_profiles').select('id', { count: 'exact', head: true })
-      .eq('approved', true).eq('onboarded', true).eq('verified', true),
+      .eq('onboarded', true).eq('verified', true),
     supabase.from('business_profiles').select('id', { count: 'exact', head: true })
-      .eq('approved', true).eq('onboarded', true).eq('verified', true),
+      .eq('onboarded', true).eq('verified', true),
   ]);
   const creatorCount = creators || 0;
   const businessCount = businesses || 0;
@@ -223,7 +223,7 @@ const PlatformIcon = ({ p, size = 14 }) => {
 const LaunchProgressBar = ({ label, count, threshold, color }) => (
   <div>
     <div className="flex items-center justify-between mb-1.5">
-      <span className="text-xs font-semibold" style={{ color: '#FFFFFF' }}>{label}</span>
+      <span className="text-xs font-semibold" style={{ color: '#334155' }}>{label}</span>
       <span className="cm-mono text-xs font-bold" style={{ color }}>{Math.min(count, threshold)} / {threshold}</span>
     </div>
     <div className="w-full rounded-full overflow-hidden" style={{ height: 8, background: '#F3F4F6' }}>
@@ -308,7 +308,7 @@ const VerifiedIcon = ({ size = 14, label = 'Verified by Commissioner' }) => (
       minWidth: size,
       borderRadius: '50%',
       background: '#0095F6',
-      color: '#FFFFFF',
+      color: '#334155',
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -452,7 +452,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         <button onClick={() => setPage('home')} className="flex items-center gap-2 shrink-0">
           <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain" />
-          <span className="cm-display font-bold text-lg" style={{ color: '#FFFFFF' }}>Commissioner</span>
+          <span className="cm-display font-bold text-lg" style={{ color: '#334155' }}>Commissioner</span>
         </button>
 
         <nav className="hidden lg:flex items-center gap-0.5">
@@ -494,8 +494,8 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               </button>
               {notifOpen && (
                 <div className="absolute right-0 top-full mt-1 w-64 bg-white border rounded-xl shadow-lg p-4 z-50" style={{ borderColor: '#E5E7EB' }}>
-                  <p className="text-xs font-bold mb-1" style={{ color: '#FFFFFF' }}>Notifications</p>
-                  <p className="text-xs leading-relaxed" style={{ color: '#FFFFFF' }}>You're all caught up. Connection requests and verification updates will appear here.</p>
+                  <p className="text-xs font-bold mb-1" style={{ color: '#334155' }}>Notifications</p>
+                  <p className="text-xs leading-relaxed" style={{ color: '#334155' }}>You're all caught up. Connection requests and verification updates will appear here.</p>
                 </div>
               )}
             </div>
@@ -516,14 +516,14 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                 data-tour="nav-account"
                 onClick={() => { setAccountMenuOpen(o => !o); setNotifOpen(false); }}
                 className="flex items-center gap-2 text-sm font-semibold px-2.5 py-1.5 rounded-lg"
-                style={{ color: '#FFFFFF', background: accountMenuOpen ? '#F8FAFC' : 'transparent' }}
+                style={{ color: '#334155', background: accountMenuOpen ? '#F8FAFC' : 'transparent' }}
               >
                 <Avatar name={activeDisplayName} size={32} ring src={activeProfile?.avatar_url} />
                 <span className="flex flex-col items-start leading-tight max-w-[150px]">
                   <span className="text-xs font-bold truncate w-full">{activeDisplayName}</span>
                   <span className="text-[10px] font-semibold" style={{ color: roleAccentInk }}>{isBusiness ? 'Business' : 'Creator'}{activeUsername ? ` · ${activeUsername}` : ''}</span>
                 </span>
-                <ChevronDown size={14} style={{ color: '#FFFFFF' }} />
+                <ChevronDown size={14} style={{ color: '#334155' }} />
               </button>
               {accountMenuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border rounded-2xl py-2 z-50" style={{ borderColor: '#E5E7EB', boxShadow: '0 12px 36px rgba(17,24,39,0.12)' }}>
@@ -534,7 +534,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                     <p className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1.5" style={{ color: '#9CA3AF' }}>Active workspace</p>
                     <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: roleAccent, background: roleAccentSoft }}>
                       <p className="text-[10px] font-extrabold uppercase tracking-wider" style={{ color: roleAccentInk }}>{isBusiness ? 'Business' : 'Creator'}</p>
-                      <p className="text-sm font-bold truncate" style={{ color: '#FFFFFF' }}>{activeDisplayName}</p>
+                      <p className="text-sm font-bold truncate" style={{ color: '#334155' }}>{activeDisplayName}</p>
                     </div>
                   </div>
                   {/* Both workspaces are always offered. If the second profile
@@ -560,15 +560,15 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                     </div>
                   </div>
                   <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
-                  <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#FFFFFF' }}><LayoutDashboard size={16} style={{ color: '#FFFFFF' }} />Dashboard</button>
-                  <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#FFFFFF' }}><Settings size={16} style={{ color: '#FFFFFF' }} />Account settings</button>
+                  <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#334155' }}><LayoutDashboard size={16} style={{ color: '#334155' }} />Dashboard</button>
+                  <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#334155' }}><Settings size={16} style={{ color: '#334155' }} />Account settings</button>
                   {!hasBothProfiles && (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2.5" style={{ color: isBusiness ? '#C00062' : '#036377' }}>
                       <UserPlus size={16} />{addingProfile ? 'Setting up…' : `Add a ${isBusiness ? 'creator' : 'business'} profile`}
                     </button>
                   )}
                   {isAdmin && (
-                    <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#FFFFFF' }}><Shield size={16} style={{ color: '#FFFFFF' }} />Admin</button>
+                    <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#334155' }}><Shield size={16} style={{ color: '#334155' }} />Admin</button>
                   )}
                   <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
                   <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#DC2626' }}><LogOut size={16} />Sign out</button>
@@ -576,7 +576,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               )}
             </div>
           ) : (
-            <button onClick={() => setPage('auth')} className="text-sm font-medium px-3 py-2" style={{ color: '#FFFFFF' }}>Sign in</button>
+            <button onClick={() => setPage('auth')} className="text-sm font-medium px-3 py-2" style={{ color: '#334155' }}>Sign in</button>
           )}
           {!session && (
             <div className="relative">
@@ -589,8 +589,8 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               </button>
               {joinMenuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
-                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('auth'); setJoinMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#FFFFFF' }}>Join as a creator</button>
-                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('auth'); setJoinMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#FFFFFF' }}>Join as a business</button>
+                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'creator'); setPage('auth'); setJoinMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#334155' }}>Join as a creator</button>
+                  <button onClick={() => { sessionStorage.setItem('commissioner_intended_role', 'business'); setPage('auth'); setJoinMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50" style={{ color: '#334155' }}>Join as a business</button>
                 </div>
               )}
             </div>
@@ -616,7 +616,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
             <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
               <div className="flex items-center gap-2">
                 <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain" />
-                <span className="cm-display font-bold text-lg" style={{ color: '#FFFFFF' }}>Commissioner</span>
+                <span className="cm-display font-bold text-lg" style={{ color: '#334155' }}>Commissioner</span>
               </div>
               <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-50">
                 <X size={20} />
@@ -660,14 +660,14 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                     <Avatar name={activeDisplayName} size={42} ring src={activeProfile?.avatar_url} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: isBusiness ? '#008FA8' : '#C00062' }}>{isBusiness ? 'Business account' : 'Creator account'}</span>
-                      <span className="block text-sm font-bold truncate mt-0.5" style={{ color: '#FFFFFF' }}>{activeDisplayName}</span>
-                      {activeUsername && <span className="block text-[10px] font-medium truncate mt-0.5" style={{ color: '#FFFFFF' }}>{activeUsername}</span>}
+                      <span className="block text-sm font-bold truncate mt-0.5" style={{ color: '#334155' }}>{activeDisplayName}</span>
+                      {activeUsername && <span className="block text-[10px] font-medium truncate mt-0.5" style={{ color: '#334155' }}>{activeUsername}</span>}
                     </span>
                     <ChevronDown size={18} className={`shrink-0 transition-transform ${addingProfile ? 'rotate-180' : ''}`} style={{ color: isBusiness ? '#008FA8' : '#C00062' }} />
                   </button>
                   {addingProfile && (
                     <div className="mb-3 rounded-2xl border-2 overflow-hidden" style={{ borderColor: '#D1D5DB' }}>
-                      <p className="px-4 pt-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: '#FFFFFF' }}>Switch workspace</p>
+                      <p className="px-4 pt-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider" style={{ color: '#334155' }}>Switch workspace</p>
                       {[['creator', 'Creator account', '#E6007A', '#FFF0F7'], ['business', 'Business account', '#00D9FF', '#ECFEFF']].map(([r, l, accent, bg]) => {
                         const exists = r === 'creator' ? hasCreator : hasBusiness;
                         return (
@@ -804,22 +804,22 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
         <Avatar name={c.name} size={48} tone={c.tone} ring={c.verified} src={c.avatarUrl} />
         <div>
           <div className="flex items-center gap-1.5">
-            <p className="font-semibold text-sm" style={{ color: '#FFFFFF' }}>{c.name}</p>
+            <p className="font-semibold text-sm" style={{ color: '#334155' }}>{c.name}</p>
             {c.verified && <VerifiedIcon size={14} />}
             {c.plan === 'elite' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#FFFFFF', color: '#00D9FF' }}>Elite</span>}
             {c.plan === 'pro' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#E0FBFF', color: '#036377' }}>Pro</span>}
           </div>
-          <p className="cm-mono text-xs" style={{ color: '#FFFFFF' }}>{c.handle}</p>
+          <p className="cm-mono text-xs" style={{ color: '#334155' }}>{c.handle}</p>
         </div>
       </div>
-      <button onClick={() => onToggleSave(c.id)} style={{ color: saved ? '#E6007A' : '#FFFFFF' }} title={saved ? 'Saved' : 'Save'}>
+      <button onClick={() => onToggleSave(c.id)} style={{ color: saved ? '#E6007A' : '#334155' }} title={saved ? 'Saved' : 'Save'}>
         <Star size={18} fill={saved ? '#E6007A' : 'none'} />
       </button>
     </div>
 
     <div className="flex flex-wrap items-center gap-2">
       <span style={{ background: '#FDE7F1', color: '#99154F' }} className="text-[11px] font-semibold px-2.5 py-1 rounded-full">{c.niche}</span>
-      <span className="flex items-center gap-1 text-xs" style={{ color: '#FFFFFF' }}><MapPin size={12} />{c.city}</span>
+      <span className="flex items-center gap-1 text-xs" style={{ color: '#334155' }}><MapPin size={12} />{c.city}</span>
     </div>
 
     <div className="flex items-center gap-2">
@@ -834,16 +834,16 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 
     <div className="grid grid-cols-3 gap-2 pt-3 border-t" style={{ borderColor: '#F3F4F6' }}>
       <div>
-        <p className="cm-mono text-sm font-semibold" style={{ color: '#FFFFFF' }}>{c.followers}</p>
-        <p className="text-[11px]" style={{ color: '#FFFFFF' }}>Followers</p>
+        <p className="cm-mono text-sm font-semibold" style={{ color: '#334155' }}>{c.followers}</p>
+        <p className="text-[11px]" style={{ color: '#334155' }}>Followers</p>
       </div>
       <div>
-        <p className="cm-mono text-sm font-semibold" style={{ color: '#FFFFFF' }}>{c.engagement}</p>
-        <p className="text-[11px]" style={{ color: '#FFFFFF' }}>Engagement</p>
+        <p className="cm-mono text-sm font-semibold" style={{ color: '#334155' }}>{c.engagement}</p>
+        <p className="text-[11px]" style={{ color: '#334155' }}>Engagement</p>
       </div>
       <div>
-        <p className="cm-mono text-sm font-semibold" style={{ color: '#FFFFFF' }}>{c.response ? `~${c.response}` : '—'}</p>
-        <p className="text-[11px]" style={{ color: '#FFFFFF' }}>Response</p>
+        <p className="cm-mono text-sm font-semibold" style={{ color: '#334155' }}>{c.response ? `~${c.response}` : '—'}</p>
+        <p className="text-[11px]" style={{ color: '#334155' }}>Response</p>
       </div>
     </div>
 
@@ -851,8 +851,8 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
 
     <div className="flex items-center justify-between pt-1">
       <div>
-        <p className="cm-mono text-base font-semibold" style={{ color: '#FFFFFF' }}>{c.price ? `${Number(c.price).toLocaleString()} ETB` : 'Rate on request'}</p>
-        <p className="text-[11px]" style={{ color: '#FFFFFF' }}>Starting price</p>
+        <p className="cm-mono text-base font-semibold" style={{ color: '#334155' }}>{c.price ? `${Number(c.price).toLocaleString()} ETB` : 'Rate on request'}</p>
+        <p className="text-[11px]" style={{ color: '#334155' }}>Starting price</p>
       </div>
       <div className="flex gap-2"><button onClick={() => onView(c)} style={{ borderColor: '#E6007A', color: '#E6007A' }} className="text-xs font-semibold px-3 py-2.5 rounded-lg border">View profile</button><button onClick={() => onHire(c)} style={{ background: '#E6007A' }} className="text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:opacity-90">Message</button></div>
     </div>
@@ -908,24 +908,24 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
                 <div className="grid grid-cols-2 gap-3 mt-4"><div className="rounded-xl p-4" style={{background:'#FFFFFF'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Creators</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Identity + linked audience evidence</p></div><div className="rounded-xl p-4" style={{background:'#FFFFFF'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Businesses</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Business information + representative</p></div></div>
               </div>
             </div>
-            <div className="absolute -bottom-5 -left-5 bg-white border rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3" style={{ borderColor:'#BFEFF5' }}><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background:'#E0FBFF' }}><CheckCircle2 size={18} style={{ color:'#036377' }}/></div><div><p className="text-xs font-bold" style={{ color:'#FFFFFF' }}>Trust-first profiles</p><p className="text-[10px]" style={{ color:'#FFFFFF' }}>Verification is reviewed by admins.</p></div></div>
+            <div className="absolute -bottom-5 -left-5 bg-white border rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3" style={{ borderColor:'#BFEFF5' }}><div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background:'#E0FBFF' }}><CheckCircle2 size={18} style={{ color:'#036377' }}/></div><div><p className="text-xs font-bold" style={{ color:'#334155' }}>Trust-first profiles</p><p className="text-[10px]" style={{ color:'#334155' }}>Verification is reviewed by admins.</p></div></div>
           </div>
         </div>
       </section>
 
       <section className="max-w-7xl mx-auto px-5 md:px-8 pb-16">
         <div className="grid md:grid-cols-3 gap-4">
-          {[['01','Build your professional identity','Create a dedicated Creator or Business page with your own name, image, services and professional details.',UserCheck,'#E6007A'],['02','Discover the right people','Find real creators and businesses by niche, industry, city and verification status.',Search,'#00A8C4'],['03','Connect with confidence','Message directly, build your network and keep trust signals attached to the profile.',Shield,'#7C3AED']].map(([n,t,d,Icon,c])=><div key={n} className="bg-white border rounded-2xl p-6 cm-card-hover" style={{ borderColor:'#E5E7EB' }}><div className="flex items-center justify-between mb-5"><span className="cm-mono text-xs font-bold" style={{color:c}}>{n}</span><Icon size={19} style={{color:c}}/></div><h3 className="cm-display font-bold text-lg mb-2" style={{color:'#FFFFFF'}}>{t}</h3><p className="text-sm leading-6" style={{color:'#FFFFFF'}}>{d}</p></div>)}
+          {[['01','Build your professional identity','Create a dedicated Creator or Business page with your own name, image, services and professional details.',UserCheck,'#E6007A'],['02','Discover the right people','Find real creators and businesses by niche, industry, city and verification status.',Search,'#00A8C4'],['03','Connect with confidence','Message directly, build your network and keep trust signals attached to the profile.',Shield,'#7C3AED']].map(([n,t,d,Icon,c])=><div key={n} className="bg-white border rounded-2xl p-6 cm-card-hover" style={{ borderColor:'#E5E7EB' }}><div className="flex items-center justify-between mb-5"><span className="cm-mono text-xs font-bold" style={{color:c}}>{n}</span><Icon size={19} style={{color:c}}/></div><h3 className="cm-display font-bold text-lg mb-2" style={{color:'#334155'}}>{t}</h3><p className="text-sm leading-6" style={{color:'#9FB0C4'}}>{d}</p></div>)}
         </div>
       </section>
 
       <section style={{ background:'#F8FAFC' }} className="py-16">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
-          <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#FF4FA6'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#9FB0C4'}}>Only approved, onboarded profiles from Commissioner are shown here.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find creators</button><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find businesses</button></div></div>
+          <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#FF4FA6'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#9FB0C4'}}>Only approved, onboarded profiles from Commissioner are shown here.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find creators</button><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Find businesses</button></div></div>
           {(creators.length || businesses.length) ? <div className="grid lg:grid-cols-2 gap-5">
-            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured creators</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>LIVE DATA</span></div>{creators.slice(0,3).map(c=><div key={c.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={c.name} size={42} src={c.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{c.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{c.niche}{c.city?` · ${c.city}`:''}</p></div>{c.verified&&<VerifiedIcon size={14}/>}</div>)}{!creators.length&&<p className="text-xs py-5" style={{color:'#FFFFFF'}}>No approved creators yet.</p>}</div>
-            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured businesses</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>LIVE DATA</span></div>{businesses.slice(0,3).map(b=><div key={b.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={b.name} size={42} src={b.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{b.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{b.industry}{b.city?` · ${b.city}`:''}</p></div>{b.verified&&<VerifiedIcon size={14}/>}</div>)}{!businesses.length&&<p className="text-xs py-5" style={{color:'#FFFFFF'}}>No approved businesses yet.</p>}</div>
-          </div> : <div className="bg-white border rounded-2xl p-10 text-center" style={{borderColor:'#E5E7EB'}}><Users size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-bold" style={{color:'#FFFFFF'}}>The Commissioner network is being built.</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Approved creators and businesses will appear here automatically.</p></div>}
+            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured creators</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>LIVE DATA</span></div>{creators.slice(0,3).map(c=><div key={c.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={c.name} size={42} src={c.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{c.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{c.niche}{c.city?` · ${c.city}`:''}</p></div>{c.verified&&<VerifiedIcon size={14}/>}</div>)}{!creators.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No approved creators yet.</p>}</div>
+            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured businesses</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>LIVE DATA</span></div>{businesses.slice(0,3).map(b=><div key={b.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={b.name} size={42} src={b.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{b.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{b.industry}{b.city?` · ${b.city}`:''}</p></div>{b.verified&&<VerifiedIcon size={14}/>}</div>)}{!businesses.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No approved businesses yet.</p>}</div>
+          </div> : <div className="bg-white border rounded-2xl p-10 text-center" style={{borderColor:'#E5E7EB'}}><Users size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-bold" style={{color:'#334155'}}>The Commissioner network is being built.</p><p className="text-xs mt-1" style={{color:'#334155'}}>Approved creators and businesses will appear here automatically.</p></div>}
         </div>
       </section>
 
@@ -953,12 +953,12 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
   return (
     <div className="bg-white border rounded-2xl p-5 mb-6" style={{ borderColor: '#E5E7EB' }}>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Filters</p>
-        <button onClick={onClose} className="text-xs font-semibold" style={{ color: '#FFFFFF' }}>Close</button>
+        <p className="text-sm font-semibold" style={{ color: '#334155' }}>Filters</p>
+        <button onClick={onClose} className="text-xs font-semibold" style={{ color: '#334155' }}>Close</button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>Platform</p>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#334155' }}>Platform</p>
           <div className="flex flex-wrap gap-1.5">
             {PLATFORMS.map(p => (
               <button
@@ -967,7 +967,7 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
                 className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full border capitalize"
                 style={{
                   background: filters.platforms.includes(p) ? '#E0FBFF' : 'white',
-                  color: filters.platforms.includes(p) ? '#036377' : '#FFFFFF',
+                  color: filters.platforms.includes(p) ? '#036377' : '#334155',
                   borderColor: filters.platforms.includes(p) ? '#00D9FF' : '#E5E7EB',
                 }}
               >
@@ -977,7 +977,7 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>City</p>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#334155' }}>City</p>
           <select
             value={filters.city}
             onChange={e => setFilters(f => ({ ...f, city: e.target.value }))}
@@ -989,7 +989,7 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
           </select>
         </div>
         <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>Min. followers: {filters.minFollowers === 0 ? 'Any' : `${filters.minFollowers / 1000}K+`}</p>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#334155' }}>Min. followers: {filters.minFollowers === 0 ? 'Any' : `${filters.minFollowers / 1000}K+`}</p>
           <input
             type="range" min="0" max="400000" step="10000"
             value={filters.minFollowers}
@@ -998,7 +998,7 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
           />
         </div>
         <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>Max. price: {filters.maxPrice} ETB</p>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#334155' }}>Max. price: {filters.maxPrice} ETB</p>
           <input
             type="range" min="50" max="350" step="10"
             value={filters.maxPrice}
@@ -1007,7 +1007,7 @@ const FiltersPanel = ({ filters, setFilters, onClose, cities }) => {
           />
         </div>
       </div>
-      <label className="flex items-center gap-2 mt-5 text-sm" style={{ color: '#FFFFFF' }}>
+      <label className="flex items-center gap-2 mt-5 text-sm" style={{ color: '#334155' }}>
         <input type="checkbox" checked={filters.verifiedOnly} onChange={e => setFilters(f => ({ ...f, verifiedOnly: e.target.checked }))} />
         Verified only
       </label>
@@ -1052,7 +1052,7 @@ const ExploreHub = ({ session, savedIds, toggleSave, onHire, onView, onBusinessC
     <CommissionerGettingStarted />
     <div className="max-w-7xl mx-auto px-5 md:px-8 pt-1 pb-2">
       <div className="rounded-2xl border p-2 md:p-3 flex flex-col sm:flex-row gap-2" style={{borderColor:'#2A4665',background:'#07152F'}} role="tablist" aria-label="Explore creators and businesses">
-        {[['creators','Creators','Find creators, services and collaboration opportunities.','#E6007A'],['businesses','Businesses','Discover brands, companies and campaign opportunities.','#00D9FF']].map(([id,label,desc,color])=><button key={id} role="tab" aria-selected={role===id} onClick={()=>setRole(id)} className="flex-1 text-left rounded-xl px-4 py-3 transition" style={{background:role===id?'#FFFFFF':'transparent',border:role===id?`2px solid ${color}`:'2px solid transparent'}}><div className="flex items-center justify-between gap-3"><span className="text-sm md:text-base font-extrabold" style={{color:role===id?'#07152F':'#FFFFFF'}}>{label}</span><span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{background:role===id?color:'#18304D',color:'#FFFFFF'}}>{role===id?'Active':'Explore'}</span></div><p className="text-[11px] mt-1" style={{color:role===id?'#64748B':'#9FB0C4'}}>{desc}</p></button>)}
+        {[['creators','Creators','Find creators, services and collaboration opportunities.','#E6007A'],['businesses','Businesses','Discover brands, companies and campaign opportunities.','#00D9FF']].map(([id,label,desc,color])=><button key={id} role="tab" aria-selected={role===id} onClick={()=>setRole(id)} className="flex-1 text-left rounded-xl px-4 py-3 transition" style={{background:role===id?'#FFFFFF':'transparent',border:role===id?`2px solid ${color}`:'2px solid transparent'}}><div className="flex items-center justify-between gap-3"><span className="text-sm md:text-base font-extrabold" style={{color:role===id?'#07152F':'#FFFFFF'}}>{label}</span><span className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full" style={{background:role===id?color:'#18304D',color:'#334155'}}>{role===id?'Active':'Explore'}</span></div><p className="text-[11px] mt-1" style={{color:role===id?'#64748B':'#9FB0C4'}}>{desc}</p></button>)}
       </div>
     </div>
     {role==='creators'
@@ -1074,7 +1074,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
     fetchLiveCreators().then(list => { setAllCreators(list); setLoading(false); });
   }, []);
 
-  if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Explore creators</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Discover creators and the campaigns businesses have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
+  if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#334155' }}>Explore creators</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Discover creators and the campaigns businesses have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
 
   const cities = [...new Set(allCreators.map(c => c.city).filter(Boolean))];
 
@@ -1093,14 +1093,14 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
       <div className="mb-7">
-        <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Find creators</h1>
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>{loading ? 'Loading…' : `${filtered.length} creators match your search`}</p>
+        <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#334155' }}>Find creators</h1>
+        <p className="text-sm" style={{ color: '#334155' }}>{loading ? 'Loading…' : `${filtered.length} creators match your search`}</p>
       </div>
       <ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Creators" />
 
       <div className="flex flex-col md:flex-row gap-3 mb-8">
         <div className="flex items-center gap-2 bg-white border rounded-xl px-3 py-2.5 flex-1" style={{ borderColor: '#E5E7EB' }}>
-          <Search size={16} style={{ color: '#FFFFFF' }} />
+          <Search size={16} style={{ color: '#334155' }} />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -1111,7 +1111,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
         <button
           onClick={() => setShowFilters(s => !s)}
           className="flex items-center gap-2 border rounded-xl px-4 py-2.5 text-sm font-medium"
-          style={{ borderColor: showFilters ? '#E6007A' : '#E5E7EB', color: showFilters ? '#E6007A' : '#FFFFFF' }}
+          style={{ borderColor: showFilters ? '#E6007A' : '#E5E7EB', color: showFilters ? '#E6007A' : '#334155' }}
         >
           <SlidersHorizontal size={15} /> Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </button>
@@ -1127,7 +1127,7 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
             className={`shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full border cm-category-pill ${niche === n ? 'is-active' : ''}`}
             style={{
               background: niche === n ? '#E6007A' : 'white',
-              color: niche === n ? 'white' : '#FFFFFF',
+              color: niche === n ? '#FFFFFF' : '#334155',
               borderColor: niche === n ? '#E6007A' : '#E5E7EB'
             }}
           >
@@ -1137,13 +1137,13 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
       </div>
 
       {loading ? (
-        <p className="text-sm text-center py-16" style={{ color: '#FFFFFF' }}>Loading creators…</p>
+        <p className="text-sm text-center py-16" style={{ color: '#334155' }}>Loading creators…</p>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>
+          <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>
             {allCreators.length === 0 ? 'No creators have joined yet' : 'No creators match those filters'}
           </p>
-          <p className="text-xs" style={{ color: '#FFFFFF' }}>
+          <p className="text-xs" style={{ color: '#334155' }}>
             {allCreators.length === 0 ? 'Check back soon, or be the first to join as a creator.' : 'Try widening your search or resetting filters.'}
           </p>
         </div>
@@ -1315,8 +1315,8 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
     return (
       <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 text-center">
         <MessageSquare size={32} className="mx-auto mb-3" style={{ color: '#00A8CC' }} />
-        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#FFFFFF' }}>Messages</h1>
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>Sign in to message creators and businesses.</p>
+        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#334155' }}>Messages</h1>
+        <p className="text-sm" style={{ color: '#334155' }}>Sign in to message creators and businesses.</p>
       </div>
     );
   }
@@ -1324,41 +1324,41 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-8">
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#FFFFFF' }}>Messages</h1><p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Private conversations between Commissioner members.</p></div>
+        <div><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>Messages</h1><p className="text-xs mt-1" style={{ color: '#334155' }}>Private conversations between Commissioner members.</p></div>
         {error && <span className="text-xs max-w-sm text-right" style={{ color: '#B42318' }}>{error}</span>}
       </div>
       <div className="bg-white border rounded-2xl overflow-hidden flex flex-col md:flex-row" style={{ borderColor: '#E5E7EB', height: '600px' }}>
         <div className="w-full md:w-80 border-b md:border-b-0 md:border-r flex flex-col shrink-0" style={{ borderColor: '#E5E7EB' }}>
           <div className="p-3 border-b" style={{ borderColor: '#E5E7EB' }}>
             <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2" style={{ borderColor: '#E5E7EB', background: '#F8FAFC' }}>
-              <Search size={14} style={{ color: '#FFFFFF' }} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search messages" className="flex-1 outline-none text-xs bg-transparent" />
+              <Search size={14} style={{ color: '#334155' }} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search messages" className="flex-1 outline-none text-xs bg-transparent" />
             </div>
           </div>
           <div className="overflow-y-auto cm-scroll flex-1">
-            {loading ? <p className="p-6 text-center text-xs" style={{ color: '#FFFFFF' }}>Loading conversations…</p> : filtered.length === 0 ? (
-              <div className="p-6 text-center"><MessageSquare size={22} className="mx-auto mb-2" style={{ color: '#D1D5DB' }} /><p className="text-xs" style={{ color: '#FFFFFF' }}>No conversations yet. Open a creator profile and choose Message to start one.</p></div>
+            {loading ? <p className="p-6 text-center text-xs" style={{ color: '#334155' }}>Loading conversations…</p> : filtered.length === 0 ? (
+              <div className="p-6 text-center"><MessageSquare size={22} className="mx-auto mb-2" style={{ color: '#D1D5DB' }} /><p className="text-xs" style={{ color: '#334155' }}>No conversations yet. Open a creator profile and choose Message to start one.</p></div>
             ) : filtered.map(c => (
               <button key={c.id} onClick={() => selectConversation(c.id)} className="w-full text-left flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: '#F3F4F6', background: active === c.id ? '#FDE7F1' : 'white' }}>
                 <Avatar name={c.other_name || 'Member'} size={40} tone={c.tone || 0} src={c.other_avatar_url} />
-                <div className="flex-1 min-w-0"><div className="flex items-center justify-between"><p className="text-sm font-semibold truncate" style={{ color: '#FFFFFF' }}>{c.other_name || 'Commissioner member'}</p><span className="text-[11px] shrink-0" style={{ color: '#9CA3AF' }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleDateString() : ''}</span></div><p className="text-xs truncate" style={{ color: c.unread_count ? '#172033' : '#526078', fontWeight: c.unread_count ? 600 : 400 }}>{c.last_message || 'No messages yet'}</p></div>
+                <div className="flex-1 min-w-0"><div className="flex items-center justify-between"><p className="text-sm font-semibold truncate" style={{ color: '#334155' }}>{c.other_name || 'Commissioner member'}</p><span className="text-[11px] shrink-0" style={{ color: '#9CA3AF' }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleDateString() : ''}</span></div><p className="text-xs truncate" style={{ color: c.unread_count ? '#172033' : '#526078', fontWeight: c.unread_count ? 600 : 400 }}>{c.last_message || 'No messages yet'}</p></div>
                 {c.unread_count > 0 && <span style={{ background: '#E6007A' }} className="min-w-5 h-5 px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0">{c.unread_count}</span>}
               </button>
             ))}
           </div>
         </div>
         {!activeConvo ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6"><MessageSquare size={28} style={{ color: '#D1D5DB' }} /><p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>No conversation selected</p><p className="text-xs" style={{ color: '#FFFFFF' }}>Message a creator or business from their profile to start a conversation.</p></div>
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6"><MessageSquare size={28} style={{ color: '#D1D5DB' }} /><p className="text-sm font-semibold" style={{ color: '#334155' }}>No conversation selected</p><p className="text-xs" style={{ color: '#334155' }}>Message a creator or business from their profile to start a conversation.</p></div>
         ) : (
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: '#E5E7EB' }}>
-              <div className="flex items-center gap-3"><Avatar name={activeConvo.other_name || 'Member'} size={36} tone={activeConvo.tone || 0} src={activeConvo.other_avatar_url} /><div><p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{activeConvo.other_name || 'Commissioner member'}</p><p className="text-[11px]" style={{ color: '#FFFFFF' }}>{activeConvo.other_type === 'business' ? 'Business' : 'Creator'}</p></div></div>
+              <div className="flex items-center gap-3"><Avatar name={activeConvo.other_name || 'Member'} size={36} tone={activeConvo.tone || 0} src={activeConvo.other_avatar_url} /><div><p className="text-sm font-semibold" style={{ color: '#334155' }}>{activeConvo.other_name || 'Commissioner member'}</p><p className="text-[11px]" style={{ color: '#334155' }}>{activeConvo.other_type === 'business' ? 'Business' : 'Creator'}</p></div></div>
               <div className="flex items-center gap-2">
                 
                 <div className="relative">
-                  <button onClick={() => setThreadMenuOpen(o => !o)} className="w-8 h-8 rounded-lg flex items-center justify-center border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}><MoreHorizontal size={15} /></button>
+                  <button onClick={() => setThreadMenuOpen(o => !o)} className="w-8 h-8 rounded-lg flex items-center justify-center border" style={{ borderColor: '#E5E7EB', color: '#334155' }}><MoreHorizontal size={15} /></button>
                   {threadMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-40 bg-white border rounded-xl shadow-lg py-1.5 z-50" style={{ borderColor: '#E5E7EB' }}>
-                      <button onClick={() => { setReportOpen(true); setThreadMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-50" style={{ color: '#FFFFFF' }}><Flag size={14} /> Report</button>
+                      <button onClick={() => { setReportOpen(true); setThreadMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-50" style={{ color: '#334155' }}><Flag size={14} /> Report</button>
                       <button onClick={blockActive} className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-50" style={{ color: '#DC2626' }}><UserX size={14} /> Block</button>
                     </div>
                   )}
@@ -1366,7 +1366,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
               </div>
             </div>
             <div className="flex-1 overflow-y-auto cm-scroll px-5 py-5 flex flex-col gap-3" style={{ background: '#F8FAFC' }}>
-              {threadLoading ? <p className="text-center text-xs" style={{ color: '#FFFFFF' }}>Loading…</p> : messages.map(m => {
+              {threadLoading ? <p className="text-center text-xs" style={{ color: '#334155' }}>Loading…</p> : messages.map(m => {
                 const mine = m.sender_id === session.user.id;
                 return <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className="max-w-[78%] px-4 py-2.5 rounded-2xl text-sm" style={{ background: mine ? '#E6007A' : 'white', color: mine ? 'white' : '#172033', border: mine ? 'none' : '1px solid #E5E7EB', borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6 }}><p className="whitespace-pre-wrap break-words">{m.body}</p><p className="text-[10px] mt-1 opacity-70 text-right">{new Date(m.created_at).toLocaleString()}</p></div></div>;
               })}
@@ -1389,8 +1389,8 @@ const StatCard = ({ icon: Icon, label, value, tone }) => (
         <Icon size={16} style={{ color: '#036377' }} />
       </div>
     </div>
-    <p className="cm-mono text-xl font-semibold mb-0.5" style={{ color: '#FFFFFF' }}>{value}</p>
-    <p className="text-xs" style={{ color: '#FFFFFF' }}>{label}</p>
+    <p className="cm-mono text-xl font-semibold mb-0.5" style={{ color: '#334155' }}>{value}</p>
+    <p className="text-xs" style={{ color: '#334155' }}>{label}</p>
   </div>
 );
 
@@ -1400,7 +1400,7 @@ const CreatorAnalytics = ({ profile }) => {
   const [stats,setStats]=useState({});
   useEffect(()=>{if(profile?.id)supabase.rpc('creator_analytics',{p_creator_profile_id:profile.id}).then(({data})=>{const x={};(data||[]).forEach(r=>x[r.event_type]=Number(r.event_count));setStats(x)});},[profile?.id]);
   const cards=[['nfc_tap','NFC taps'],['profile_view','Profile views'],['product_view','Product clicks'],['inquiry_created','Inquiries']];
-  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Profile analytics</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Simple first-party metrics. No visitor identities are exposed.</p></div><BarChart3 size={18} style={{color:'#036377'}}/></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{cards.map(([k,l])=><div key={k} className="rounded-xl p-4" style={{background:'#F8FAFC'}}><p className="cm-mono text-xl font-semibold" style={{color:'#FFFFFF'}}>{stats[k]||0}</p><p className="text-[11px] mt-1" style={{color:'#FFFFFF'}}>{l}</p></div>)}</div></div>;
+  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Profile analytics</p><p className="text-xs mt-1" style={{color:'#334155'}}>Simple first-party metrics. No visitor identities are exposed.</p></div><BarChart3 size={18} style={{color:'#036377'}}/></div><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{cards.map(([k,l])=><div key={k} className="rounded-xl p-4" style={{background:'#F8FAFC'}}><p className="cm-mono text-xl font-semibold" style={{color:'#334155'}}>{stats[k]||0}</p><p className="text-[11px] mt-1" style={{color:'#334155'}}>{l}</p></div>)}</div></div>;
 };
 
 const CreatorCommerceManager = ({ profile }) => {
@@ -1412,16 +1412,16 @@ const CreatorCommerceManager = ({ profile }) => {
   const add=async(e)=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('creator_products').insert({creator_profile_id:profile.id,name:form.name.trim(),description:form.description.trim(),price:form.price?Number(form.price):null,currency:form.currency,type:form.type,purchase_url:form.purchase_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(error.message);else{setForm({name:'',description:'',price:'',currency:'ETB',type:'product',purchase_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
   const remove=async(id)=>{if(!window.confirm('Remove this item from your public profile?'))return;await supabase.from('creator_products').delete().eq('id',id).eq('creator_profile_id',profile.id);await load()};
   return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}>
-    <div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Products & services</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Add products, bookings, or services to your public profile.</p></div><ShoppingBag size={18} style={{color:'#036377'}}/></div>
+    <div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Products & services</p><p className="text-xs mt-1" style={{color:'#334155'}}>Add products, bookings, or services to your public profile.</p></div><ShoppingBag size={18} style={{color:'#036377'}}/></div>
     <form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
       <OnboardingField label="Name" placeholder="e.g. Brand promotion package" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
       <OnboardingField label="Price" placeholder="e.g. 2500" type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
-      <div><label className="text-xs font-semibold block mb-1.5" style={{color:'#FFFFFF'}}>Type</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none" style={{borderColor:'#E5E7EB'}}><option value="product">Product</option><option value="service">Service / booking</option></select></div>
+      <div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Type</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none" style={{borderColor:'#E5E7EB'}}><option value="product">Product</option><option value="service">Service / booking</option></select></div>
       <OnboardingField label="Purchase / booking link" placeholder="https://..." value={form.purchase_url} onChange={e=>setForm(f=>({...f,purchase_url:e.target.value}))}/>
-      <div className="md:col-span-2"><label className="text-xs font-semibold block mb-1.5" style={{color:'#FFFFFF'}}>Description</label><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div>
-      <div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#FFFFFF'}}>{error&&<span style={{color:'#B42318'}}>{error}</span>}</span><button disabled={saving||!form.name.trim()} className="text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{saving?'Adding…':'Add to profile'}</button></div>
+      <div className="md:col-span-2"><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Description</label><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div>
+      <div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#334155'}}>{error&&<span style={{color:'#B42318'}}>{error}</span>}</span><button disabled={saving||!form.name.trim()} className="text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{saving?'Adding…':'Add to profile'}</button></div>
     </form>
-    {products.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{products.map(p=><div key={p.id} className="border rounded-xl px-3 py-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#FFFFFF'}}>{p.name}</p><p className="text-[11px]" style={{color:'#FFFFFF'}}>{p.type==='service'?'Service':'Product'} · {p.price!=null?`${Number(p.price).toLocaleString()} ${p.currency}`:'Contact'}</p></div><button onClick={()=>remove(p.id)} className="text-[11px] font-semibold" style={{color:'#DC2626'}}>Remove</button></div>)}</div>}
+    {products.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{products.map(p=><div key={p.id} className="border rounded-xl px-3 py-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#334155'}}>{p.name}</p><p className="text-[11px]" style={{color:'#334155'}}>{p.type==='service'?'Service':'Product'} · {p.price!=null?`${Number(p.price).toLocaleString()} ${p.currency}`:'Contact'}</p></div><button onClick={()=>remove(p.id)} className="text-[11px] font-semibold" style={{color:'#DC2626'}}>Remove</button></div>)}</div>}
   </div>;
 };
 
@@ -1429,7 +1429,7 @@ const CreatorInquiryInbox = ({ profile }) => {
   const [items,setItems]=useState([]);
   useEffect(()=>{if(profile?.id)supabase.from('creator_inquiries').select('id,name,email,company,budget,message,status,created_at').eq('creator_profile_id',profile.id).order('created_at',{ascending:false}).limit(20).then(({data})=>setItems(data||[]));},[profile?.id]);
   if(!items.length)return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-1" style={{color:'#07152F'}}>Business inquiries</p><p className="text-xs" style={{color:'#526078'}}>No inquiries yet. Businesses and clients can reach you through the Work With Me form on your public profile.</p></div>;
-  return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-semibold" style={{color:'#07152F'}}>Business inquiries</p><span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{items.length} recent</span></div><div className="flex flex-col gap-3">{items.map(i=><div key={i.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>{i.name}{i.company?` · ${i.company}`:''}</p><p className="text-xs mt-0.5 cm-workspace-description">{i.email}{i.budget?` · Budget: ${i.budget}`:''}</p></div><span className="text-[10px] font-semibold uppercase" style={{color:i.status==='new'?'#E6007A':'#FFFFFF'}}>{i.status}</span></div><p className="text-xs leading-6 mt-3" style={{color:'#FFFFFF'}}>{i.message}</p></div>)}</div></div>;
+  return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-semibold" style={{color:'#07152F'}}>Business inquiries</p><span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{items.length} recent</span></div><div className="flex flex-col gap-3">{items.map(i=><div key={i.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>{i.name}{i.company?` · ${i.company}`:''}</p><p className="text-xs mt-0.5 cm-workspace-description">{i.email}{i.budget?` · Budget: ${i.budget}`:''}</p></div><span className="text-[10px] font-semibold uppercase" style={{color:i.status==='new'?'#E6007A':'#334155'}}>{i.status}</span></div><p className="text-xs leading-6 mt-3" style={{color:'#334155'}}>{i.message}</p></div>)}</div></div>;
 };
 
 const CreatorCampaignApplications = ({ profile, session }) => {
@@ -1517,10 +1517,10 @@ const CreatorDashboard = ({ session, setPage }) => {
         <Avatar name={displayName} size={56} tone={0} ring src={profile?.avatar_url} />
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="cm-display font-bold text-xl" style={{ color: '#FFFFFF' }}>{displayName}</h1>
+            <h1 className="cm-display font-bold text-xl" style={{ color: '#334155' }}>{displayName}</h1>
             {profile?.verified && <VerifiedBadge />}
           </div>
-          <p className="text-sm" style={{ color: '#FFFFFF' }}>{profile?.username ? `@${profile.username.replace(/^@/, '')}` : 'Complete your profile'}{profile?.city ? ` · ${profile.city}` : ''}</p>
+          <p className="text-sm" style={{ color: '#334155' }}>{profile?.username ? `@${profile.username.replace(/^@/, '')}` : 'Complete your profile'}{profile?.city ? ` · ${profile.city}` : ''}</p>
         </div>
       </div>
       <span style={{ background: '#E0FBFF', color:'#036377' }} className="text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 w-fit">
@@ -1556,24 +1556,24 @@ const CreatorDashboard = ({ session, setPage }) => {
 
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-semibold mb-4" style={{ color: '#FFFFFF' }}>Campaign invitations</p>
+        <p className="text-sm font-semibold mb-4" style={{ color: '#334155' }}>Campaign invitations</p>
         <div className="text-center py-8">
           <Briefcase size={22} className="mx-auto mb-2" style={{ color: '#D1D5DB' }} />
-          <p className="text-xs" style={{ color: '#FFFFFF' }}>No invitations yet — businesses will reach out here once your profile is complete.</p>
+          <p className="text-xs" style={{ color: '#334155' }}>No invitations yet — businesses will reach out here once your profile is complete.</p>
         </div>
       </div>
 
       <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-semibold mb-4" style={{ color: '#FFFFFF' }}>Account status</p>
+        <p className="text-sm font-semibold mb-4" style={{ color: '#334155' }}>Account status</p>
         <div className="flex flex-col gap-3.5">
           {[
             { icon: UserCheck, l: 'Verification', v: profile?.verified ? 'Approved' : 'Not verified', c: profile?.verified ? '#0E7A3B' : '#9CA3AF' },
-            { icon: Zap, l: 'Subscription', v: 'Basic (free)', c: '#FFFFFF' },
-            { icon: Play, l: 'Spotlight videos', v: 'Not enabled yet', c: '#FFFFFF' },
+            { icon: Zap, l: 'Subscription', v: 'Basic (free)', c: '#334155' },
+            { icon: Play, l: 'Spotlight videos', v: 'Not enabled yet', c: '#334155' },
             { icon: Shield, l: 'NFC identity', v: 'Ready to link', c: '#036377' },
           ].map(r => (
             <div key={r.l} className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm" style={{ color: '#FFFFFF' }}>
+              <span className="flex items-center gap-2 text-sm" style={{ color: '#334155' }}>
                 <r.icon size={15} style={{ color: '#00A8CC' }} /> {r.l}
               </span>
               <span className="text-xs font-semibold" style={{ color: r.c }}>{r.v}</span>
@@ -1593,7 +1593,7 @@ const BusinessListingsManager = ({ profile }) => {
   useEffect(()=>{if(profile?.id)load()},[profile?.id]);
   const add=async e=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('marketplace_listings').insert({owner_type:'business',owner_id:profile.id,title:form.title.trim(),description:form.description.trim(),listing_type:form.listing_type,category:form.category.trim(),price_display:form.price_display.trim(),external_url:form.external_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(error.message);else{setForm({title:'',description:'',listing_type:'service',category:'',price_display:'',external_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
   const remove=async id=>{await supabase.from('marketplace_listings').delete().eq('id',id).eq('owner_type','business').eq('owner_id',profile.id);await load()};
-  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Publish products or services. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#FFFFFF'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><OnboardingField label="Photo / video URL" placeholder="https://..." value={form.media_url} onChange={e=>setForm(f=>({...f,media_url:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#FFFFFF'}}>Media type</label><select value={form.media_type} onChange={e=>setForm(f=>({...f,media_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="image">Photo</option><option value="video">Video</option></select></div><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product or service." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#FFFFFF'}}>{x.title}</p><p className="text-[11px]" style={{color:'#FFFFFF'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
+  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Publish products or services. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><OnboardingField label="Photo / video URL" placeholder="https://..." value={form.media_url} onChange={e=>setForm(f=>({...f,media_url:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Media type</label><select value={form.media_type} onChange={e=>setForm(f=>({...f,media_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="image">Photo</option><option value="video">Video</option></select></div><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product or service." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#334155'}}>{x.title}</p><p className="text-[11px]" style={{color:'#334155'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
 };
 
 const BusinessDashboard = ({ session, setPage }) => {
@@ -1621,12 +1621,12 @@ const BusinessDashboard = ({ session, setPage }) => {
           <Avatar name={profile?.business_name || session.user.email} size={56} ring src={profile?.avatar_url} />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="cm-display font-bold text-xl" style={{ color: '#FFFFFF' }}>
+              <h1 className="cm-display font-bold text-xl" style={{ color: '#334155' }}>
                 {profile?.business_name || 'Your business'}
               </h1>
               {profile?.verified && <VerifiedIcon size={15} />}
             </div>
-            <p className="text-sm" style={{ color: '#FFFFFF' }}>
+            <p className="text-sm" style={{ color: '#334155' }}>
               {profile?.username ? `@${profile.username.replace(/^@/, '')}` : 'Complete your business profile'}
               {profile?.city ? ` · ${profile.city}` : ''}
             </p>
@@ -1649,18 +1649,18 @@ const BusinessDashboard = ({ session, setPage }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
           <Briefcase size={18} style={{ color: '#7C3AED' }} />
-          <p className="text-sm font-semibold mt-3" style={{ color: '#FFFFFF' }}>B2B network</p>
-          <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Find creators, suppliers and other businesses.</p>
+          <p className="text-sm font-semibold mt-3" style={{ color: '#334155' }}>B2B network</p>
+          <p className="text-xs mt-1" style={{ color: '#334155' }}>Find creators, suppliers and other businesses.</p>
         </div>
         <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
           <MessageSquare size={18} style={{ color: '#036377' }} />
-          <p className="text-sm font-semibold mt-3" style={{ color: '#FFFFFF' }}>Professional inbox</p>
-          <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Keep conversations and collaboration requests in one place.</p>
+          <p className="text-sm font-semibold mt-3" style={{ color: '#334155' }}>Professional inbox</p>
+          <p className="text-xs mt-1" style={{ color: '#334155' }}>Keep conversations and collaboration requests in one place.</p>
         </div>
         <div className="bg-white border rounded-2xl p-5" style={{ borderColor: '#E5E7EB' }}>
           <Shield size={18} style={{ color: '#0E7A3B' }} />
-          <p className="text-sm font-semibold mt-3" style={{ color: '#FFFFFF' }}>Trust information</p>
-          <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Show the facts you have verified to potential partners.</p>
+          <p className="text-sm font-semibold mt-3" style={{ color: '#334155' }}>Trust information</p>
+          <p className="text-xs mt-1" style={{ color: '#334155' }}>Show the facts you have verified to potential partners.</p>
         </div>
       </div>
     </div>
@@ -1695,7 +1695,7 @@ const MarketplaceInbox = ({ session }) => {
           <span className="text-sm font-bold px-3 py-1.5 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>{rows.length} total</span>
         </div>
         {loading ? <p className="text-xs" style={{color:'#526078'}}>Loading inquiries…</p> :
-          rows.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{Object.entries(counts).map(([listingId,count])=><div key={listingId} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#FFFFFF'}}>{rows.find(r=>r.listing_id===listingId)?.listing_title || 'Marketplace listing'}</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>{count} {count===1?'inquiry':'inquiries'}</p></div>)}</div>
+          rows.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{Object.entries(counts).map(([listingId,count])=><div key={listingId} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#334155'}}>{rows.find(r=>r.listing_id===listingId)?.listing_title || 'Marketplace listing'}</p><p className="text-xs mt-1" style={{color:'#334155'}}>{count} {count===1?'inquiry':'inquiries'}</p></div>)}</div>
           : <p className="text-xs" style={{color:'#526078'}}>No marketplace inquiries yet. New messages from your listings will appear here.</p>}
       </div>
     </div>
@@ -1748,8 +1748,8 @@ const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
 const Spotlight = () => (
   <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-8">
-      <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Spotlight</h1>
-      <p className="text-sm" style={{ color: '#FFFFFF' }}>Short vertical videos — a free portfolio and advertisement feed for creators.</p>
+      <h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#334155' }}>Spotlight</h1>
+      <p className="text-sm" style={{ color: '#334155' }}>Short vertical videos — a free portfolio and advertisement feed for creators.</p>
     </div>
 
     <div className="flex items-center gap-2 mb-8 overflow-x-auto cm-scroll pb-1">
@@ -1772,8 +1772,8 @@ const Spotlight = () => (
     {SPOTLIGHT_VIDEOS.length === 0 ? (
       <div className="text-center py-16">
         <Play size={28} className="mx-auto mb-3" style={{ color: '#D1D5DB' }} />
-        <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>No Spotlight videos yet</p>
-        <p className="text-xs" style={{ color: '#FFFFFF' }}>Spotlight publishing is not enabled yet. Use your profile portfolio to upload photos and videos now.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>No Spotlight videos yet</p>
+        <p className="text-xs" style={{ color: '#334155' }}>Spotlight publishing is not enabled yet. Use your profile portfolio to upload photos and videos now.</p>
       </div>
     ) : (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1798,12 +1798,12 @@ const Spotlight = () => (
           <div className="p-3 bg-white">
             <div className="flex items-center gap-1.5 mb-1">
               <Avatar name={v.creator} size={20} tone={v.tone} />
-              <p className="text-xs font-semibold truncate" style={{ color: '#FFFFFF' }}>{v.creator}</p>
+              <p className="text-xs font-semibold truncate" style={{ color: '#334155' }}>{v.creator}</p>
               {v.verified && <VerifiedIcon size={12} />}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[11px]" style={{ color: '#FFFFFF' }}>{v.niche}</span>
-              <span className="cm-mono text-[11px]" style={{ color: '#FFFFFF' }}>{v.views} views</span>
+              <span className="text-[11px]" style={{ color: '#334155' }}>{v.niche}</span>
+              <span className="cm-mono text-[11px]" style={{ color: '#334155' }}>{v.views} views</span>
             </div>
           </div>
         </div>
@@ -1815,7 +1815,7 @@ const Spotlight = () => (
 
 const PlanCard = ({ plan }) => {
   const toneMap = {
-    gray: { bg: '#F8FAFC', fg: '#FFFFFF', border: '#E5E7EB' },
+    gray: { bg: '#F8FAFC', fg: '#334155', border: '#E5E7EB' },
     cyan: { bg: '#E0FBFF', fg: '#036377', border: '#00D9FF' },
     magenta: { bg: '#FDE7F1', fg: '#99154F', border: '#E6007A' },
   };
@@ -1830,14 +1830,14 @@ const PlanCard = ({ plan }) => {
           Most popular
         </span>
       )}
-      <p className="font-semibold text-base mb-1" style={{ color: '#FFFFFF' }}>{plan.name}</p>
+      <p className="font-semibold text-base mb-1" style={{ color: '#334155' }}>{plan.name}</p>
       <div className="flex items-baseline gap-1 mb-5">
-        <span className="cm-display font-bold text-3xl" style={{ color: '#FFFFFF' }}>{plan.price}</span>
-        <span className="text-sm" style={{ color: '#FFFFFF' }}>{plan.period}</span>
+        <span className="cm-display font-bold text-3xl" style={{ color: '#334155' }}>{plan.price}</span>
+        <span className="text-sm" style={{ color: '#334155' }}>{plan.period}</span>
       </div>
       <div className="flex flex-col gap-2.5 mb-6 flex-1">
         {plan.features.map(f => (
-          <div key={f} className="flex items-center gap-2 text-sm" style={{ color: '#FFFFFF' }}>
+          <div key={f} className="flex items-center gap-2 text-sm" style={{ color: '#334155' }}>
             <Check size={14} style={{ color: t.fg }} strokeWidth={2.5} />
             {f}
           </div>
@@ -1859,8 +1859,8 @@ const Pricing = () => {
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-14">
       <div className="text-center mb-8">
-        <h1 className="cm-display font-bold text-3xl mb-3" style={{ color: '#FFFFFF' }}>Simple, transparent pricing</h1>
-        <p className="text-sm max-w-lg mx-auto" style={{ color: '#FFFFFF' }}>Pick the plan that fits where you are today — upgrade any time.</p>
+        <h1 className="cm-display font-bold text-3xl mb-3" style={{ color: '#334155' }}>Simple, transparent pricing</h1>
+        <p className="text-sm max-w-lg mx-auto" style={{ color: '#334155' }}>Pick the plan that fits where you are today — upgrade any time.</p>
       </div>
 
       <div className="flex justify-center mb-10">
@@ -1888,7 +1888,7 @@ const Pricing = () => {
 const AboutUs = () => (
   <div className="max-w-5xl mx-auto px-5 md:px-8 py-14">
     <div className="text-center mb-14">
-      <h1 className="cm-display font-bold text-3xl md:text-4xl mb-4" style={{ color: '#FFFFFF' }}>About Commissioner</h1>
+      <h1 className="cm-display font-bold text-3xl md:text-4xl mb-4" style={{ color: '#334155' }}>About Commissioner</h1>
       <p className="text-sm md:text-base max-w-xl mx-auto" style={{ color: '#C7D2E1' }}>
         Commissioner is a marketplace built to connect creators and businesses professionally — with verified profiles,
         transparent pricing, and real accountability on both sides.
@@ -1977,7 +1977,7 @@ const TrustSafety = () => (
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: '#E0FBFF' }}>
         <Shield size={22} style={{ color: '#036377' }} />
       </div>
-      <h1 className="cm-display font-bold text-3xl md:text-4xl mb-3" style={{ color: '#FFFFFF' }}>Trust & Safety</h1>
+      <h1 className="cm-display font-bold text-3xl md:text-4xl mb-3" style={{ color: '#334155' }}>Trust & Safety</h1>
       <p className="text-sm max-w-lg mx-auto" style={{ color: '#C7D2E1' }}>How Commissioner works to keep creators and businesses safe — and what you can do to protect yourself.</p>
     </div>
 
@@ -2004,7 +2004,7 @@ const TrustSafety = () => (
           <s.icon size={17} style={{ color: '#E6007A' }} />
         </div>
         <div>
-          <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>{s.t}</p>
+          <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>{s.t}</p>
           <p className="text-sm leading-relaxed" style={{ color: '#C7D2E1' }}>{s.d}</p>
         </div>
       </div>
@@ -2018,44 +2018,44 @@ const TrustSafety = () => (
 
 const TermsOfService = () => (
   <div className="max-w-3xl mx-auto px-5 md:px-8 py-14">
-    <h1 className="cm-display font-bold text-3xl md:text-4xl mb-2" style={{ color: '#FFFFFF' }}>Terms of Service</h1>
+    <h1 className="cm-display font-bold text-3xl md:text-4xl mb-2" style={{ color: '#334155' }}>Terms of Service</h1>
     <p className="text-xs mb-10" style={{ color: '#9CA3AF' }}>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
 
-    <div className="flex flex-col gap-8 text-sm leading-relaxed" style={{ color: '#FFFFFF' }}>
+    <div className="flex flex-col gap-8 text-sm leading-relaxed" style={{ color: '#334155' }}>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>1. What Commissioner is</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>1. What Commissioner is</h2>
         <p>Commissioner is a discovery and messaging marketplace that connects creators and businesses. Commissioner does not currently process payments, hold funds in escrow, or guarantee the outcome of any deal between members — arrangements made between a creator and a business are between those two parties.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>2. Accounts</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>2. Accounts</h2>
         <p>You're responsible for the accuracy of the information on your profile and for keeping your login secure. Impersonating another person or business, or creating a profile for someone without their permission, is not allowed.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>3. Verification</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>3. Verification</h2>
         <p>Verification confirms account ownership and, for creators, audience size at the time of review. It does not certify a member's conduct, reliability, or the quality of their work, and can be revoked if evidence becomes invalid.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>4. Acceptable use</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>4. Acceptable use</h2>
         <p>You agree not to use Commissioner to scam, harass, or defraud other members; post fake statistics or content; scrape or misuse other members' data; or attempt to bypass account restrictions such as blocks or privacy settings.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>5. Reviews & reporting</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>5. Reviews & reporting</h2>
         <p>Reviews should reflect a genuine interaction with the person you're reviewing. Reports are reviewed by the Commissioner team and may result in a warning, restricted visibility, or account removal.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>6. Disputes between members</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>6. Disputes between members</h2>
         <p>Since Commissioner doesn't process payments, disputes over payment or deliverables are between the members involved. Commissioner can review reports and restrict accounts found to have violated these terms, but can't guarantee a refund or force delivery of work.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>7. Your data</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>7. Your data</h2>
         <p>What we collect and how it's used is covered in our Privacy Policy. You can control who sees your profile details and who can message you from Account settings, and you can request account deletion at any time.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>8. Changes</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>8. Changes</h2>
         <p>We may update these terms as Commissioner adds features like payments. We'll update the date at the top of this page when that happens.</p>
       </section>
       <section>
-        <h2 className="font-semibold text-base mb-2" style={{ color: '#FFFFFF' }}>9. Contact</h2>
+        <h2 className="font-semibold text-base mb-2" style={{ color: '#334155' }}>9. Contact</h2>
         <p>Questions about these terms — <a href="mailto:commissionerformylord@gmail.com" className="font-semibold" style={{ color: '#036377' }}>commissionerformylord@gmail.com</a>.</p>
       </section>
     </div>
@@ -2097,21 +2097,21 @@ const ReportModal = ({ targetUserId, conversationId = null, onClose }) => {
         {done ? (
           <div className="text-center py-2">
             <CheckCircle2 size={26} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
-            <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>Report submitted</p>
-            <p className="text-xs mb-5" style={{ color: '#FFFFFF' }}>Thanks for flagging this — our team will review it.</p>
+            <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>Report submitted</p>
+            <p className="text-xs mb-5" style={{ color: '#334155' }}>Thanks for flagging this — our team will review it.</p>
             <button onClick={onClose} className="text-sm font-semibold px-4 py-2 rounded-lg" style={{ background: '#E0FBFF', color: '#036377' }}>Close</button>
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 mb-4"><Flag size={17} style={{ color: '#DC2626' }} /><p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Report this account</p></div>
-            <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>What's going on?</label>
+            <div className="flex items-center gap-2 mb-4"><Flag size={17} style={{ color: '#DC2626' }} /><p className="text-sm font-semibold" style={{ color: '#334155' }}>Report this account</p></div>
+            <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>What's going on?</label>
             <select value={reason} onChange={e => setReason(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm mb-3" style={{ borderColor: '#E5E7EB' }}>
               {REPORT_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
             <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3} placeholder="Any extra detail that would help us review this (optional)" className="w-full border rounded-lg px-3 py-2.5 text-sm resize-none" style={{ borderColor: '#E5E7EB' }} />
             {error && <p className="text-xs mt-2" style={{ color: '#DC2626' }}>{error}</p>}
             <div className="flex gap-2 mt-4">
-              <button onClick={onClose} className="flex-1 text-sm font-semibold py-2.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>Cancel</button>
+              <button onClick={onClose} className="flex-1 text-sm font-semibold py-2.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>Cancel</button>
               <button onClick={submit} disabled={sending} className="flex-1 text-sm font-semibold py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#DC2626' }}>{sending ? 'Submitting…' : 'Submit report'}</button>
             </div>
           </>
@@ -2129,8 +2129,8 @@ const RatingSummary = ({ userId }) => {
   const count = Number(summary.count) || 0;
   if (count === 0) return <span className="text-xs" style={{ color: '#9CA3AF' }}>No reviews yet</span>;
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: '#FFFFFF' }}>
-      <Star size={14} fill="#F59E0B" style={{ color: '#F59E0B' }} /> {avg.toFixed(1)} <span className="text-xs font-normal" style={{ color: '#FFFFFF' }}>({count} review{count === 1 ? '' : 's'})</span>
+    <span className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: '#334155' }}>
+      <Star size={14} fill="#F59E0B" style={{ color: '#F59E0B' }} /> {avg.toFixed(1)} <span className="text-xs font-normal" style={{ color: '#334155' }}>({count} review{count === 1 ? '' : 's'})</span>
     </span>
   );
 };
@@ -2156,7 +2156,7 @@ const LeaveReviewBox = ({ targetUserId, session, onSaved }) => {
 
   return (
     <div className="rounded-2xl border p-5 mb-7" style={{ borderColor: '#E5E7EB' }}>
-      <p className="text-sm font-semibold mb-2" style={{ color: '#FFFFFF' }}>Leave a review</p>
+      <p className="text-sm font-semibold mb-2" style={{ color: '#334155' }}>Leave a review</p>
       <div className="flex items-center gap-1 mb-3">
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => setRating(n)} type="button">
@@ -2177,20 +2177,20 @@ const ReviewsList = ({ userId, refreshKey }) => {
   if (reviews.length === 0) return null;
   return (
     <div className="mb-7">
-      <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Reviews</p>
+      <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Reviews</p>
       <div className="flex flex-col gap-3">
         {reviews.map(r => (
           <div key={r.id} className="border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
                 <Avatar name={r.reviewer_name || 'Member'} size={26} src={r.reviewer_avatar_url} />
-                <p className="text-xs font-semibold" style={{ color: '#FFFFFF' }}>{r.reviewer_name}</p>
+                <p className="text-xs font-semibold" style={{ color: '#334155' }}>{r.reviewer_name}</p>
               </div>
               <div className="flex items-center gap-0.5">
                 {[1, 2, 3, 4, 5].map(n => <Star key={n} size={12} fill={n <= r.rating ? '#F59E0B' : 'none'} style={{ color: n <= r.rating ? '#F59E0B' : '#D1D5DB' }} />)}
               </div>
             </div>
-            {r.comment && <p className="text-xs leading-relaxed" style={{ color: '#FFFFFF' }}>{r.comment}</p>}
+            {r.comment && <p className="text-xs leading-relaxed" style={{ color: '#334155' }}>{r.comment}</p>}
           </div>
         ))}
       </div>
@@ -2510,9 +2510,9 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
   return (
     <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-8">
-        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#FFFFFF' }}>{editMode ? 'Edit your creator profile' : 'Set up your creator profile'}</h1>
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>Step {step + 1} of {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[step]}</p>
-        {!editMode && <><div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${setupCompletion}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{`${setupCompletion}% complete`}</span></div><p className="text-[11px] mt-2" style={{color:'#FFFFFF'}}>Required information is counted. Optional details never block 100% completion.</p></>}
+        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#334155' }}>{editMode ? 'Edit your creator profile' : 'Set up your creator profile'}</h1>
+        <p className="text-sm" style={{ color: '#334155' }}>Step {step + 1} of {ONBOARDING_STEPS.length} — {ONBOARDING_STEPS[step]}</p>
+        {!editMode && <><div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full cm-beam" style={{width:`${setupCompletion}%`}} /></div><span className="text-xs font-bold" style={{color:'#E6007A'}}>{`${setupCompletion}% complete`}</span></div><p className="text-[11px] mt-2" style={{color:'#334155'}}>Required information is counted. Optional details never block 100% completion.</p></>}
       </div>
 
       <div className="flex items-center gap-1.5 mb-10">
@@ -2536,7 +2536,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Short bio</label>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Short bio</label>
               <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell businesses what you create and who you create it for" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
             </div>
 
@@ -2551,8 +2551,8 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {step === 1 && (
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Which platforms are you on?</p>
-              <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Add at least one social account. Followers and engagement are optional; leave platforms blank if you do not use them.</p>
+              <p className="text-sm font-semibold" style={{ color: '#334155' }}>Which platforms are you on?</p>
+              <p className="text-xs mt-1" style={{ color: '#334155' }}>Add at least one social account. Followers and engagement are optional; leave platforms blank if you do not use them.</p>
             </div>
             {PLATFORM_LIST.map(row => (
               <div key={row.p} className="border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
@@ -2560,7 +2560,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
                   <div style={{ background: row.bg }} className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0">
                     <row.icon size={18} />
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{row.p}</p>
+                  <p className="text-sm font-semibold" style={{ color: '#334155' }}>{row.p}</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -2600,9 +2600,9 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 2 — Niche */}
         {step === 2 && (
           <div className="flex flex-col gap-6">
-            <p className="text-xs" style={{ color: '#FFFFFF' }}>Required for a complete creator profile. Choose your primary niche.</p>
+            <p className="text-xs" style={{ color: '#334155' }}>Required for a complete creator profile. Choose your primary niche.</p>
             <div>
-              <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Primary niche <span style={{ color: '#E6007A', fontWeight: 600 }}>* required</span></p>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Primary niche <span style={{ color: '#E6007A', fontWeight: 600 }}>* required</span></p>
               <div className="flex flex-wrap gap-2">
                 {NICHES.map(n => (
                   <button
@@ -2611,7 +2611,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
                     className="text-xs font-semibold px-3.5 py-2 rounded-full border"
                     style={{
                       background: primaryNiche === n ? '#E6007A' : 'white',
-                      color: primaryNiche === n ? 'white' : '#FFFFFF',
+                      color: primaryNiche === n ? '#FFFFFF' : '#334155',
                       borderColor: primaryNiche === n ? '#E6007A' : '#E5E7EB'
                     }}
                   >
@@ -2621,7 +2621,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
               </div>
             </div>
             <div>
-              <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Secondary niches <span style={{ color: '#FFFFFF', fontWeight: 400 }}>— up to three ({secondary.length}/3)</span></p>
+              <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Secondary niches <span style={{ color: '#334155', fontWeight: 400 }}>— up to three ({secondary.length}/3)</span></p>
               <div className="flex flex-wrap gap-2">
                 {NICHES.filter(n => n !== primaryNiche).map(n => (
                   <button
@@ -2630,7 +2630,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
                     className="text-xs font-semibold px-3.5 py-2 rounded-full border flex items-center gap-1"
                     style={{
                       background: secondary.includes(n) ? '#E0FBFF' : 'white',
-                      color: secondary.includes(n) ? '#036377' : '#FFFFFF',
+                      color: secondary.includes(n) ? '#036377' : '#334155',
                       borderColor: secondary.includes(n) ? '#00D9FF' : '#E5E7EB'
                     }}
                   >
@@ -2646,17 +2646,17 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 3 — Audience & creator metrics */}
         {step === 3 && (
           <div className="flex flex-col gap-5">
-            <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Audience info <span className="font-normal" style={{color:'#E6007A'}}>* required</span></p>
+            <p className="text-sm font-semibold" style={{ color: '#334155' }}>Audience info <span className="font-normal" style={{color:'#E6007A'}}>* required</span></p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Audience age range</label>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Audience age range</label>
                 <select value={audienceAge} onChange={e => setAudienceAge(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
                   <option value="">Select…</option>
                   <option>13–17</option><option>18–24</option><option>25–34</option><option>35–44</option><option>45+</option>
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Audience gender</label>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Audience gender</label>
                 <select value={audienceGender} onChange={e => setAudienceGender(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
                   <option value="">Select…</option>
                   <option>Mostly male</option><option>Mostly female</option><option>Balanced</option>
@@ -2664,7 +2664,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
               </div>
             </div>
             <OnboardingField label="Audience location" placeholder="e.g. Ethiopia, East Africa" icon={MapPin} value={audienceLocation} onChange={e => setAudienceLocation(e.target.value)} />
-            <p className="text-sm font-semibold mt-2" style={{ color: '#FFFFFF' }}>Creator metrics</p>
+            <p className="text-sm font-semibold mt-2" style={{ color: '#334155' }}>Creator metrics</p>
             <div className="grid grid-cols-2 gap-4">
               <OnboardingField label="Avg. views (optional)" placeholder="e.g. 25000" type="number" value={avgViews} onChange={e => setAvgViews(e.target.value)} />
               <OnboardingField label="Average reach (optional)" placeholder="e.g. 40000" type="number" value={avgReach} onChange={e => setAvgReach(e.target.value)} />
@@ -2675,7 +2675,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {/* Step 4 — Services & pricing */}
         {step === 4 && (
           <div className="flex flex-col gap-5">
-            <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Services offered & pricing <span className="font-normal" style={{color:'#E6007A'}}>* add at least one</span></p>
+            <p className="text-sm font-semibold" style={{ color: '#334155' }}>Services offered & pricing <span className="font-normal" style={{color:'#E6007A'}}>* add at least one</span></p>
             <div className="grid grid-cols-2 gap-4">
               <OnboardingField label="TikTok video" placeholder="ETB" value={pricing.tiktok} onChange={e => setPricing(p => ({ ...p, tiktok: e.target.value }))} />
               <OnboardingField label="Instagram Reel" placeholder="ETB" value={pricing.reel} onChange={e => setPricing(p => ({ ...p, reel: e.target.value }))} />
@@ -2691,7 +2691,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {step === 5 && (
           <div className="flex flex-col gap-5">
             <div>
-              <p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Portfolio <span className="font-normal" style={{color:'#B9C7D8'}}>(optional)</span></p>
+              <p className="text-sm font-semibold" style={{color:'#334155'}}>Portfolio <span className="font-normal" style={{color:'#B9C7D8'}}>(optional)</span></p>
               <p className="text-xs mt-1" style={{color:'#B9C7D8'}}>Add up to 8 photos or videos that show your work. You can skip this step.</p>
             </div>
             <label className="cm-upload-tile block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer">
@@ -2709,7 +2709,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
         {step === 6 && (
           <div className="flex flex-col gap-5">
             <div>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Availability</label>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Availability</label>
               <select value={availability} onChange={e => setAvailability(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none" style={{ borderColor: '#E5E7EB' }}>
                 <option>Available now</option>
                 <option>Limited availability</option>
@@ -2717,7 +2717,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Professional preferences</label>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Professional preferences</label>
               <textarea value={preferences} onChange={e => setPreferences(e.target.value)} placeholder="e.g. preferred collaboration types, minimum budget, industries you'd rather not work with" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
             </div>
             <div className="rounded-xl p-4 border" style={{background:'#F8FAFC',borderColor:'#E2E8F0'}}>
@@ -2733,7 +2733,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           onClick={() => setStep(Math.max(0, step - 1))}
           disabled={step === 0}
           className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-lg border"
-          style={{ borderColor: '#E5E7EB', color: step === 0 ? '#D1D5DB' : '#FFFFFF' }}
+          style={{ borderColor: '#E5E7EB', color: step === 0 ? '#D1D5DB' : '#334155' }}
         >
           <ChevronLeft size={15} /> Back
         </button>
@@ -2798,21 +2798,21 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
 
   return (
     <div className="max-w-xl mx-auto px-5 md:px-8 py-12">
-      <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#FFFFFF' }}>Account settings</h1>
+      <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#334155' }}>Account settings</h1>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-xs font-semibold mb-1" style={{ color: '#FFFFFF' }}>Account email</p>
-        <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{session.user.email}</p>
-        <p className="text-xs mt-2" style={{ color: '#FFFFFF' }}>Your email identifies your login. Your public identity is always your active Creator or Business page.</p>
+        <p className="text-xs font-semibold mb-1" style={{ color: '#334155' }}>Account email</p>
+        <p className="text-sm font-semibold" style={{ color: '#334155' }}>{session.user.email}</p>
+        <p className="text-xs mt-2" style={{ color: '#334155' }}>Your email identifies your login. Your public identity is always your active Creator or Business page.</p>
       </div>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
-        <div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Active account</p><p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>One login can hold separate Creator and Business profiles.</p></div><Settings size={18} style={{ color: '#00A8CC' }} /></div>
+        <div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-sm font-semibold" style={{ color: '#334155' }}>Active account</p><p className="text-xs mt-1" style={{ color: '#334155' }}>One login can hold separate Creator and Business profiles.</p></div><Settings size={18} style={{ color: '#00A8CC' }} /></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[['creator', hasCreator], ['business', hasBusiness]].map(([role, exists]) => (
             <button key={role} disabled={!exists} onClick={() => { setActiveRole?.(role); setPage('dashboard'); }} className="text-left rounded-xl border p-4 disabled:opacity-50" style={{ borderColor: activeRole === role ? '#00D9FF' : '#E5E7EB', background: activeRole === role ? '#F0FDFF' : '#fff' }}>
-              <div className="flex items-center justify-between"><span className="text-sm font-bold capitalize" style={{ color: '#FFFFFF' }}>{role}</span>{activeRole === role && <CheckCircle2 size={16} style={{ color: '#00A8CC' }} />}</div>
-              <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>{exists ? (activeRole === role ? 'Currently active' : `Switch to your ${role} workspace`) : `No ${role} profile yet`}</p>
+              <div className="flex items-center justify-between"><span className="text-sm font-bold capitalize" style={{ color: '#334155' }}>{role}</span>{activeRole === role && <CheckCircle2 size={16} style={{ color: '#00A8CC' }} />}</div>
+              <p className="text-xs mt-1" style={{ color: '#334155' }}>{exists ? (activeRole === role ? 'Currently active' : `Switch to your ${role} workspace`) : `No ${role} profile yet`}</p>
             </button>
           ))}
         </div>
@@ -2821,7 +2821,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{activeRole === 'business' ? 'Business profile' : 'Creator profile'}</p>
+          <p className="text-sm font-semibold" style={{ color: '#334155' }}>{activeRole === 'business' ? 'Business profile' : 'Creator profile'}</p>
           <button onClick={() => onEditProfile?.()} className="text-xs font-semibold" style={{ color: '#036377' }}>Edit profile</button>
         </div>
       </div>
@@ -2834,11 +2834,11 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
       <div id="account-trust-center" className="mb-6"><TrustCenter session={session} activeRole={activeRole}/></div>
 
       <form onSubmit={handlePasswordChange} className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-semibold mb-4" style={{ color: '#FFFFFF' }}>Change password</p>
+        <p className="text-sm font-semibold mb-4" style={{ color: '#334155' }}>Change password</p>
         <div className="flex items-center gap-2 border rounded-lg px-3 py-2.5 mb-3" style={{ borderColor: '#E5E7EB' }}>
           <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password" className="flex-1 outline-none text-sm" />
         </div>
-        <button type="submit" disabled={pwSaving} style={{ background: '#FFFFFF' }} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50">
+        <button type="submit" disabled={pwSaving} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50">
           {pwSaving ? 'Saving…' : 'Update password'}
         </button>
         {pwMessage && <p className="text-xs mt-3" style={{ color: '#0E7A3B' }}>{pwMessage}</p>}
@@ -2846,12 +2846,12 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
       </form>
 
       <div className="bg-white border rounded-2xl p-6" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-semibold mb-4" style={{ color: '#FFFFFF' }}>Session</p>
+        <p className="text-sm font-semibold mb-4" style={{ color: '#334155' }}>Session</p>
         <div className="flex flex-col gap-3">
-          <button onClick={handleSignOut} className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg border self-start" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>
+          <button onClick={handleSignOut} className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg border self-start" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
             <LogOut size={15} /> Sign out
           </button>
-          <button onClick={handleSignOutAll} className="text-xs font-medium self-start" style={{ color: '#FFFFFF' }}>
+          <button onClick={handleSignOutAll} className="text-xs font-medium self-start" style={{ color: '#334155' }}>
             Sign out of all devices
           </button>
         </div>
@@ -2869,7 +2869,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
           <div>
             <p className="text-xs font-semibold mb-3" style={{ color: '#991B1B' }}>Are you sure? This can't be undone from your account.</p>
             <div className="flex gap-2">
-              <button onClick={() => setDeleteConfirming(false)} className="text-xs font-semibold px-4 py-2.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>Cancel</button>
+              <button onClick={() => setDeleteConfirming(false)} className="text-xs font-semibold px-4 py-2.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>Cancel</button>
               <button onClick={handleDeleteAccount} disabled={deleting} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#DC2626' }}>{deleting ? 'Deleting…' : 'Yes, delete my account'}</button>
             </div>
           </div>
@@ -2969,14 +2969,14 @@ const CreatorClaimForm = ({ token }) => {
   };
 
   if (loading) {
-    return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Loading your profile…</div>;
+    return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading your profile…</div>;
   }
 
   if (notFound) {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
-        <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>This link isn't available</p>
-        <p className="text-xs" style={{ color: '#FFFFFF' }}>It may have already been finished and approved, or the link is incorrect.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>This link isn't available</p>
+        <p className="text-xs" style={{ color: '#334155' }}>It may have already been finished and approved, or the link is incorrect.</p>
       </div>
     );
   }
@@ -2985,8 +2985,8 @@ const CreatorClaimForm = ({ token }) => {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
         <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
-        <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>Profile saved</p>
-        <p className="text-xs" style={{ color: '#FFFFFF' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>Profile saved</p>
+        <p className="text-xs" style={{ color: '#334155' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
       </div>
     );
   }
@@ -2994,8 +2994,8 @@ const CreatorClaimForm = ({ token }) => {
   return (
     <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-8">
-        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#FFFFFF' }}>Finish your Commissioner profile</h1>
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>{pageName ? `You're setting up the profile for ${pageName}.` : "You're setting up your creator profile."} This is the page your NFC card will open. No account needed — fill in the public details and submit.</p>
+        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#334155' }}>Finish your Commissioner profile</h1>
+        <p className="text-sm" style={{ color: '#334155' }}>{pageName ? `You're setting up the profile for ${pageName}.` : "You're setting up your creator profile."} This is the page your NFC card will open. No account needed — fill in the public details and submit.</p>
       </div>
 
       <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
@@ -3012,16 +3012,16 @@ const CreatorClaimForm = ({ token }) => {
           <OnboardingField label="Language" placeholder="e.g. Amharic, English" icon={Languages} value={language} onChange={e => setLanguage(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Bio</label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Bio</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell businesses what you create and who you create it for" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
         </div>
 
         <div>
-          <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Social accounts</p>
+          <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Social accounts</p>
           <div className="flex flex-col gap-3">
             {['TikTok', 'Instagram', 'YouTube', 'Facebook'].map(p => (
               <div key={p} className="border rounded-xl p-3.5" style={{ borderColor: '#E5E7EB' }}>
-                <p className="text-xs font-semibold mb-2" style={{ color: '#FFFFFF' }}>{p}</p>
+                <p className="text-xs font-semibold mb-2" style={{ color: '#334155' }}>{p}</p>
                 <div className="grid grid-cols-3 gap-2">
                   <input value={socials[p]?.handle || ''} onChange={e => updateSocial(p, 'handle', e.target.value)} placeholder="@username" className="text-sm outline-none border-b py-1" style={{ borderColor: '#F3F4F6' }} />
                   <input value={socials[p]?.followers || ''} onChange={e => updateSocial(p, 'followers', e.target.value)} placeholder="Followers" className="text-sm outline-none border-b py-1" style={{ borderColor: '#F3F4F6' }} />
@@ -3035,7 +3035,7 @@ const CreatorClaimForm = ({ token }) => {
         <OnboardingField label="Portfolio link" placeholder="https://" icon={Link2} value={portfolioLink} onChange={e => setPortfolioLink(e.target.value)} />
         <OnboardingField label="Availability" placeholder="e.g. Available now" icon={Calendar} value={availability} onChange={e => setAvailability(e.target.value)} />
         <div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Anything else businesses should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Anything else businesses should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
           <textarea value={preferences} onChange={e => setPreferences(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
         </div>
 
@@ -3141,13 +3141,13 @@ const BusinessClaimForm = ({ token }) => {
     }
   };
 
-  if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Loading your page…</div>;
+  if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading your page…</div>;
 
   if (notFound) {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
-        <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>This link isn't available</p>
-        <p className="text-xs" style={{ color: '#FFFFFF' }}>It may have already been finished and approved, or the link is incorrect.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>This link isn't available</p>
+        <p className="text-xs" style={{ color: '#334155' }}>It may have already been finished and approved, or the link is incorrect.</p>
       </div>
     );
   }
@@ -3156,8 +3156,8 @@ const BusinessClaimForm = ({ token }) => {
     return (
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
         <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
-        <p className="text-sm font-semibold mb-1" style={{ color: '#FFFFFF' }}>Page saved</p>
-        <p className="text-xs" style={{ color: '#FFFFFF' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>Page saved</p>
+        <p className="text-xs" style={{ color: '#334155' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
       </div>
     );
   }
@@ -3165,8 +3165,8 @@ const BusinessClaimForm = ({ token }) => {
   return (
     <div className="max-w-2xl mx-auto px-5 md:px-8 py-12">
       <div className="mb-8">
-        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#FFFFFF' }}>Finish your business page</h1>
-        <p className="text-sm" style={{ color: '#FFFFFF' }}>{businessName ? `You're setting up the page for ${businessName}.` : "You're setting up your business page."} This is the page your NFC card will open. No account needed — fill in the public details and submit.</p>
+        <h1 className="cm-display font-bold text-2xl mb-2" style={{ color: '#334155' }}>Finish your business page</h1>
+        <p className="text-sm" style={{ color: '#334155' }}>{businessName ? `You're setting up the page for ${businessName}.` : "You're setting up your business page."} This is the page your NFC card will open. No account needed — fill in the public details and submit.</p>
       </div>
 
       <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
@@ -3184,12 +3184,12 @@ const BusinessClaimForm = ({ token }) => {
         </div>
         <OnboardingField label="Website" placeholder="https://" icon={Globe} value={website} onChange={e => setWebsite(e.target.value)} />
         <div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>About the business</label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>About the business</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="What do you do, and what kind of creators are you looking for?" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
         </div>
 
         <div>
-          <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>What are you looking for?</p>
+          <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>What are you looking for?</p>
           <div className="flex flex-wrap gap-2">
             {LOOKING_FOR_OPTIONS.map(l => (
               <button
@@ -3199,7 +3199,7 @@ const BusinessClaimForm = ({ token }) => {
                 className="text-xs font-semibold px-3.5 py-2 rounded-full border flex items-center gap-1"
                 style={{
                   background: lookingFor.includes(l) ? '#E0FBFF' : 'white',
-                  color: lookingFor.includes(l) ? '#036377' : '#FFFFFF',
+                  color: lookingFor.includes(l) ? '#036377' : '#334155',
                   borderColor: lookingFor.includes(l) ? '#00D9FF' : '#E5E7EB'
                 }}
               >
@@ -3212,7 +3212,7 @@ const BusinessClaimForm = ({ token }) => {
 
         <OnboardingField label="Typical budget range" placeholder="e.g. 5,000–15,000 ETB per campaign" icon={DollarSign} value={budgetRange} onChange={e => setBudgetRange(e.target.value)} />
         <div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#FFFFFF' }}>Anything else creators should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Anything else creators should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
           <textarea value={preferences} onChange={e => setPreferences(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
         </div>
 
@@ -3244,7 +3244,7 @@ const WorkWithMe = ({ profile }) => {
   };
   if (state.done) return <div className="border rounded-2xl p-5" style={{borderColor:'#BBF7D0',background:'#F0FDF4'}}><div className="flex items-center gap-2 font-semibold text-sm" style={{color:'#166534'}}><CheckCircle2 size={16}/> Inquiry sent successfully.</div><p className="text-xs mt-1" style={{color:'#166534'}}>The creator can review your request from their dashboard.</p></div>;
   return <div className="border rounded-2xl p-5" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}>
-    <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Work with {profile.page_name || 'this creator'}</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Send a private business or collaboration inquiry.</p></div><Briefcase size={18} style={{color:'#036377'}}/></div>
+    <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Work with {profile.page_name || 'this creator'}</p><p className="text-xs mt-1" style={{color:'#334155'}}>Send a private business or collaboration inquiry.</p></div><Briefcase size={18} style={{color:'#036377'}}/></div>
     {!open ? <button onClick={()=>setOpen(true)} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>Start an inquiry <ArrowRight size={14}/></button> :
     <form onSubmit={submit} className="mt-4 grid gap-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><OnboardingField label="Your name" placeholder="Your name" value={form.name} onChange={e=>update('name',e.target.value)}/><OnboardingField label="Email" placeholder="you@company.com" value={form.email} onChange={e=>update('email',e.target.value)} type="email"/></div>
@@ -3260,7 +3260,7 @@ const CreatorProducts = ({ profile }) => {
   const [products,setProducts]=useState([]);
   useEffect(()=>{ supabase.from('creator_products').select('id,name,description,image_url,price,currency,type,purchase_url').eq('creator_profile_id',profile.id).eq('active',true).order('created_at',{ascending:false}).then(({data})=>setProducts(data||[])); },[profile.id]);
   if(!products.length) return null;
-  return <div className="mb-8"><div className="flex items-center gap-2 mb-3"><ShoppingBag size={17} style={{color:'#036377'}}/><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Products & services</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{products.map(p=><div key={p.id} className="border rounded-2xl overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}>{p.image_url&&<img src={p.image_url} alt="" className="w-full h-36 object-cover"/>}<div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>{p.name}</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>{p.description}</p></div><span className="text-xs font-bold whitespace-nowrap" style={{color:'#FFFFFF'}}>{p.price != null ? `${Number(p.price).toLocaleString()} ${p.currency}` : 'Contact'}</span></div>{p.purchase_url&&<a href={p.purchase_url} target="_blank" rel="noreferrer" onClick={()=>supabase.rpc('track_profile_event',{p_creator_profile_id:profile.id,p_event_type:'product_view'}).catch(()=>{})} className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#FFFFFF'}}>{p.type==='service'?'Book / enquire':'Buy / order'} <ArrowUpRight size={13}/></a>}</div></div>)}</div></div>;
+  return <div className="mb-8"><div className="flex items-center gap-2 mb-3"><ShoppingBag size={17} style={{color:'#036377'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Products & services</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{products.map(p=><div key={p.id} className="border rounded-2xl overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}>{p.image_url&&<img src={p.image_url} alt="" className="w-full h-36 object-cover"/>}<div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>{p.name}</p><p className="text-xs mt-1" style={{color:'#334155'}}>{p.description}</p></div><span className="text-xs font-bold whitespace-nowrap" style={{color:'#334155'}}>{p.price != null ? `${Number(p.price).toLocaleString()} ${p.currency}` : 'Contact'}</span></div>{p.purchase_url&&<a href={p.purchase_url} target="_blank" rel="noreferrer" onClick={()=>supabase.rpc('track_profile_event',{p_creator_profile_id:profile.id,p_event_type:'product_view'}).catch(()=>{})} className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>{p.type==='service'?'Book / enquire':'Buy / order'} <ArrowUpRight size={13}/></a>}</div></div>)}</div></div>;
 };
 
 const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPage }) => {
@@ -3276,7 +3276,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
         <div className="bg-white border rounded-3xl overflow-hidden shadow-sm" style={{ borderColor: '#E5E7EB' }}>
           <div className="h-36 md:h-48 relative" style={{ background: profile.banner_url ? `url(${profile.banner_url}) center/cover` : 'linear-gradient(120deg,#FFFFFF,#FFFFFF)' }}>
             <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 35%, rgba(17,24,39,.55))' }} />
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#FFFFFF' }}>
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#334155' }}>
               <span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner profile
             </div>
           </div>
@@ -3287,7 +3287,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 {profile.verified && (
                   <span
                     className="absolute -right-1 -bottom-1 w-7 h-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm"
-                    style={{ background: '#0095F6', color: '#FFFFFF' }}
+                    style={{ background: '#0095F6', color: '#334155' }}
                     role="img"
                     aria-label="Verified by Commissioner"
                     title="Verified by Commissioner"
@@ -3298,13 +3298,13 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               </div>
               <div className="pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#FFFFFF' }}>{profile.page_name || profile.username || 'Creator'}</h1>
+                  <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.page_name || profile.username || 'Creator'}</h1>
                 </div>
-                <p className="text-sm" style={{ color: '#FFFFFF' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+                <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
                 <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
               </div>
               {!canEdit && profile.auth_user_id && (
-                <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>
+                <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
                   <Flag size={13} /> Report
                 </button>
               )}
@@ -3314,22 +3314,22 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               {profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
               {profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
             </div>
-            {profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#FFFFFF' }}>{profile.bio}</p>}
+            {profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
             <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>
             <CreatorProducts profile={profile} />
             <WorkWithMe profile={profile} />
             {socialEntries.length > 0 && (
               <div className="mb-7">
-                <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Social platforms</p>
+                <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Social platforms</p>
                 <div className="flex flex-wrap gap-2">
                   {socialEntries.map(([platform, value]) => {
                     const href = value.url || (value.handle && /^https?:\/\//.test(value.handle) ? value.handle : null);
                     return href ? (
-                      <a key={platform} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold hover:bg-gray-50" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>
+                      <a key={platform} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold hover:bg-gray-50" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
                         <PlatformIcon p={platform.toLowerCase()} /> {platform} {value.handle && !value.handle.startsWith('http') ? `· ${value.handle}` : ''}
                       </a>
                     ) : (
-                      <span key={platform} className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}><PlatformIcon p={platform.toLowerCase()} /> {platform} · {value.handle}</span>
+                      <span key={platform} className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold" style={{ borderColor: '#E5E7EB', color: '#334155' }}><PlatformIcon p={platform.toLowerCase()} /> {platform} · {value.handle}</span>
                     );
                   })}
                 </div>
@@ -3337,9 +3337,9 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
             )}
             {serviceEntries.length > 0 && (
               <div className="mb-7">
-                <p className="text-sm font-semibold mb-3" style={{ color: '#FFFFFF' }}>Collaboration services</p>
+                <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Collaboration services</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {serviceEntries.map(([name, price]) => <div key={name} className="border rounded-xl px-3 py-3 flex items-center justify-between text-xs" style={{ borderColor: '#E5E7EB' }}><span className="font-semibold capitalize" style={{ color: '#FFFFFF' }}>{name.replaceAll('_',' ')}</span><span className="cm-mono font-semibold" style={{ color: '#FFFFFF' }}>{String(price)}</span></div>)}
+                  {serviceEntries.map(([name, price]) => <div key={name} className="border rounded-xl px-3 py-3 flex items-center justify-between text-xs" style={{ borderColor: '#E5E7EB' }}><span className="font-semibold capitalize" style={{ color: '#334155' }}>{name.replaceAll('_',' ')}</span><span className="cm-mono font-semibold" style={{ color: '#334155' }}>{String(price)}</span></div>)}
                 </div>
               </div>
             )}
@@ -3368,7 +3368,7 @@ const PublicBusinessProfile = ({ profile, session }) => {
     <div className="max-w-4xl mx-auto px-5 md:px-8 py-8 md:py-12">
       <div className="bg-white border rounded-3xl overflow-hidden shadow-sm" style={{ borderColor: '#E5E7EB' }}>
         <div className="h-36 md:h-48 relative" style={{ background: profile.banner_url ? `url(${profile.banner_url}) center/cover` : 'linear-gradient(120deg,#FFFFFF,#FFFFFF)' }}>
-          <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#FFFFFF' }}><span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner business profile</div>
+          <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#334155' }}><span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner business profile</div>
         </div>
         <div className="px-5 md:px-8 pb-8">
           <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
@@ -3377,7 +3377,7 @@ const PublicBusinessProfile = ({ profile, session }) => {
               {profile.verified && (
                 <span
                   className="absolute -right-1 -bottom-1 w-7 h-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm"
-                  style={{ background: '#0095F6', color: '#FFFFFF' }}
+                  style={{ background: '#0095F6', color: '#334155' }}
                   role="img"
                   aria-label="Verified by Commissioner"
                   title="Verified by Commissioner"
@@ -3387,21 +3387,21 @@ const PublicBusinessProfile = ({ profile, session }) => {
               )}
             </div>
             <div className="pb-1">
-              <div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#FFFFFF' }}>{profile.business_name || profile.username || 'Business'}</h1></div>
-              <p className="text-sm" style={{ color: '#FFFFFF' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+              <div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.business_name || profile.username || 'Business'}</h1></div>
+              <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
               <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
             </div>
             {profile.auth_user_id && (
-              <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>
+              <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
                 <Flag size={13} /> Report
               </button>
             )}
           </div>
           {profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
-          {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#FFFFFF' }}>{profile.bio}</p>}
+          {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
           <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>
           <div className="flex flex-wrap gap-3">
-            {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#FFFFFF' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+            {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
           {profile.auth_user_id && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
@@ -3423,7 +3423,7 @@ const OfficialBusinessPage = ({ id, session }) => {
   useEffect(() => {
     supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => setProfile(data || null));
   }, [id]);
-  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Loading business profile…</div>;
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading business profile…</div>;
   return <PublicBusinessProfile profile={profile} session={session} />;
 };
 
@@ -3454,14 +3454,14 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
 
   useEffect(() => { loadProfile(); }, [id, session?.user?.id]);
 
-  if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Loading creator profile…</div>;
-  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Creator profile not found</p></div>;
+  if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading creator profile…</div>;
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Creator profile not found</p></div>;
 
   if (editMode && owner) {
     return (
       <div>
         <div className="max-w-2xl mx-auto px-5 md:px-8 pt-6">
-          <button onClick={() => setEditMode(false)} className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg border" style={{ borderColor:'#E5E7EB', color:'#FFFFFF' }}><ChevronLeft size={15}/> Back to profile</button>
+          <button onClick={() => setEditMode(false)} className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg border" style={{ borderColor:'#E5E7EB', color:'#334155' }}><ChevronLeft size={15}/> Back to profile</button>
         </div>
         <Onboarding session={session} setPage={setPage} editMode={true} onSaved={async () => { setEditMode(false); await loadProfile(); }} />
       </div>
@@ -3471,7 +3471,7 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
   return (
     <>
       {!profile.onboarded && (
-        <div className="max-w-5xl mx-auto px-5 md:px-8 pt-3"><div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>This creator is still completing their profile. The NFC card is already linked to this permanent creator page.</div></div>
+        <div className="max-w-5xl mx-auto px-5 md:px-8 pt-3"><div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#E5E7EB', color: '#334155' }}>This creator is still completing their profile. The NFC card is already linked to this permanent creator page.</div></div>
       )}
       <PublicCreatorProfile
         profile={profile}
@@ -3524,7 +3524,7 @@ const ClaimGate = ({ token, session, setPage }) => {
     return () => { cancelled = true; };
   }, [token]);
 
-  if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#FFFFFF' }}>Loading NFC profile…</div>;
+  if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading NFC profile…</div>;
   if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} />;
   if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
@@ -3582,16 +3582,16 @@ const VerificationDetails = ({ type, id, compact=false }) => {
 const Businesses = ({ onConnect, session, setPage, appliedIds, onApply, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('primary');
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
-  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan,created_at').eq('approved',true).eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
-  if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#FFFFFF' }}>Explore businesses</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Browse businesses and the campaigns they have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
+  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan,created_at').eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
+  if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#334155' }}>Explore businesses</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Browse businesses and the campaigns they have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
-    <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Find businesses</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
+    <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Find businesses</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
     <ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" />
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search business, industry, city…" className="flex-1 outline-none text-sm"/></div><select value={category} onChange={e=>setCategory(e.target.value)} className="border rounded-xl px-3 py-3 text-sm bg-white" style={{borderColor:'#E5E7EB'}}><option>All</option>{BUSINESS_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
-    {loading?<p className="py-16 text-center text-sm" style={{color:'#FFFFFF'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#FFFFFF'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.plan==='premium'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#FFFFFF',color:'#00D9FF'}}>Premium</span>}{b.plan==='pro'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Pro</span>}</div><p className="text-xs" style={{color:'#FFFFFF'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#FFFFFF'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b,'view')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>View profile</button><button onClick={()=>onConnect?.(b,'connect')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
-    {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
-    {!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>No businesses found</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Try another category or search.</p></div>}
+    {loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#334155'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.plan==='premium'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#FFFFFF',color:'#00D9FF'}}>Premium</span>}{b.plan==='pro'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Pro</span>}</div><p className="text-xs" style={{color:'#334155'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#334155'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b,'view')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>View profile</button><button onClick={()=>onConnect?.(b,'connect')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
+    {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#334155'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
+    {!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>No businesses found</p><p className="text-xs mt-1" style={{color:'#334155'}}>Try another category or search.</p></div>}
   </div>;
 };
 
@@ -3614,8 +3614,8 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
       try{
         const {data: listings}=await supabase.from('marketplace_listings').select('*').eq('active',true).order('created_at',{ascending:false}).limit(100);
         const [{data: creators},{data: businesses}]=await Promise.all([
-          supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('approved',true).limit(80),
-          supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('approved',true).limit(80)
+          supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('onboarded',true).limit(80),
+          supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('onboarded',true).limit(80)
         ]);
         const byId={}; (creators||[]).forEach(x=>byId[`creator:${x.id}`]={...x,type:'creator'}); (businesses||[]).forEach(x=>byId[`business:${x.id}`]={...x,type:'business'});
         const rows=(listings||[]).map(x=>({...x,owner:byId[`${x.owner_type}:${x.owner_id}`]})).filter(x=>x.owner);
@@ -3632,7 +3632,7 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
   },[]);
   const [showSetup,setShowSetup]=useState(false);
   const filtered=items.filter(x=>(tab==='all'||x.owner_type===tab||x.listing_type===tab)&&`${x.title} ${x.description} ${x.category} ${x.owner?.page_name||x.owner?.business_name||''}`.toLowerCase().includes(q.toLowerCase()));
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 relative cm-marketplace-page"><div className="flex justify-end mb-4"><button onClick={()=>setShowSetup(true)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white shadow-lg" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}><ShoppingBag size={15} className="inline mr-2"/>Marketplace setup</button></div><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Products & services</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Discover products and services offered by creators and businesses. Anyone with a Commissioner account can message a poster directly.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#FFFFFF':'transparent',color:tab===v?'#fff':'#FFFFFF'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#FFFFFF'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#FFFFFF'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#FFFFFF'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#FFFFFF'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#FFFFFF'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#FFFFFF'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner, x.id)} disabled={session?.user?.id && x.owner?.auth_user_id === session.user.id} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-60 disabled:cursor-not-allowed" style={{background:'#E6007A'}}>{session?.user?.id && x.owner?.auth_user_id === session.user.id ? 'Your listing' : 'Message'}</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}{showSetup&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(7,21,47,.55)',backdropFilter:'blur(8px)'}}><div className="w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-3xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Marketplace setup</p><h2 className="cm-display font-bold text-xl mt-1" style={{color:'#172033'}}>Manage your products and services</h2><p className="text-xs mt-1" style={{color:'#526078'}}>Your marketplace setup now lives here instead of on the dashboard.</p></div><button onClick={()=>setShowSetup(false)} className="w-9 h-9 rounded-xl border" style={{color:'#172033',borderColor:'#D7DFEA'}}>×</button></div>{activeRole==='business'?<BusinessDashboardMarketplaceSetup session={session}/>:<CreatorDashboardMarketplaceSetup session={session}/>}</div></div>}</div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 relative cm-marketplace-page"><div className="flex justify-end mb-4"><button onClick={()=>setShowSetup(true)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white shadow-lg" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}><ShoppingBag size={15} className="inline mr-2"/>Marketplace setup</button></div><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Products & services</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Discover products and services offered by creators and businesses. Anyone with a Commissioner account can message a poster directly.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#E0FBFF':'transparent',color:tab===v?'#036377':'#334155'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#334155'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#334155'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#334155'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner, x.id)} disabled={session?.user?.id && x.owner?.auth_user_id === session.user.id} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-60 disabled:cursor-not-allowed" style={{background:'#E6007A'}}>{session?.user?.id && x.owner?.auth_user_id === session.user.id ? 'Your listing' : 'Message'}</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#334155'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}{showSetup&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(7,21,47,.55)',backdropFilter:'blur(8px)'}}><div className="w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-3xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Marketplace setup</p><h2 className="cm-display font-bold text-xl mt-1" style={{color:'#172033'}}>Manage your products and services</h2><p className="text-xs mt-1" style={{color:'#526078'}}>Your marketplace setup now lives here instead of on the dashboard.</p></div><button onClick={()=>setShowSetup(false)} className="w-9 h-9 rounded-xl border" style={{color:'#172033',borderColor:'#D7DFEA'}}>×</button></div>{activeRole==='business'?<BusinessDashboardMarketplaceSetup session={session}/>:<CreatorDashboardMarketplaceSetup session={session}/>}</div></div>}</div>;
 };
 
 const TrustCenter = ({ session, activeRole }) => {
@@ -3654,14 +3654,14 @@ const TrustCenter = ({ session, activeRole }) => {
   };
   useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
   const submit=async()=>{if(!profile)return;const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile);const pct=completionPercent(checklist);if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}setBusy(true);setMsg('');const fn=type==='creator'?'submit_creator_verification':'submit_business_verification';const params=type==='creator'?{p_creator_profile_id:profile.id,p_evidence_note:note}:{p_business_profile_id:profile.id,p_evidence_note:note};const {error}=await supabase.rpc(fn,params);setBusy(false);if(error)setMsg(error.message);else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}};
-  if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#FFFFFF'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Sign in to request verification.</p></div>;
-  return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#FFFFFF'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div><div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div><div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}><h2 className="text-sm font-semibold" style={{color:'#07152F'}}>Request a verification review</h2><p className="text-xs mt-1 mb-4" style={{color:'#526078'}}>{type==='creator'?'We can review identity, linked-account ownership, follower count and engagement claims.':'We can review your business information and authorized representative details.'}</p><textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Tell the reviewer which connected accounts and statistics you want checked.':'Add the business information or representative details you want the reviewer to check. Do not paste private passwords or payment information.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}</div></div>;
+  if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
+  return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div><div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div><div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}><h2 className="text-sm font-semibold" style={{color:'#07152F'}}>Request a verification review</h2><p className="text-xs mt-1 mb-4" style={{color:'#526078'}}>{type==='creator'?'We can review identity, linked-account ownership, follower count and engagement claims.':'We can review your business information and authorized representative details.'}</p><textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Tell the reviewer which connected accounts and statistics you want checked.':'Add the business information or representative details you want the reviewer to check. Do not paste private passwords or payment information.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}</div></div>;
 };
 
 const B2BNetwork = ({ session, initialBusiness=null }) => {
   const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [messageTarget,setMessageTarget]=useState(null); const [busyTarget,setBusyTarget]=useState(null);
   const [launchStats,setLaunchStats]=useState(null); const [isAdmin,setIsAdmin]=useState(false);
-  const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,approved,onboarded').eq('approved',true).eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
+  const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,approved,onboarded').eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,approved,onboarded').eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
   useEffect(()=>{load()},[session?.user?.id]);
   useEffect(()=>{fetchLaunchStats().then(setLaunchStats)},[]);
   useEffect(()=>{if(!session){setIsAdmin(false);return;}supabase.rpc('is_admin').then(({data})=>setIsAdmin(!!data))},[session?.user?.id]);
@@ -3670,9 +3670,9 @@ const B2BNetwork = ({ session, initialBusiness=null }) => {
   const send=async(target)=>{if(!session||!target?.auth_user_id)return;if(target.auth_user_id===session.user.id)return;if(!launched){setMessage('Connecting is locked until Commissioner reaches its launch threshold.');return;}setBusyTarget(target.auth_user_id);setMessageTarget(target);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||`I would like to connect with ${target.name||target.business_name||target.page_name||'you'} professionally through Commissioner.`});setBusyTarget(null);if(error)setMessage(error.code==='23505'?'A connection request already exists with this person.':error.message);else{setMessage('Connection request sent.');await load();}};
   const startMessage=async(target)=>{if(!session||!target?.auth_user_id||target.auth_user_id===session.user.id)return;if(!launched){setMessage('Messaging is locked until Commissioner reaches its launch threshold.');return;}setMessageTarget(target);setMessage(`I'd like to discuss a professional opportunity with ${target.name||target.business_name||target.page_name||'you'}.`);const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:target.auth_user_id,p_initial_message:null});if(error){setMessage(error.message||'Could not start the conversation.');return;}window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:target.auth_user_id,conversationId:data}}));};
   const filtered=items.filter(x=>`${x.name} ${x.industry||x.primary_niche||''} ${x.city||''}`.toLowerCase().includes(search.toLowerCase()));
-  if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Briefcase size={32} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#FFFFFF'}}>B2B network</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Sign in to connect with businesses and creators.</p></div>;
-  if(!launched)return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Professional connections without the noise</h1></div><LaunchGateNotice stats={launchStats}/>{connections.length>0&&<div className="bg-white border rounded-2xl p-5 mt-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-3" style={{color:'#FFFFFF'}}>Your existing connections</p>{connections.map(c=><div key={c.id} className="flex items-center justify-between py-2 text-xs border-b last:border-0" style={{borderColor:'#F3F4F6'}}><span style={{color:'#FFFFFF'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>}</div>;
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 cm-b2b-page">{isAdmin&&!launchStats?.unlocked&&<div className="mb-5 text-xs font-semibold px-4 py-2.5 rounded-lg" style={{background:'#FFF1E5',color:'#9A4A0C'}}>Admin preview — the network is still locked for everyone else until launch threshold is reached.</div>}<div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#FFFFFF'}}>Professional connections without the noise</h1><p className="text-sm mt-2" style={{color:'#FFFFFF'}}>Find people and companies, review their verified facts, and start a professional relationship.</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5"><div><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white mb-4" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, creators, industries…" className="flex-1 outline-none text-sm"/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filtered.map((x,i)=><div key={x.kind+x.id} className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3"><Avatar name={x.name} size={46} tone={i} src={x.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#FFFFFF'}}>{x.name}</p>{x.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#FFFFFF'}}>{x.kind==='business'?x.industry:x.primary_niche}{x.city?` · ${x.city}`:''}</p></div></div><p className="text-[11px] mt-4" style={{color:'#FFFFFF'}}>Verified facts are shown separately from general reputation.</p><div className="flex gap-2 mt-3"><button type="button" onClick={(e)=>{e.stopPropagation();send(x)}} disabled={busyTarget===x.auth_user_id} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{busyTarget===x.auth_user_id?'Sending…':'Connect'}</button><button type="button" onClick={(e)=>{e.stopPropagation();startMessage(x)}} disabled={busyTarget===x.auth_user_id} aria-label={`Message ${x.name}`} className="px-3 py-2.5 rounded-lg border disabled:opacity-50" style={{borderColor:'#E5E7EB'}}><MessageSquare size={14}/></button></div></div>)}</div></div><aside className="bg-white border rounded-2xl p-5 h-fit" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Connection message</p><p className="text-xs mt-1 mb-3" style={{color:'#FFFFFF'}}>This starts a professional connection. You can continue the conversation in Messages after acceptance.</p><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={5} className="w-full border rounded-xl px-3 py-3 text-xs outline-none resize-none" style={{borderColor:'#E5E7EB'}} placeholder="Introduce yourself and explain why you want to connect."/><div className="mt-4 border-t pt-4" style={{borderColor:'#F3F4F6'}}><p className="text-xs font-semibold mb-2" style={{color:'#FFFFFF'}}>Your recent connections</p>{connections.slice(0,5).map(c=><div key={c.id} className="flex items-center justify-between py-2 text-[11px]"><span style={{color:'#FFFFFF'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}{!connections.length&&<p className="text-[11px]" style={{color:'#9CA3AF'}}>No connections yet.</p>}</div></aside></div></div>;
+  if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Briefcase size={32} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>B2B network</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to connect with businesses and creators.</p></div>;
+  if(!launched)return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Professional connections without the noise</h1></div><LaunchGateNotice stats={launchStats}/>{connections.length>0&&<div className="bg-white border rounded-2xl p-5 mt-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-3" style={{color:'#334155'}}>Your existing connections</p>{connections.map(c=><div key={c.id} className="flex items-center justify-between py-2 text-xs border-b last:border-0" style={{borderColor:'#F3F4F6'}}><span style={{color:'#334155'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>}</div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 cm-b2b-page">{isAdmin&&!launchStats?.unlocked&&<div className="mb-5 text-xs font-semibold px-4 py-2.5 rounded-lg" style={{background:'#FFF1E5',color:'#9A4A0C'}}>Admin preview — the network is still locked for everyone else until launch threshold is reached.</div>}<div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Professional connections without the noise</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Find people and companies, review their verified facts, and start a professional relationship.</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5"><div><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white mb-4" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, creators, industries…" className="flex-1 outline-none text-sm"/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filtered.map((x,i)=><div key={x.kind+x.id} className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3"><Avatar name={x.name} size={46} tone={i} src={x.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.name}</p>{x.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.kind==='business'?x.industry:x.primary_niche}{x.city?` · ${x.city}`:''}</p></div></div><p className="text-[11px] mt-4" style={{color:'#334155'}}>Verified facts are shown separately from general reputation.</p><div className="flex gap-2 mt-3"><button type="button" onClick={(e)=>{e.stopPropagation();send(x)}} disabled={busyTarget===x.auth_user_id} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{busyTarget===x.auth_user_id?'Sending…':'Connect'}</button><button type="button" onClick={(e)=>{e.stopPropagation();startMessage(x)}} disabled={busyTarget===x.auth_user_id} aria-label={`Message ${x.name}`} className="px-3 py-2.5 rounded-lg border disabled:opacity-50" style={{borderColor:'#E5E7EB'}}><MessageSquare size={14}/></button></div></div>)}</div></div><aside className="bg-white border rounded-2xl p-5 h-fit" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold" style={{color:'#334155'}}>Connection message</p><p className="text-xs mt-1 mb-3" style={{color:'#334155'}}>This starts a professional connection. You can continue the conversation in Messages after acceptance.</p><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={5} className="w-full border rounded-xl px-3 py-3 text-xs outline-none resize-none" style={{borderColor:'#E5E7EB'}} placeholder="Introduce yourself and explain why you want to connect."/><div className="mt-4 border-t pt-4" style={{borderColor:'#F3F4F6'}}><p className="text-xs font-semibold mb-2" style={{color:'#334155'}}>Your recent connections</p>{connections.slice(0,5).map(c=><div key={c.id} className="flex items-center justify-between py-2 text-[11px]"><span style={{color:'#334155'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}{!connections.length&&<p className="text-[11px]" style={{color:'#9CA3AF'}}>No connections yet.</p>}</div></aside></div></div>;
 };
 
 const VerificationAdminQueue = () => {
@@ -3700,20 +3700,20 @@ const VerificationAdminQueue = () => {
     setBusy('');
     if(error) setMessage(error.message || `Could not ${action} this request.`); else await load();
   };
-  if(loading)return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB'}}><p className="text-sm" style={{color:'#FFFFFF'}}>Loading verification requests…</p></div>;
+  if(loading)return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB'}}><p className="text-sm" style={{color:'#334155'}}>Loading verification requests…</p></div>;
   const rows=[...creators.map(x=>({...x,_type:'creator',name:x.creator_profiles?.page_name||x.creator_profiles?.username||'Creator',profile:x.creator_profiles})),...businesses.map(x=>({...x,_type:'business',name:x.business_profiles?.business_name||x.business_profiles?.username||'Business',profile:x.business_profiles}))].sort((a,b)=>{const rank=r=>r.status==='pending'||r.status==='needs_recheck'?0:r.status==='rejected'?2:1;return rank(a)-rank(b)||new Date(b.created_at)-new Date(a.created_at)});
   const pending=rows.filter(r=>r.status==='pending'||r.status==='needs_recheck');
   return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}>
-    <div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>Verification requests {pending.length>0&&<span style={{color:'#E6007A'}}>({pending.length} pending)</span>}</p><p className="text-xs mt-1" style={{color:'#FFFFFF'}}>Every verification request from Creator and Business setup appears here. Review it, verify it, approve the profile, or reject/delete it.</p></div><Shield size={18} style={{color:'#036377'}}/></div>
+    <div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Verification requests {pending.length>0&&<span style={{color:'#E6007A'}}>({pending.length} pending)</span>}</p><p className="text-xs mt-1" style={{color:'#334155'}}>Every verification request from Creator and Business setup appears here. Review it, verify it, approve the profile, or reject/delete it.</p></div><Shield size={18} style={{color:'#036377'}}/></div>
     {message&&<div className="mb-3 rounded-lg px-3 py-2 text-xs" style={{background:'#FFF1F2',color:'#B42318'}}>{message}</div>}
     <div className="space-y-3">{rows.map(r=><div key={r._type+r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}>
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><label className="text-[11px] font-semibold" style={{color:'#FFFFFF'}}>Plan</label><select value={r.profile?.plan || 'basic'} onChange={e=>act(r._type,r,'plan',e.target.value)} disabled={!!busy} className="text-[11px] font-semibold border rounded-lg px-2 py-2" style={{borderColor:'#E5E7EB'}}><option value="basic">Basic</option><option value="pro">Pro</option><option value="premium">Premium</option></select><p className="text-sm font-semibold" style={{color:'#FFFFFF'}}>{r.name}</p><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide" style={r._type==='business'?{background:'#F3E8FF',color:'#7C3AED'}:{background:'#FDE7F1',color:'#99154F'}}>{r._type}</span><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{background:r.status==='verified'?'#E9FBEF':r.status==='rejected'?'#FFF1F2':'#FFF7ED',color:r.status==='verified'?'#0E7A3B':r.status==='rejected'?'#B42318':'#9A4A0C'}}>{r.status.replace('_',' ')}</span>{r.profile?.verified&&<VerifiedBadge/>}{r.profile?.approved&&<span className="text-[10px] font-semibold" style={{color:'#0E7A3B'}}>Approved</span>}</div><p className="text-[11px] mt-1" style={{color:'#FFFFFF'}}>{r.profile?.username?`@${r.profile.username}`:''}{r.profile?.city?` · ${r.profile.city}`:''} · Submitted {new Date(r.created_at).toLocaleDateString()}</p>{r.evidence_note&&<p className="text-xs mt-2" style={{color:'#FFFFFF'}}>{r.evidence_note}</p>}</div>
+        <div className="min-w-0"><div className="flex items-center gap-2 flex-wrap"><label className="text-[11px] font-semibold" style={{color:'#334155'}}>Plan</label><select value={r.profile?.plan || 'basic'} onChange={e=>act(r._type,r,'plan',e.target.value)} disabled={!!busy} className="text-[11px] font-semibold border rounded-lg px-2 py-2" style={{borderColor:'#E5E7EB'}}><option value="basic">Basic</option><option value="pro">Pro</option><option value="premium">Premium</option></select><p className="text-sm font-semibold" style={{color:'#334155'}}>{r.name}</p><span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide" style={r._type==='business'?{background:'#F3E8FF',color:'#7C3AED'}:{background:'#FDE7F1',color:'#99154F'}}>{r._type}</span><span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{background:r.status==='verified'?'#E9FBEF':r.status==='rejected'?'#FFF1F2':'#FFF7ED',color:r.status==='verified'?'#0E7A3B':r.status==='rejected'?'#B42318':'#9A4A0C'}}>{r.status.replace('_',' ')}</span>{r.profile?.verified&&<VerifiedBadge/>}{r.profile?.approved&&<span className="text-[10px] font-semibold" style={{color:'#0E7A3B'}}>Approved</span>}</div><p className="text-[11px] mt-1" style={{color:'#334155'}}>{r.profile?.username?`@${r.profile.username}`:''}{r.profile?.city?` · ${r.profile.city}`:''} · Submitted {new Date(r.created_at).toLocaleDateString()}</p>{r.evidence_note&&<p className="text-xs mt-2" style={{color:'#334155'}}>{r.evidence_note}</p>}</div>
         <div className="flex flex-wrap gap-2 shrink-0">
           {!r.profile?.verified ? <button onClick={()=>act(r._type,r,'verify',r.profile?.plan||'basic')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-50" style={{background:'#00A8CC'}}>{busy===`${r._type}:${r.id}:verify`?'Verifying…':'Verify'}</button> : <button onClick={()=>act(r._type,r,'unverify')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{busy===`${r._type}:${r.id}:unverify`?'Unverifying…':'Unverify'}</button>}
           <button onClick={()=>act(r._type,r,r.profile?.approved?'unapprove':'approve')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:r.profile?.approved?'#E0FBFF':'#0E7A3B',color:r.profile?.approved?'#036377':'#FFFFFF'}}>{r.profile?.approved?(busy===`${r._type}:${r.id}:unapprove`?'Unapproving…':'Unapprove'):(busy===`${r._type}:${r.id}:approve`?'Approving…':'Approve')}</button>
-          <button onClick={()=>act(r._type,r,r.status==='rejected'?'unreject':'reject')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='rejected'?'#D1D5DB':'#FECACA',color:r.status==='rejected'?'#FFFFFF':'#B42318'}}>{r.status==='rejected'?(busy===`${r._type}:${r.id}:unreject`?'Unrejecting…':'Unreject'):(busy===`${r._type}:${r.id}:reject`?'Rejecting…':'Reject')}</button>
-          <button onClick={()=>act(r._type,r,r.status==='deleted'?'restore':'delete')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='deleted'?'#A7F3D0':'#E5E7EB',color:r.status==='deleted'?'#0E7A3B':'#FFFFFF'}}>{r.status==='deleted'?(busy===`${r._type}:${r.id}:restore`?'Restoring…':'Restore'):(busy===`${r._type}:${r.id}:delete`?'Deleting…':'Delete')}</button>
+          <button onClick={()=>act(r._type,r,r.status==='rejected'?'unreject':'reject')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='rejected'?'#D1D5DB':'#FECACA',color:r.status==='rejected'?'#334155':'#B42318'}}>{r.status==='rejected'?(busy===`${r._type}:${r.id}:unreject`?'Unrejecting…':'Unreject'):(busy===`${r._type}:${r.id}:reject`?'Rejecting…':'Reject')}</button>
+          <button onClick={()=>act(r._type,r,r.status==='deleted'?'restore':'delete')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='deleted'?'#A7F3D0':'#E5E7EB',color:r.status==='deleted'?'#0E7A3B':'#334155'}}>{r.status==='deleted'?(busy===`${r._type}:${r.id}:restore`?'Restoring…':'Restore'):(busy===`${r._type}:${r.id}:delete`?'Deleting…':'Delete')}</button>
         </div>
       </div>
     </div>)}{!rows.length&&<p className="text-xs py-6 text-center" style={{color:'#9CA3AF'}}>No verification requests yet.</p>}</div>
@@ -3785,8 +3785,8 @@ const AdminNfcManager = () => {
     <section className="border rounded-2xl p-5 mb-8 bg-white" style={{ borderColor: '#E5E7EB' }}>
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
-          <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>NFC management</p>
-          <p className="text-xs mt-1" style={{ color: '#FFFFFF' }}>Admin-only registry for physical NFC cards. Commissioner stores the assignment; the tag itself is programmed with an external NFC-capable device.</p>
+          <p className="text-sm font-semibold" style={{ color: '#334155' }}>NFC management</p>
+          <p className="text-xs mt-1" style={{ color: '#334155' }}>Admin-only registry for physical NFC cards. Commissioner stores the assignment; the tag itself is programmed with an external NFC-capable device.</p>
         </div>
         <Zap size={18} style={{ color: '#00D9FF' }} />
       </div>
@@ -3803,18 +3803,18 @@ const AdminNfcManager = () => {
         <button disabled={saving} className="text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{ background: '#E6007A' }}>{saving ? 'Saving…' : 'Register'}</button>
       </form>
       {message && <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ background: '#F0F9FF', color: '#075985' }}>{message}</p>}
-      {loading ? <p className="text-sm" style={{ color: '#FFFFFF' }}>Loading NFC cards…</p> : !cards.length ? <p className="text-sm py-4 text-center" style={{ color: '#9CA3AF' }}>No NFC cards registered yet.</p> : (
+      {loading ? <p className="text-sm" style={{ color: '#334155' }}>Loading NFC cards…</p> : !cards.length ? <p className="text-sm py-4 text-center" style={{ color: '#9CA3AF' }}>No NFC cards registered yet.</p> : (
         <div className="space-y-2">
           {cards.map(card => (
             <div key={card.id} className="border rounded-xl p-3 flex flex-col lg:flex-row lg:items-center gap-3" style={{ borderColor: '#E5E7EB' }}>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold" style={{ color: '#FFFFFF' }}>{card.card_code || card.id}</p>
-                <p className="text-[11px]" style={{ color: '#FFFFFF' }}>{nameFor(card)} · {card.status}</p>
+                <p className="text-xs font-semibold" style={{ color: '#334155' }}>{card.card_code || card.id}</p>
+                <p className="text-[11px]" style={{ color: '#334155' }}>{nameFor(card)} · {card.status}</p>
                 {destination(card) && <p className="text-[10px] cm-mono truncate mt-1" style={{ color: '#036377' }}>{destination(card)}</p>}
               </div>
               <div className="flex gap-2 flex-wrap">
                 {destination(card) && <button type="button" onClick={() => navigator.clipboard?.writeText(destination(card))} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#BAE6FD', color: '#036377' }}>Copy URL</button>}
-                <button type="button" onClick={() => status(card.id, card.status === 'inactive' || card.status === 'revoked' ? 'active' : 'inactive')} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>{card.status === 'active' ? 'Disable' : 'Activate'}</button>
+                <button type="button" onClick={() => status(card.id, card.status === 'inactive' || card.status === 'revoked' ? 'active' : 'inactive')} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>{card.status === 'active' ? 'Disable' : 'Activate'}</button>
                 <button type="button" onClick={() => status(card.id, 'revoked')} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border" style={{ borderColor: '#FECACA', color: '#B42318' }}>Revoke</button>
               </div>
             </div>
@@ -4333,7 +4333,7 @@ const AdminPanel = ({ session }) => {
             <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Verified businesses needed</span>
             <input type="number" min="0" value={thresholdDraft.business} onChange={e => setThresholdDraft(d => ({ ...d, business: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
           </label>
-          <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#FFFFFF' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
+          <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
         </div>
         {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
       </div>
@@ -4655,7 +4655,7 @@ const BackButton = ({ onClick, style }) => (
   <button
     onClick={onClick}
     className="cm-mono inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg"
-    style={{ color: '#FFFFFF', background: '#fff', border: '1px solid #E5E7EB', ...style }}
+    style={{ color: '#334155', background: '#fff', border: '1px solid #E5E7EB', ...style }}
   >
     <ChevronLeft size={14} /> Back
   </button>
@@ -4794,8 +4794,8 @@ const NavTour = ({ onDone }) => {
       />
       <div style={{ position: 'fixed', top: tooltipTop, left: tooltipLeft, width: 280 }} className="bg-white rounded-xl shadow-2xl p-4">
         <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: '#00A8C4' }}>Step {stepIndex + 1} of {validSteps.length}</p>
-        <p className="text-sm font-bold mb-1" style={{ color: '#FFFFFF' }}>{step.title}</p>
-        <p className="text-xs mb-3 leading-relaxed" style={{ color: '#FFFFFF' }}>{step.body}</p>
+        <p className="text-sm font-bold mb-1" style={{ color: '#334155' }}>{step.title}</p>
+        <p className="text-xs mb-3 leading-relaxed" style={{ color: '#334155' }}>{step.body}</p>
         <div className="flex items-center justify-between">
           <button onClick={onDone} className="text-xs font-semibold" style={{ color: '#9CA3AF' }}>Skip tour</button>
           <button
@@ -5204,8 +5204,8 @@ export default function Commissioner() {
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider bg-white border" style={{borderColor:'#E4E7EC'}}>
               <span className="w-2 h-2 rounded-full" style={{background:'#E6007A'}}/> Commissioner access <span className="w-2 h-2 rounded-full" style={{background:'#00D9FF'}}/>
             </div>
-            <h1 className="cm-display text-3xl md:text-4xl mt-4" style={{color:'#FFFFFF'}}>Build your professional presence.</h1>
-            <p className="text-sm md:text-base mt-2" style={{color:'#FFFFFF'}}>One account. Separate creator and business identities. A cleaner way to connect, discover, and collaborate.</p>
+            <h1 className="cm-display text-3xl md:text-4xl mt-4" style={{color:'#334155'}}>Build your professional presence.</h1>
+            <p className="text-sm md:text-base mt-2" style={{color:'#334155'}}>One account. Separate creator and business identities. A cleaner way to connect, discover, and collaborate.</p>
           </div>
           <Auth onAuthenticated={(sess, intendedRole) => {
             if (intendedRole && sess?.user?.id) {
@@ -5229,7 +5229,7 @@ export default function Commissioner() {
       </main>
       {page !== 'messages' && page !== 'onboarding' && page !== 'auth' && page !== 'account' && !availabilityBlocked && <Footer setPage={setPage} />}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border rounded-xl px-5 py-3 shadow-lg text-sm font-medium" style={{ borderColor: '#E5E7EB', color: '#FFFFFF' }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border rounded-xl px-5 py-3 shadow-lg text-sm font-medium" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
           {toast}
         </div>
       )}
