@@ -356,7 +356,6 @@ begin
       end if;
       update public.business_verification_claims
       set registration_status='verified',
-          license_status='verified',
           representative_status='verified',
           status='verified',
           checked_at=now(),

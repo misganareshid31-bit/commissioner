@@ -22,7 +22,6 @@ create table if not exists public.business_verification_claims (
   id uuid primary key default gen_random_uuid(),
   business_profile_id uuid not null references public.business_profiles(id) on delete cascade,
   registration_status text not null default 'not_submitted' check (registration_status in ('not_submitted','pending','verified','rejected')),
-  license_status text not null default 'not_submitted' check (license_status in ('not_submitted','pending','verified','rejected')),
   representative_status text not null default 'not_submitted' check (representative_status in ('not_submitted','pending','verified','rejected')),
   evidence_note text default '',
   status text not null default 'pending' check (status in ('pending','verified','rejected','needs_recheck')),
@@ -167,8 +166,8 @@ $$ language sql security definer set search_path=public;
 grant execute on function public.get_creator_verification_summary(uuid) to anon, authenticated;
 
 create or replace function public.get_business_verification_summary(p_business_profile_id uuid)
-returns table(registration_status text, license_status text, representative_status text, checked_at timestamptz) as $$
-  select registration_status, license_status, representative_status, checked_at
+returns table(registration_status text, representative_status text, checked_at timestamptz) as $$
+  select registration_status, representative_status, checked_at
   from public.business_verification_claims where business_profile_id=p_business_profile_id and status in ('pending','verified','needs_recheck') limit 1;
 $$ language sql security definer set search_path=public;
 grant execute on function public.get_business_verification_summary(uuid) to anon, authenticated;

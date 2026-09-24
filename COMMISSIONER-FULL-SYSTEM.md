@@ -48,7 +48,7 @@ Creators can request review for:
 
 Businesses can request review for:
 - Registration
-- License
+- Business information
 - Authorized representative
 
 The admin queue lets the administrator verify individual claims. A public profile only exposes safe verification states and the last checked date; private evidence and admin notes are not exposed.

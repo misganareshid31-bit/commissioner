@@ -34,6 +34,7 @@ alter table creator_profiles add column if not exists platforms jsonb default '{
 alter table creator_profiles add column if not exists audience jsonb default '{}';
 alter table creator_profiles add column if not exists services jsonb default '{}';
 alter table creator_profiles add column if not exists portfolio_link text;
+alter table creator_profiles add column if not exists portfolio_media jsonb not null default '[]'::jsonb;
 alter table creator_profiles add column if not exists availability text default 'Available now';
 alter table creator_profiles add column if not exists professional_preferences text;
 alter table creator_profiles add column if not exists verified boolean default false;
@@ -310,6 +311,10 @@ insert into storage.buckets (id, name, public)
 values ('banners', 'banners', true)
 on conflict (id) do nothing;
 
+insert into storage.buckets (id, name, public)
+values ('portfolio', 'portfolio', true)
+on conflict (id) do nothing;
+
 drop policy if exists "Public read avatars" on storage.objects;
 create policy "Public read avatars"
   on storage.objects for select
@@ -338,6 +343,27 @@ drop policy if exists "Anyone can upload under a claim token - banners" on stora
 create policy "Anyone can upload under a claim token - banners"
   on storage.objects for insert
   with check (bucket_id = 'banners' and (storage.foldername(name))[1] = 'claim');
+
+drop policy if exists "Public read portfolio" on storage.objects;
+create policy "Public read portfolio"
+  on storage.objects for select
+  using (bucket_id = 'portfolio');
+
+drop policy if exists "Users upload their own portfolio" on storage.objects;
+create policy "Users upload their own portfolio"
+  on storage.objects for insert
+  with check (bucket_id = 'portfolio' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Users update their own portfolio" on storage.objects;
+create policy "Users update their own portfolio"
+  on storage.objects for update
+  using (bucket_id = 'portfolio' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'portfolio' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Users delete their own portfolio" on storage.objects;
+create policy "Users delete their own portfolio"
+  on storage.objects for delete
+  using (bucket_id = 'portfolio' and (storage.foldername(name))[1] = auth.uid()::text);
 
 drop policy if exists "Public read banners" on storage.objects;
 create policy "Public read banners"

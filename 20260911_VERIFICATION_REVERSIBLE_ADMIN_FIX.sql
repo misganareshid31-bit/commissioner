@@ -19,13 +19,11 @@ alter table public.creator_verification_claims
 
 alter table public.business_verification_claims
   drop constraint if exists business_verification_claims_registration_status_check,
-  drop constraint if exists business_verification_claims_license_status_check,
   drop constraint if exists business_verification_claims_representative_status_check,
   drop constraint if exists business_verification_claims_status_check;
 
 alter table public.business_verification_claims
   add constraint business_verification_claims_registration_status_check check (registration_status in ('not_submitted','pending','verified','rejected','needs_recheck')),
-  add constraint business_verification_claims_license_status_check check (license_status in ('not_submitted','pending','verified','rejected','needs_recheck')),
   add constraint business_verification_claims_representative_status_check check (representative_status in ('not_submitted','pending','verified','rejected','needs_recheck')),
   add constraint business_verification_claims_status_check check (status in ('pending','verified','rejected','needs_recheck','deleted'));
 
@@ -63,15 +61,15 @@ begin
     elsif action in ('unapprove','un-approve') then
       update public.business_profiles set approved=false,updated_at=now() where id=profile_id;
     elsif action='reject' then
-      update public.business_verification_claims set status='rejected',registration_status='rejected',license_status='rejected',representative_status='rejected',updated_at=now() where id=p_claim_id and status<>'deleted';
+      update public.business_verification_claims set status='rejected',registration_status='rejected',representative_status='rejected',updated_at=now() where id=p_claim_id and status<>'deleted';
       update public.business_profiles set approved=false,verified=false,updated_at=now() where id=profile_id;
     elsif action in ('unreject','un-reject') then
-      update public.business_verification_claims set status='pending',registration_status='pending',license_status='pending',representative_status='pending',updated_at=now() where id=p_claim_id and status='rejected';
+      update public.business_verification_claims set status='pending',registration_status='pending',representative_status='pending',updated_at=now() where id=p_claim_id and status='rejected';
     elsif action='delete' then
       update public.business_verification_claims set status='deleted',updated_at=now() where id=p_claim_id;
       update public.business_profiles set approved=false,verified=false,updated_at=now() where id=profile_id;
     elsif action='restore' then
-      update public.business_verification_claims set status='pending',registration_status='pending',license_status='pending',representative_status='pending',updated_at=now() where id=p_claim_id and status='deleted';
+      update public.business_verification_claims set status='pending',registration_status='pending',representative_status='pending',updated_at=now() where id=p_claim_id and status='deleted';
     else raise exception 'invalid review action'; end if;
   else raise exception 'invalid profile kind'; end if;
   return jsonb_build_object('ok',true,'kind',lower(p_kind),'action',action,'profile_id',profile_id);

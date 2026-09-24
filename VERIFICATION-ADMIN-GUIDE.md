@@ -18,17 +18,17 @@ Until an authorized platform integration is available, mark follower/engagement 
 Verify each claim separately:
 
 1. Registration
-2. License
+2. Business information
 3. Authorized representative
 
-A valid registration/license means the supplied business information was checked. It is **not** a guarantee that every transaction or interaction with the business will be good.
+The supplied business information is checked against the information provided by the business. It is **not** a guarantee that every transaction or interaction with the business will be good.
 
 ## Public language
 
 Prefer:
 
 - “Followers checked”
-- “License checked”
+- “Business information checked”
 - “Identity checked”
 - “Last checked …”
 
@@ -41,4 +41,4 @@ Avoid:
 
 ## Rechecks
 
-Verification records have `checked_at` and `expires_at`. Recheck information that can change, especially creator statistics and business licenses.
+Verification records have `checked_at` and `expires_at`. Recheck information that can change, especially creator statistics and business information.

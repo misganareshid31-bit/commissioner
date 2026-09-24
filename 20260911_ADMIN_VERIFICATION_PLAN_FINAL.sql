@@ -110,7 +110,7 @@ begin
       raise exception 'profile must be 100%% complete before verification';
     end if;
     update public.business_verification_claims
-      set registration_status='verified', license_status='verified',
+      set registration_status='verified',
           representative_status='verified', status='verified',
           checked_at=now(), updated_at=now()
       where id=p_claim_id;
@@ -160,7 +160,7 @@ begin
       from public.business_verification_claims where id=p_claim_id;
     if profile_id is null then raise exception 'business verification request not found'; end if;
     update public.business_verification_claims
-      set registration_status='needs_recheck', license_status='needs_recheck',
+      set registration_status='needs_recheck',
           representative_status='needs_recheck', status='needs_recheck',
           updated_at=now()
       where id=p_claim_id;
@@ -198,13 +198,11 @@ alter table public.creator_verification_claims
 
 alter table public.business_verification_claims
   drop constraint if exists business_verification_claims_registration_status_check,
-  drop constraint if exists business_verification_claims_license_status_check,
   drop constraint if exists business_verification_claims_representative_status_check,
   drop constraint if exists business_verification_claims_status_check;
 
 alter table public.business_verification_claims
   add constraint business_verification_claims_registration_status_check check (registration_status in ('not_submitted','pending','verified','rejected','needs_recheck')),
-  add constraint business_verification_claims_license_status_check check (license_status in ('not_submitted','pending','verified','rejected','needs_recheck')),
   add constraint business_verification_claims_representative_status_check check (representative_status in ('not_submitted','pending','verified','rejected','needs_recheck')),
   add constraint business_verification_claims_status_check check (status in ('pending','verified','rejected','needs_recheck','deleted'));
 
@@ -277,12 +275,12 @@ begin
       update public.business_profiles set approved=false, updated_at=now() where id=profile_id;
     elsif action='reject' then
       update public.business_verification_claims
-        set status='rejected', registration_status='rejected', license_status='rejected', representative_status='rejected', updated_at=now()
+        set status='rejected', registration_status='rejected', representative_status='rejected', updated_at=now()
         where id=p_claim_id and status <> 'deleted';
       update public.business_profiles set approved=false, verified=false, updated_at=now() where id=profile_id;
     elsif action in ('unreject','un-reject') then
       update public.business_verification_claims
-        set status='pending', registration_status='pending', license_status='pending', representative_status='pending', updated_at=now()
+        set status='pending', registration_status='pending', representative_status='pending', updated_at=now()
         where id=p_claim_id and status='rejected';
     elsif action='delete' then
       update public.business_verification_claims
@@ -291,7 +289,7 @@ begin
       update public.business_profiles set approved=false, verified=false, updated_at=now() where id=profile_id;
     elsif action='restore' then
       update public.business_verification_claims
-        set status='pending', registration_status='pending', license_status='pending', representative_status='pending', updated_at=now()
+        set status='pending', registration_status='pending', representative_status='pending', updated_at=now()
         where id=p_claim_id and status='deleted';
     else
       raise exception 'invalid review action';

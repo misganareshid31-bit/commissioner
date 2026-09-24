@@ -1275,3 +1275,139 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
 /* Light homepage typography. */
 .cm-home-hero h1 { color: #07152F !important; }
 .cm-home-hero > .grid > div:first-child > p { color: #526078 !important; }
+
+/* === FINAL SURFACE/TYPE CONTRACT — 2026-09-24 ===
+   Light surfaces: dark readable ink.
+   Dark/navy surfaces: white/light ink.
+   Never place white text on a white surface and never place dark text on the
+   dark page canvas. This final layer intentionally overrides older passes. */
+html, body { background: #07152F !important; color: #F7FAFF !important; }
+.cm-root, .cm-page-canvas { background: #07152F !important; color: #F7FAFF !important; }
+
+/* All white cards, menus, dialogs and forms are genuinely white. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97 { background: #FFFFFF !important; color: #07152F !important; }
+
+/* Old components sometimes explicitly painted their copy white. On a white
+   surface that is invisible, so convert only those white declarations to ink. */
+.cm-root .bg-white [style*="#FFFFFF"],
+.cm-root .bg-white [style*="#fff"],
+.cm-root .bg-white [style*="rgb(255, 255, 255)"],
+.cm-root .bg-white .text-white,
+.cm-root .bg-white\/90 [style*="#FFFFFF"],
+.cm-root .bg-white\/90 .text-white,
+.cm-root .bg-white\/95 [style*="#FFFFFF"],
+.cm-root .bg-white\/95 .text-white,
+.cm-root .bg-white\/97 [style*="#FFFFFF"],
+.cm-root .bg-white\/97 .text-white {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+
+/* Branded action buttons keep white text because their backgrounds are dark or
+   saturated brand colors, not white surfaces. */
+.cm-root .bg-white button.text-white,
+.cm-root .bg-white .text-white[style*="#E6007A"],
+.cm-root .bg-white .text-white[style*="#0E7C93"],
+.cm-root .bg-white .text-white[style*="#00A8CC"],
+.cm-root .bg-white .text-white[style*="#07152F"],
+.cm-root .bg-white\/90 button.text-white,
+.cm-root .bg-white\/95 button.text-white,
+.cm-root .bg-white\/97 button.text-white {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* Inputs/selects/textareas are white controls with dark entered text. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select,
+.cm-root option {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+  border-color: #D7DFEA !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder,
+.cm-root select::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+  opacity: 1 !important;
+}
+
+/* Auth is intentionally dark, so its controls remain dark with light copy. */
+.cm-auth-card input,
+.cm-auth-card textarea,
+.cm-auth-card select,
+.cm-auth-field input { background: transparent !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+.cm-auth-card input::placeholder,
+.cm-auth-card textarea::placeholder { color: #91A5BE !important; -webkit-text-fill-color: #91A5BE !important; }
+
+/* Direct copy on the navy canvas is light. */
+.cm-page-canvas > *:not(.bg-white) { color: #F7FAFF; }
+.cm-page-canvas h1, .cm-page-canvas h2, .cm-page-canvas h3 { color: #F7FAFF; }
+
+/* Common white cards with explicit dark inner copy stay dark. */
+.cm-root .cm-admin-panel-card,
+.cm-root .cm-auth-card { color: #07152F; }
+.cm-root .cm-auth-card,
+.cm-root .cm-auth-card h1,
+.cm-root .cm-auth-card h2,
+.cm-root .cm-auth-card h3 { color: #FFFFFF; }
+
+/* White-card buttons that intentionally use a white background need dark ink. */
+.cm-root .bg-white button[style*="#FFFFFF"],
+.cm-root .bg-white button[style*="rgb(255, 255, 255)"],
+.cm-root .bg-white a[style*="#FFFFFF"],
+.cm-root .bg-white a[style*="rgb(255, 255, 255)"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+
+/* Small muted labels on light surfaces remain readable. */
+.cm-root .bg-white .text-gray-400,
+.cm-root .bg-white .text-gray-500,
+.cm-root .bg-white .text-gray-600,
+.cm-root .bg-white .text-gray-700,
+.cm-root .bg-white\/90 .text-gray-400,
+.cm-root .bg-white\/90 .text-gray-500,
+.cm-root .bg-white\/90 .text-gray-600,
+.cm-root .bg-white\/90 .text-gray-700 { color: #475569 !important; }
+
+/* Upload tiles are light surfaces, so their labels/icons are dark and visible. */
+.cm-root .cm-upload-tile,
+.cm-root .cm-upload-tile * { color: #07152F !important; }
+.cm-root .cm-upload-tile { background: #F8FAFC !important; border-color: #94A3B8 !important; }
+.cm-root .cm-upload-tile:hover { border-color: #00A8CC !important; background: #F0FDFF !important; }
+
+/* Never show disabled white text on a white control. */
+.cm-root button:disabled { opacity: .55; }
+
+/* Inline white surfaces used by older components (not always Tailwind .bg-white). */
+.cm-root [style*="background: rgb(255, 255, 255)"],
+.cm-root [style*="background:#FFFFFF"],
+.cm-root [style*="background: #FFFFFF"],
+.cm-root [style*="background: white"] {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+}
+.cm-root [style*="background: rgb(255, 255, 255)"] [style*="color: rgb(255, 255, 255)"],
+.cm-root [style*="background: rgb(255, 255, 255)"] .text-white,
+.cm-root [style*="background:#FFFFFF"] [style*="#FFFFFF"],
+.cm-root [style*="background: #FFFFFF"] [style*="#FFFFFF"],
+.cm-root [style*="background: white"] [style*="#FFFFFF"],
+.cm-root [style*="background: white"] .text-white {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+/* Selected/primary buttons on white surfaces remain branded and readable. */
+.cm-root [style*="background: rgb(255, 255, 255)"] button.text-white,
+.cm-root [style*="background:#FFFFFF"] button.text-white,
+.cm-root [style*="background: #FFFFFF"] button.text-white,
+.cm-root [style*="background: white"] button.text-white {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
