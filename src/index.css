@@ -1243,11 +1243,35 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
   background: #0D1B35;
   color: #FFFFFF;
 }
-/* Explicit white surfaces are converted to the same dark card surface so
-   inline white text can never disappear into a white card. */
-.cm-root [style*="background: white"],
-.cm-root [style*="background:'white'"],
-.cm-root [style*="background: '#FFFFFF'"],
-.cm-root [style*="background:'#FFFFFF'"] {
-  background: #0D1B35 !important;
+
+/* === Contrast contract: light surfaces use dark ink; dark surfaces use light ink. === */
+/* Only legacy white inline text is remapped on light cards. Brand pink/cyan text
+   and intentional dark-panel text are left alone. */
+.cm-root .bg-white [style*="color: rgb(255, 255, 255)"] {
+  color: #07152F !important;
 }
+.cm-root .bg-white .text-white:not(button) {
+  color: #07152F !important;
+}
+.cm-root .bg-white button.text-white[style*="background: rgb(255, 255, 255)"] {
+  color: #07152F !important;
+}
+.cm-root .bg-white input,
+.cm-root .bg-white textarea,
+.cm-root .bg-white select {
+  color: #07152F !important;
+  background: #FFFFFF !important;
+}
+.cm-root .bg-white input::placeholder,
+.cm-root .bg-white textarea::placeholder {
+  color: #64748B !important;
+  opacity: 1;
+}
+/* Explicit dark Commissioner preview remains white-on-navy. */
+.cm-home-hero .bg-white .rounded-\[1\.5rem\] .text-white,
+.cm-home-hero .bg-white .rounded-\[1\.5rem\] [style*="color: rgb(255, 255, 255)"] {
+  color: #FFFFFF !important;
+}
+/* Light homepage typography. */
+.cm-home-hero h1 { color: #07152F !important; }
+.cm-home-hero > .grid > div:first-child > p { color: #526078 !important; }
