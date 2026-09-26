@@ -80,6 +80,23 @@ function firstNonEmpty(obj, keys) {
   return null;
 }
 
+// Never surface raw Supabase/PostgreSQL/schema details to end users.
+function safeUserError(error, fallback = 'Something went wrong. Please try again.') {
+  const message = String(error?.message || '').toLowerCase();
+  if (!message) return fallback;
+  const internal = [
+    'schema cache', 'does not exist', 'function public.', 'relation public.',
+    'pg_', 'postgrest', 'postgres', 'permission denied for schema',
+    'duplicate key value', 'violates row-level security', 'stack trace'
+  ];
+  if (internal.some(term => message.includes(term))) {
+    return 'This feature is temporarily unavailable. The required server configuration is missing or needs attention.';
+  }
+  if (message.includes('authentication required')) return 'Please sign in and try again.';
+  if (message.includes('not authorized') || message.includes('admin access required')) return 'You do not have permission to perform this action.';
+  return error?.message || fallback;
+}
+
 // Fetches published creator profiles from Supabase and adapts them to the
 // shape CreatorCard expects. Returns [] if none exist yet — callers should
 // render an empty state rather than assume data is present.
@@ -1166,7 +1183,7 @@ const CampaignPostSetup = ({ session, onClose }) => {
     if(profileError||!profile){setMsg('Create your Business profile before posting a campaign.');setBusy(false);return;}
     if(!profile.onboarded){setMsg('Complete your Business profile setup before posting a campaign.');setBusy(false);return;}
     const {error}=await supabase.from('campaigns').insert({business_profile_id:profile.id,title:form.title.trim(),description:form.description.trim(),niche:form.niche.trim()||null,budget:form.budget.trim()||null,deadline:form.deadline||null,location:form.location.trim()||null,requirements:form.requirements.trim()||null,status:'published'});
-    setBusy(false); if(error){setMsg(error.code==='42P01'?'Campaign posting is not connected yet. Run the latest campaigns migration included with this ZIP.':error.message);return;}
+    setBusy(false); if(error){setMsg(error.code==='42P01'?'Campaign posting is not connected yet. The required server configuration is missing.':safeUserError(error));return;}
     setMsg('Campaign posted successfully.'); setForm({title:'',description:'',niche:'',budget:'',deadline:'',location:'',requirements:''});
     setTimeout(()=>onClose?.(),700);
   };
@@ -1220,7 +1237,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
     try {
       const { data, error: rpcError } = await supabase.rpc('list_my_conversations');
       if (rpcError) {
-        setError(rpcError.message || 'Could not load your messages.');
+        setError(safeUserError(rpcError, 'Could not load your messages.'));
         setConversations([]);
       } else {
         setConversations(Array.isArray(data) ? data : []);
@@ -1237,7 +1254,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
     if (!conversationId) return;
     setThreadLoading(true); setError('');
     const { data, error: rpcError } = await supabase.rpc('get_conversation_messages', { p_conversation_id: conversationId });
-    if (rpcError) setError(rpcError.message || 'Could not load this conversation.');
+    if (rpcError) setError(safeUserError(rpcError, 'Could not load this conversation.'));
     else setMessages(Array.isArray(data) ? data : []);
     await supabase.rpc('mark_conversation_read', { p_conversation_id: conversationId });
     setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
@@ -1273,7 +1290,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
         p_other_user_id: initialRecipientId,
         p_initial_message: null,
       });
-      if (rpcError) { setError(rpcError.message || 'Could not start the conversation.'); return; }
+      if (rpcError) { setError(safeUserError(rpcError, 'Could not start the conversation.')); return; }
       await loadConversations();
       setActive(data);
       await loadThread(data);
@@ -1292,7 +1309,7 @@ const Messages = ({ session, initialRecipientId = null, initialConversationId = 
       p_conversation_id: active,
       p_body: body,
     });
-    if (rpcError) setError(rpcError.message || 'Could not send the message.');
+    if (rpcError) setError(safeUserError(rpcError, 'Could not send the message.'));
     else {
       setDraft('');
       if (data) setMessages(prev => [...prev, data]);
@@ -1409,7 +1426,7 @@ const CreatorCommerceManager = ({ profile }) => {
   const [saving,setSaving]=useState(false); const [error,setError]=useState('');
   const load=async()=>{const {data}=await supabase.from('creator_products').select('*').eq('creator_profile_id',profile.id).order('created_at',{ascending:false});setProducts(data||[])};
   useEffect(()=>{if(profile?.id)load()},[profile?.id]);
-  const add=async(e)=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('creator_products').insert({creator_profile_id:profile.id,name:form.name.trim(),description:form.description.trim(),price:form.price?Number(form.price):null,currency:form.currency,type:form.type,purchase_url:form.purchase_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(error.message);else{setForm({name:'',description:'',price:'',currency:'ETB',type:'product',purchase_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
+  const add=async(e)=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('creator_products').insert({creator_profile_id:profile.id,name:form.name.trim(),description:form.description.trim(),price:form.price?Number(form.price):null,currency:form.currency,type:form.type,purchase_url:form.purchase_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(safeUserError(error, 'Could not save the product or service.'));else{setForm({name:'',description:'',price:'',currency:'ETB',type:'product',purchase_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
   const remove=async(id)=>{if(!window.confirm('Remove this item from your public profile?'))return;await supabase.from('creator_products').delete().eq('id',id).eq('creator_profile_id',profile.id);await load()};
   return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}>
     <div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Products & services</p><p className="text-xs mt-1" style={{color:'#334155'}}>Add products, bookings, or services to your public profile.</p></div><ShoppingBag size={18} style={{color:'#036377'}}/></div>
@@ -1591,7 +1608,7 @@ const BusinessListingsManager = ({ profile }) => {
   const [items,setItems]=useState([]); const [form,setForm]=useState({title:'',description:'',listing_type:'service',category:'',price_display:'',external_url:'',media_url:'',media_type:'image'}); const [saving,setSaving]=useState(false); const [error,setError]=useState('');
   const load=async()=>{const {data}=await supabase.from('marketplace_listings').select('*').eq('owner_type','business').eq('owner_id',profile.id).order('created_at',{ascending:false});setItems(data||[])};
   useEffect(()=>{if(profile?.id)load()},[profile?.id]);
-  const add=async e=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('marketplace_listings').insert({owner_type:'business',owner_id:profile.id,title:form.title.trim(),description:form.description.trim(),listing_type:form.listing_type,category:form.category.trim(),price_display:form.price_display.trim(),external_url:form.external_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(error.message);else{setForm({title:'',description:'',listing_type:'service',category:'',price_display:'',external_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
+  const add=async e=>{e.preventDefault();setSaving(true);setError('');const {error}=await supabase.from('marketplace_listings').insert({owner_type:'business',owner_id:profile.id,title:form.title.trim(),description:form.description.trim(),listing_type:form.listing_type,category:form.category.trim(),price_display:form.price_display.trim(),external_url:form.external_url.trim()||null,media_url:form.media_url.trim()||null,media_type:form.media_type});if(error)setError(safeUserError(error, 'Could not save the marketplace listing.'));else{setForm({title:'',description:'',listing_type:'service',category:'',price_display:'',external_url:'',media_url:'',media_type:'image'});await load()}setSaving(false)};
   const remove=async id=>{await supabase.from('marketplace_listings').delete().eq('id',id).eq('owner_type','business').eq('owner_id',profile.id);await load()};
   return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Publish products or services. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><OnboardingField label="Photo / video URL" placeholder="https://..." value={form.media_url} onChange={e=>setForm(f=>({...f,media_url:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Media type</label><select value={form.media_type} onChange={e=>setForm(f=>({...f,media_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="image">Photo</option><option value="video">Video</option></select></div><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product or service." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#334155'}}>{x.title}</p><p className="text-[11px]" style={{color:'#334155'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
 };
@@ -2090,7 +2107,7 @@ const ReportModal = ({ targetUserId, conversationId = null, onClose }) => {
       p_conversation_id: conversationId,
     });
     setSending(false);
-    if (rpcError) { setError(rpcError.message || 'Could not submit the report.'); return; }
+    if (rpcError) { setError(safeUserError(rpcError, 'Could not submit the report.')); return; }
     setDone(true);
   };
 
@@ -2152,7 +2169,7 @@ const LeaveReviewBox = ({ targetUserId, session, onSaved }) => {
     setSaving(true); setMsg('');
     const { error } = await supabase.rpc('upsert_review', { p_reviewee_id: targetUserId, p_rating: rating, p_comment: comment || null });
     setSaving(false);
-    if (error) { setMsg(error.message || 'Could not save your review.'); return; }
+    if (error) { setMsg(safeUserError(error, 'Could not save your review.')); return; }
     setMsg('Review saved. Thank you!');
     if (onSaved) onSaved();
   };
@@ -3379,8 +3396,15 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
             )}
             {Array.isArray(profile.portfolio_media) && profile.portfolio_media.length > 0 && <div className="mb-7"><p className="text-sm font-semibold mb-3" style={{color:'#07152F'}}>Portfolio</p><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{profile.portfolio_media.map((item,i)=><div key={`${item.url||'portfolio'}-${i}`} className="rounded-xl overflow-hidden border bg-white" style={{borderColor:'#E5E7EB'}}>{item.type==='video'?<video src={item.url} controls className="w-full h-40 object-cover"/>:<img src={item.url} alt={item.name||'Portfolio work'} className="w-full h-40 object-cover"/>}</div>)}</div></div>}
             {profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF', color:'#036377' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15}/></a>}
-            {profile.auth_user_id && (
+            {canEdit && (
               <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
+                <button onClick={onEdit} className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#E6007A' }}>
+                  <Pencil size={15} /> Edit profile
+                </button>
+              </div>
+            )}
+            {profile.auth_user_id && (
+              <div className={`${canEdit ? 'mt-5' : 'mt-8'} pt-7 border-t`} style={{ borderColor: '#E5E7EB' }}>
                 <LeaveReviewBox targetUserId={profile.auth_user_id} session={session} onSaved={() => setReviewRefresh(k => k + 1)} />
                 <ReviewsList userId={profile.auth_user_id} refreshKey={reviewRefresh} />
               </div>
@@ -3394,7 +3418,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
   );
 };
 
-const PublicBusinessProfile = ({ profile, session }) => {
+const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reviewRefresh, setReviewRefresh] = useState(0);
   return (
@@ -3437,8 +3461,15 @@ const PublicBusinessProfile = ({ profile, session }) => {
           <div className="flex flex-wrap gap-3">
             {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
-          {profile.auth_user_id && (
+          {canEdit && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
+              <button onClick={onEdit} className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#E6007A' }}>
+                <Pencil size={15} /> Edit profile
+              </button>
+            </div>
+          )}
+          {profile.auth_user_id && (
+            <div className={`${canEdit ? 'mt-5' : 'mt-8'} pt-7 border-t`} style={{ borderColor: '#E5E7EB' }}>
               <LeaveReviewBox targetUserId={profile.auth_user_id} session={session} onSaved={() => setReviewRefresh(k => k + 1)} />
               <ReviewsList userId={profile.auth_user_id} refreshKey={reviewRefresh} />
             </div>
@@ -3452,13 +3483,22 @@ const PublicBusinessProfile = ({ profile, session }) => {
   );
 };
 
-const OfficialBusinessPage = ({ id, session }) => {
+const OfficialBusinessPage = ({ id, session, setPage }) => {
   const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const owner = Boolean(session?.user?.id && profile?.auth_user_id === session.user.id);
   useEffect(() => {
-    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => setProfile(data || null));
+    setLoading(true);
+    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => {
+      setProfile(data || null); setLoading(false);
+    });
   }, [id]);
-  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading business profile…</div>;
-  return <PublicBusinessProfile profile={profile} session={session} />;
+  if (loading) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading business profile…</div>;
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Business profile not found</p></div>;
+  if (!profile.onboarded && !owner) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
+  if (editMode && owner) return <div><div className="max-w-2xl mx-auto px-5 md:px-8 pt-6"><button onClick={() => setEditMode(false)} className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg border" style={{ borderColor:'#E5E7EB', color:'#334155' }}><ChevronLeft size={15}/> Back to profile</button></div><BusinessOnboarding session={session} setPage={setPage} editMode={true} /></div>;
+  return <PublicBusinessProfile profile={profile} session={session} canEdit={owner} onEdit={() => setEditMode(true)} />;
 };
 
 // Official creator pages use a stable profile ID. The NFC card points here, so the
@@ -3490,6 +3530,7 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
 
   if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading creator profile…</div>;
   if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Creator profile not found</p></div>;
+  if (!profile.onboarded && !owner) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
 
   if (editMode && owner) {
     return (
@@ -3560,7 +3601,7 @@ const ClaimGate = ({ token, session, setPage }) => {
 
   if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading NFC profile…</div>;
   if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
-  if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} />;
+  if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
   if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest NFC ownership hardening migration, then try again.</p></div>;
   if (!session) return (
@@ -3642,7 +3683,8 @@ const BusinessDashboardMarketplaceSetup = ({session}) => {
 };
 
 const Marketplace = ({ onMessage, session, activeRole }) => {
-  const [tab,setTab]=useState('all'); const [q,setQ]=useState(''); const [items,setItems]=useState([]); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
+  const [tab,setTab]=useState('all'); const [q,setQ]=useState(''); const [items,setItems]=useState([]); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false); const [featureGate,setFeatureGate]=useState(null);
+  useEffect(()=>{supabase.rpc('commissioner_feature_gates').then(({data})=>setFeatureGate(data||null))},[]);
   useEffect(()=>{
     (async()=>{
       try{
@@ -3665,44 +3707,60 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
     })();
   },[]);
   const [showSetup,setShowSetup]=useState(false);
+  if (featureGate && !featureGate.marketplace_unlocked) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-12"><div className="bg-white border rounded-2xl p-8 text-center" style={{borderColor:'#E5E7EB'}}><Lock size={24} className="mx-auto mb-3" style={{color:'#9CA3AF'}}/><p className="text-sm font-semibold" style={{color:'#07152F'}}>Marketplace opens at 5 registered products or services</p><p className="text-xs mt-2 leading-5" style={{color:'#526078'}}>The marketplace is being prepared while Commissioner builds the required network. Profile setup remains available.</p></div></div>;
   const filtered=items.filter(x=>(tab==='all'||x.owner_type===tab||x.listing_type===tab)&&`${x.title} ${x.description} ${x.category} ${x.owner?.page_name||x.owner?.business_name||''}`.toLowerCase().includes(q.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 relative cm-marketplace-page"><div className="flex justify-end mb-4"><button onClick={()=>setShowSetup(true)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white shadow-lg" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}><ShoppingBag size={15} className="inline mr-2"/>Marketplace setup</button></div><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Products & services</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Discover products and services offered by creators and businesses. Anyone with a Commissioner account can message a poster directly.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#E0FBFF':'transparent',color:tab===v?'#036377':'#334155'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#334155'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#334155'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#334155'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner, x.id)} disabled={session?.user?.id && x.owner?.auth_user_id === session.user.id} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-60 disabled:cursor-not-allowed" style={{background:'#E6007A'}}>{session?.user?.id && x.owner?.auth_user_id === session.user.id ? 'Your listing' : 'Message'}</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#334155'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}{showSetup&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(7,21,47,.55)',backdropFilter:'blur(8px)'}}><div className="w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-3xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Marketplace setup</p><h2 className="cm-display font-bold text-xl mt-1" style={{color:'#172033'}}>Manage your products and services</h2><p className="text-xs mt-1" style={{color:'#526078'}}>Your marketplace setup now lives here instead of on the dashboard.</p></div><button onClick={()=>setShowSetup(false)} className="w-9 h-9 rounded-xl border" style={{color:'#172033',borderColor:'#D7DFEA'}}>×</button></div>{activeRole==='business'?<BusinessDashboardMarketplaceSetup session={session}/>:<CreatorDashboardMarketplaceSetup session={session}/>}</div></div>}</div>;
 };
 
 const TrustCenter = ({ session, activeRole }) => {
-  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
+  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
   const load=async()=>{
     if(!session?.user?.id)return;
     const preferred = activeRole === 'business' ? 'business' : 'creator';
     const order = preferred === 'business' ? ['business','creator'] : ['creator','business'];
+    const {data:connections}=await supabase.from('social_oauth_connections').select('provider,provider_account_id,username,scopes,connected_at,expires_at,last_checked_at,status').eq('user_id',session.user.id);
+    setOauthConnections(connections || []);
     for (const role of order) {
       if (role === 'creator') {
         const {data:c}=await supabase.from('creator_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
-        if(c){setType('creator');setProfile(c);const {data:v}=await supabase.from('creator_verification_claims').select('*').eq('creator_profile_id',c.id).maybeSingle();setClaim(v||null);return;}
+        if(c){
+          setType('creator'); setProfile(c);
+          const {data:v}=await supabase.rpc('get_creator_verification_summary',{p_creator_profile_id:c.id});
+          setClaim(Array.isArray(v)?(v[0]||null):(v||null));
+          const {data:e}=await supabase.rpc('evaluate_creator_50k_eligibility',{p_creator_profile_id:c.id});
+          if(e && !e.error) setEligibility(e);
+          return;
+        }
       } else {
         const {data:b}=await supabase.from('business_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
-        if(b){setType('business');setProfile(b);const {data:v}=await supabase.from('business_verification_claims').select('*').eq('business_profile_id',b.id).maybeSingle();setClaim(v||null);return;}
+        if(b){
+          setType('business'); setProfile(b);
+          const {data:v}=await supabase.rpc('get_business_verification_summary',{p_business_profile_id:b.id});
+          setClaim(Array.isArray(v)?(v[0]||null):(v||null));
+          setEligibility(null);
+          return;
+        }
       }
     }
-    setProfile(null); setClaim(null); setType(preferred);
+    setProfile(null); setClaim(null); setEligibility(null); setType(preferred);
   };
   useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
-  const submit=async()=>{if(!profile)return;const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile);const pct=completionPercent(checklist);if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}setBusy(true);setMsg('');const fn=type==='creator'?'submit_creator_verification':'submit_business_verification';const params=type==='creator'?{p_creator_profile_id:profile.id,p_evidence_note:note}:{p_business_profile_id:profile.id,p_evidence_note:note};const {error}=await supabase.rpc(fn,params);setBusy(false);if(error)setMsg(error.message);else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}};
+  const submit=async()=>{if(!profile)return;const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile);const pct=completionPercent(checklist);if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}setBusy(true);setMsg('');const fn=type==='creator'?'submit_creator_verification':'submit_business_verification';const params=type==='creator'?{p_creator_profile_id:profile.id,p_evidence_note:note}:{p_business_profile_id:profile.id,p_evidence_note:note};const {error}=await supabase.rpc(fn,params);setBusy(false);if(error)setMsg(safeUserError(error, 'Could not submit the verification request.'));else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}};
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
-  return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div><div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div><div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}><h2 className="text-sm font-semibold" style={{color:'#07152F'}}>Request a verification review</h2><p className="text-xs mt-1 mb-4" style={{color:'#526078'}}>{type==='creator'?'We can review identity, linked-account ownership, follower count and engagement claims.':'We can review your business information and authorized representative details.'}</p><textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Tell the reviewer which connected accounts and statistics you want checked.':'Add the business information or representative details you want the reviewer to check. Do not paste private passwords or payment information.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}</div></div>;
+  return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div><div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">{type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>50K+ eligibility</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>50K followers/subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.audience_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.audience_count).toLocaleString()} audience · threshold 50,000</p>}</div>}<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>Social ownership</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Supported OAuth connections are recorded as account metadata only. Credentials and tokens never belong in the client app.</p>{oauthConnections.length?<div className="mt-3 space-y-2">{oauthConnections.map(c=><div key={c.provider} className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold capitalize" style={{color:'#334155'}}>{c.provider}{c.username?` · @${c.username.replace(/^@/,'')}`:''}</span><span style={{color:c.status==='connected'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>:<p className="text-xs mt-3" style={{color:'#526078'}}>No supported OAuth account is connected. Manual/code/bio verification is available when a provider is unavailable.</p>}</div></div><div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}><h2 className="text-sm font-semibold" style={{color:'#07152F'}}>Request a verification review</h2><p className="text-xs mt-1 mb-4" style={{color:'#526078'}}>{type==='creator'?'We can review identity, linked-account ownership, follower count and engagement claims.':'We can review your business information and authorized representative details.'}</p><textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Tell the reviewer which connected accounts and statistics you want checked.':'Add the business information or representative details you want the reviewer to check. Do not paste private passwords or payment information.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/><div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}</div></div>;
 };
 
 const B2BNetwork = ({ session, initialBusiness=null }) => {
   const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [messageTarget,setMessageTarget]=useState(null); const [busyTarget,setBusyTarget]=useState(null);
-  const [launchStats,setLaunchStats]=useState(null); const [isAdmin,setIsAdmin]=useState(false);
+  const [launchStats,setLaunchStats]=useState(null); const [featureGates,setFeatureGates]=useState(null); const [isAdmin,setIsAdmin]=useState(false);
   const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,approved,onboarded').eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,approved,onboarded').eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
   useEffect(()=>{load()},[session?.user?.id]);
-  useEffect(()=>{fetchLaunchStats().then(setLaunchStats)},[]);
+  useEffect(()=>{fetchLaunchStats().then(setLaunchStats); supabase.rpc('commissioner_feature_gates').then(({data})=>setFeatureGates(data||null))},[]);
   useEffect(()=>{if(!session){setIsAdmin(false);return;}supabase.rpc('is_admin').then(({data})=>setIsAdmin(!!data))},[session?.user?.id]);
   useEffect(()=>{if(initialBusiness&&session){setMessageTarget(initialBusiness);setMessage(`I'd like to connect with ${initialBusiness.business_name||initialBusiness.name} through Commissioner.`)}},[initialBusiness?.id,session?.user?.id]);
-  const launched = !!launchStats?.unlocked || isAdmin;
-  const send=async(target)=>{if(!session||!target?.auth_user_id)return;if(target.auth_user_id===session.user.id)return;if(!launched){setMessage('Connecting is locked until Commissioner reaches its launch threshold.');return;}setBusyTarget(target.auth_user_id);setMessageTarget(target);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||`I would like to connect with ${target.name||target.business_name||target.page_name||'you'} professionally through Commissioner.`});setBusyTarget(null);if(error)setMessage(error.code==='23505'?'A connection request already exists with this person.':error.message);else{setMessage('Connection request sent.');await load();}};
-  const startMessage=async(target)=>{if(!session||!target?.auth_user_id||target.auth_user_id===session.user.id)return;if(!launched){setMessage('Messaging is locked until Commissioner reaches its launch threshold.');return;}setMessageTarget(target);setMessage(`I'd like to discuss a professional opportunity with ${target.name||target.business_name||target.page_name||'you'}.`);const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:target.auth_user_id,p_initial_message:null});if(error){setMessage(error.message||'Could not start the conversation.');return;}window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:target.auth_user_id,conversationId:data}}));};
+  const launched = !!featureGates?.b2b_unlocked || isAdmin;
+  const send=async(target)=>{if(!session||!target?.auth_user_id)return;if(target.auth_user_id===session.user.id)return;if(!launched){setMessage('Connecting is locked until Commissioner reaches 50 registered businesses.');return;}setBusyTarget(target.auth_user_id);setMessageTarget(target);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||`I would like to connect with ${target.name||target.business_name||target.page_name||'you'} professionally through Commissioner.`});setBusyTarget(null);if(error)setMessage(error.code==='23505'?'A connection request already exists with this person.':safeUserError(error, 'Could not send the connection request.'));else{setMessage('Connection request sent.');await load();}};
+  const startMessage=async(target)=>{if(!session||!target?.auth_user_id||target.auth_user_id===session.user.id)return;if(!launched){setMessage('Messaging is locked until Commissioner reaches 50 registered businesses.');return;}setMessageTarget(target);setMessage(`I'd like to discuss a professional opportunity with ${target.name||target.business_name||target.page_name||'you'}.`);const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:target.auth_user_id,p_initial_message:null});if(error){setMessage(safeUserError(error, 'Could not start the conversation.'));return;}window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:target.auth_user_id,conversationId:data}}));};
   const filtered=items.filter(x=>`${x.name} ${x.industry||x.primary_niche||''} ${x.city||''}`.toLowerCase().includes(search.toLowerCase()));
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Briefcase size={32} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>B2B network</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to connect with businesses and creators.</p></div>;
   if(!launched)return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Professional connections without the noise</h1></div><LaunchGateNotice stats={launchStats}/>{connections.length>0&&<div className="bg-white border rounded-2xl p-5 mt-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-3" style={{color:'#334155'}}>Your existing connections</p>{connections.map(c=><div key={c.id} className="flex items-center justify-between py-2 text-xs border-b last:border-0" style={{borderColor:'#F3F4F6'}}><span style={{color:'#334155'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>}</div>;
@@ -3726,13 +3784,15 @@ const VerificationAdminQueue = () => {
       const result=await supabase.rpc('admin_unverify',{p_kind:type,p_claim_id:row.id}); error=result.error;
     } else if(action==='plan'){
       const result=await supabase.rpc('admin_set_profile_plan',{p_kind:type,p_profile_id:profileId,p_plan:plan}); error=result.error;
+    } else if(action==='needs_recheck'){
+      const result = await supabase.rpc('admin_review_verification', { p_kind:type, p_claim_id:row.id, p_action:'needs_recheck' }); error=result.error;
     } else if(['approve','reject'].includes(action)){
       const result = await supabase.rpc('admin_review_verification', { p_kind:type, p_claim_id:row.id, p_action:action }); error=result.error;
     } else if(action==='delete'){
       const result=await supabase.rpc('admin_delete_page',{p_kind:type,p_page_id:profileId}); error=result.error;
     }
     setBusy('');
-    if(error) setMessage(error.message || `Could not ${action} this request.`); else await load();
+    if(error) setMessage(safeUserError(error, `Could not ${action} this request.`)); else await load();
   };
   if(loading)return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB'}}><p className="text-sm" style={{color:'#334155'}}>Loading verification requests…</p></div>;
   const rows=[...creators.map(x=>({...x,_type:'creator',name:x.creator_profiles?.page_name||x.creator_profiles?.username||'Creator',profile:x.creator_profiles})),...businesses.map(x=>({...x,_type:'business',name:x.business_profiles?.business_name||x.business_profiles?.username||'Business',profile:x.business_profiles}))].sort((a,b)=>{const rank=r=>r.status==='pending'||r.status==='needs_recheck'?0:r.status==='rejected'?2:1;return rank(a)-rank(b)||new Date(b.created_at)-new Date(a.created_at)});
@@ -3746,6 +3806,7 @@ const VerificationAdminQueue = () => {
         <div className="flex flex-wrap gap-2 shrink-0">
           {!r.profile?.verified ? <button onClick={()=>act(r._type,r,'verify',r.profile?.plan||'basic')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-50" style={{background:'#00A8CC'}}>{busy===`${r._type}:${r.id}:verify`?'Verifying…':'Verify'}</button> : <button onClick={()=>act(r._type,r,'unverify')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{busy===`${r._type}:${r.id}:unverify`?'Unverifying…':'Unverify'}</button>}
           <button onClick={()=>act(r._type,r,r.profile?.approved?'unapprove':'approve')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:r.profile?.approved?'#E0FBFF':'#0E7A3B',color:r.profile?.approved?'#036377':'#FFFFFF'}}>{r.profile?.approved?(busy===`${r._type}:${r.id}:unapprove`?'Unapproving…':'Unapprove'):(busy===`${r._type}:${r.id}:approve`?'Approving…':'Approve')}</button>
+          <button onClick={()=>act(r._type,r,'needs_recheck')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:'#FDE68A',color:'#92400E'}}>{busy===`${r._type}:${r.id}:needs_recheck`?'Marking…':'Needs re-check'}</button>
           <button onClick={()=>act(r._type,r,r.status==='rejected'?'unreject':'reject')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='rejected'?'#D1D5DB':'#FECACA',color:r.status==='rejected'?'#334155':'#B42318'}}>{r.status==='rejected'?(busy===`${r._type}:${r.id}:unreject`?'Unrejecting…':'Unreject'):(busy===`${r._type}:${r.id}:reject`?'Rejecting…':'Reject')}</button>
           <button onClick={()=>act(r._type,r,r.status==='deleted'?'restore':'delete')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='deleted'?'#A7F3D0':'#E5E7EB',color:r.status==='deleted'?'#0E7A3B':'#334155'}}>{r.status==='deleted'?(busy===`${r._type}:${r.id}:restore`?'Restoring…':'Restore'):(busy===`${r._type}:${r.id}:delete`?'Deleting…':'Delete')}</button>
         </div>
@@ -3857,6 +3918,66 @@ const AdminNfcManager = () => {
       )}
     </section>
   );
+};
+
+
+const AdminPromotions = () => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState('');
+  const [message, setMessage] = useState('');
+  const [form, setForm] = useState({ title:'', description:'', placement:'explore', start_at:'', end_at:'' });
+
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.rpc('admin_list_promotions');
+    setLoading(false);
+    if (error) { setMessage(safeUserError(error, 'Could not load promotions.')); return; }
+    setRows(data || []);
+  };
+  useEffect(() => { load(); }, []);
+
+  const create = async (e) => {
+    e.preventDefault();
+    setBusy('create'); setMessage('');
+    const { error } = await supabase.rpc('admin_create_promotion', {
+      p_title: form.title, p_description: form.description, p_placement: form.placement,
+      p_start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
+      p_end_at: form.end_at ? new Date(form.end_at).toISOString() : null
+    });
+    setBusy('');
+    if (error) { setMessage(safeUserError(error, 'Could not create the promotion.')); return; }
+    setForm({title:'',description:'',placement:'explore',start_at:'',end_at:''});
+    setMessage('Promotion created.');
+    load();
+  };
+
+  const toggle = async (row) => {
+    setBusy(row.id); setMessage('');
+    const { error } = await supabase.rpc('admin_set_promotion_active', { p_promotion_id: row.id, p_active: !row.active });
+    setBusy('');
+    if (error) setMessage(safeUserError(error, 'Could not update the promotion.'));
+    else load();
+  };
+
+  return <section className="cm-admin-panel-card">
+    <div className="mb-5">
+      <p className="text-sm font-bold" style={{color:'#07152F'}}>Promotions</p>
+      <p className="text-xs mt-1" style={{color:'#526078'}}>Admin-controlled promoted content. Promotions are separate from organic discovery and require the production promotion migration.</p>
+    </div>
+    <form onSubmit={create} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+      <input required placeholder="Promotion title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
+      <select value={form.placement} onChange={e=>setForm({...form,placement:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm">
+        <option value="home">Homepage</option><option value="explore">Explore</option><option value="marketplace">Marketplace</option><option value="campaigns">Campaigns</option>
+      </select>
+      <textarea placeholder="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm md:col-span-2" rows="2" />
+      <input type="datetime-local" value={form.start_at} onChange={e=>setForm({...form,start_at:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
+      <input type="datetime-local" value={form.end_at} onChange={e=>setForm({...form,end_at:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
+      <button disabled={busy==='create'} className="md:col-span-2 text-white font-semibold rounded-xl px-4 py-2.5 disabled:opacity-50" style={{background:'#E6007A'}}>{busy==='create'?'Creating…':'Create promotion'}</button>
+    </form>
+    {message && <p className="text-xs mb-4 px-3 py-2 rounded-lg" style={{background:'#F8FAFC',color:'#334155'}}>{message}</p>}
+    {loading ? <p className="text-sm" style={{color:'#526078'}}>Loading promotions…</p> : !rows.length ? <div className="cm-admin-empty">No promotions yet.</div> : <div className="space-y-3">{rows.map(r=><div key={r.id} className="cm-admin-feedback-row"><div className="flex-1"><div className="flex items-center gap-2"><b className="text-sm" style={{color:'#172033'}}>{r.title}</b><span className={`cm-admin-status ${r.active?'reviewed':'archived'}`}>{r.active?'active':'inactive'}</span></div><p className="text-xs mt-1" style={{color:'#526078'}}>{r.placement}{r.start_at?` · starts ${new Date(r.start_at).toLocaleString()}`:''}{r.end_at?` · ends ${new Date(r.end_at).toLocaleString()}`:''}</p></div><button disabled={busy===r.id} onClick={()=>toggle(r)} className="cm-admin-small-btn">{busy===r.id?'Saving…':r.active?'Deactivate':'Activate'}</button></div>)}</div>}
+  </section>;
 };
 
 const AdminPanel = ({ session }) => {
@@ -4310,15 +4431,16 @@ const AdminPanel = ({ session }) => {
       </div>
 
       <div className="cm-admin-tabs">
-        {[['overview','Overview'],['accounts','Accounts'],['verification','Verification'],['nfc','NFC'],['campaigns','Campaigns'],['marketplace','Marketplace'],['feedback','Feedback'],['controls','Site controls']].map(([id,label]) => <button key={id} onClick={()=>setAdminTab(id)} className={adminTab===id?'is-active':''}>{label}{id==='feedback' ? <span className="cm-admin-tab-dot">●</span> : null}</button>)}
+        {[['overview','Overview'],['accounts','Accounts'],['verification','Verification'],['nfc','NFC'],['campaigns','Campaigns'],['marketplace','Marketplace'],['promotions','Promotions'],['feedback','Feedback'],['controls','Site controls']].map(([id,label]) => <button key={id} onClick={()=>setAdminTab(id)} className={adminTab===id?'is-active':''}>{label}{id==='feedback' ? <span className="cm-admin-tab-dot">●</span> : null}</button>)}
       </div>
 
       {adminTab==='campaigns' && <AdminCampaignManager />}
       {adminTab==='marketplace' && <AdminMarketplaceManager />}
+      {adminTab==='promotions' && <AdminPromotions />}
       {adminTab==='feedback' && <AdminFeedbackInbox />}
       {adminTab==='controls' && <AdminSiteControls />}
 
-      {!['feedback','controls','campaigns','marketplace'].includes(adminTab) && <div className="cm-admin-tab-content">
+      {!['feedback','controls','campaigns','marketplace','promotions'].includes(adminTab) && <div className="cm-admin-tab-content">
 
       {setupStatus === 'checking' && (
         <div className="border rounded-2xl p-4 mb-6" style={{ borderColor: '#BAE6FD', background: '#F0F9FF' }}>
@@ -4556,17 +4678,17 @@ const AdminPanel = ({ session }) => {
 
 const AdminCampaignManager = () => {
   const [rows,setRows]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(null); const [error,setError]=useState('');
-  const load=async()=>{setLoading(true);const {data,error}=await supabase.rpc('admin_list_campaigns');setLoading(false);if(error){setError(error.message);return;}setRows(data||[])};
+  const load=async()=>{setLoading(true);const {data,error}=await supabase.rpc('admin_list_campaigns');setLoading(false);if(error){setError(safeUserError(error, 'This administrative feature is temporarily unavailable.'));return;}setRows(data||[])};
   useEffect(()=>{load()},[]);
-  const setStatus=async(id,status)=>{setBusy(id);const {error}=await supabase.rpc('admin_set_campaign_status',{p_campaign_id:id,p_status:status});setBusy(null);if(error)setError(error.message);else load();};
+  const setStatus=async(id,status)=>{setBusy(id);const {error}=await supabase.rpc('admin_set_campaign_status',{p_campaign_id:id,p_status:status});setBusy(null);if(error)setError(safeUserError(error, 'Could not update the item.'));else load();};
   return <section className="cm-admin-panel-card"><div className="flex items-start justify-between mb-5"><div><p className="text-sm font-bold" style={{color:'#07152F'}}>Campaign moderation</p><p className="text-xs mt-1" style={{color:'#526078'}}>Review and close campaigns without changing the public posting flow.</p></div><button onClick={load} className="cm-admin-secondary-btn">Refresh</button></div>{error&&<p className="text-xs mb-3" style={{color:'#B42318'}}>{error}</p>}{loading?<p className="text-sm" style={{color:'#526078'}}>Loading campaigns…</p>:!rows.length?<div className="cm-admin-empty">No campaigns yet.</div>:<div className="space-y-3">{rows.map(r=><div key={r.id} className="cm-admin-feedback-row"><div className="flex-1"><div className="flex gap-2 items-center"><b className="text-sm" style={{color:'#172033'}}>{r.title}</b><span className="cm-admin-status reviewed">{r.status}</span></div><p className="text-xs mt-1" style={{color:'#526078'}}>{r.business_name||'Business'} · {r.budget||'Budget not specified'}{r.deadline?` · deadline ${new Date(r.deadline).toLocaleDateString()}`:''}</p><p className="text-xs mt-2 line-clamp-2" style={{color:'#475569'}}>{r.description}</p></div><div className="flex gap-2 shrink-0">{r.status==='published'?<button disabled={busy===r.id} onClick={()=>setStatus(r.id,'closed')} className="cm-admin-small-btn danger">Close</button>:<button disabled={busy===r.id} onClick={()=>setStatus(r.id,'published')} className="cm-admin-small-btn">Publish</button>}</div></div>)}</div>}</section>;
 };
 
 const AdminMarketplaceManager = () => {
   const [rows,setRows]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(null); const [error,setError]=useState('');
-  const load=async()=>{setLoading(true);const {data,error}=await supabase.rpc('admin_list_marketplace');setLoading(false);if(error){setError(error.message);return;}setRows(data||[])};
+  const load=async()=>{setLoading(true);const {data,error}=await supabase.rpc('admin_list_marketplace');setLoading(false);if(error){setError(safeUserError(error, 'This administrative feature is temporarily unavailable.'));return;}setRows(data||[])};
   useEffect(()=>{load()},[]);
-  const toggle=async(r)=>{setBusy(r.id);const {error}=await supabase.rpc('admin_set_marketplace_active',{p_listing_id:r.id,p_active:!r.active});setBusy(null);if(error)setError(error.message);else load();};
+  const toggle=async(r)=>{setBusy(r.id);const {error}=await supabase.rpc('admin_set_marketplace_active',{p_listing_id:r.id,p_active:!r.active});setBusy(null);if(error)setError(safeUserError(error, 'Could not update the item.'));else load();};
   return <section className="cm-admin-panel-card"><div className="flex items-start justify-between mb-5"><div><p className="text-sm font-bold" style={{color:'#07152F'}}>Marketplace moderation</p><p className="text-xs mt-1" style={{color:'#526078'}}>Control which marketplace listings are publicly active.</p></div><button onClick={load} className="cm-admin-secondary-btn">Refresh</button></div>{error&&<p className="text-xs mb-3" style={{color:'#B42318'}}>{error}</p>}{loading?<p className="text-sm" style={{color:'#526078'}}>Loading marketplace…</p>:!rows.length?<div className="cm-admin-empty">No marketplace listings yet.</div>:<div className="space-y-3">{rows.map(r=><div key={r.id} className="cm-admin-feedback-row"><div className="flex-1"><div className="flex gap-2 items-center"><b className="text-sm" style={{color:'#172033'}}>{r.title}</b><span className={`cm-admin-status ${r.active?'reviewed':'archived'}`}>{r.active?'active':'hidden'}</span></div><p className="text-xs mt-1" style={{color:'#526078'}}>{r.owner_type} · {r.listing_type}{r.category?` · ${r.category}`:''}{r.price_display?` · ${r.price_display}`:''}</p></div><button disabled={busy===r.id} onClick={()=>toggle(r)} className="cm-admin-small-btn">{busy===r.id?'Saving…':r.active?'Hide listing':'Activate'}</button></div>)}</div>}</section>;
 };
 
@@ -5174,7 +5296,7 @@ export default function Commissioner() {
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
           <BackButton onClick={() => { window.history.length > 1 ? window.history.back() : (window.location.href = '/'); }} />
         </div>
-        <OfficialBusinessPage id={officialId} session={session} />
+        <OfficialBusinessPage id={officialId} session={session} setPage={setPage} />
       </div>
     );
   }
