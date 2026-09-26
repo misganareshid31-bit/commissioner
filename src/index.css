@@ -1419,3 +1419,66 @@ html, body { background: #f7f9ff !important; color: #172033 !important; }
   color: #07152F !important;
   -webkit-text-fill-color: #07152F !important;
 }
+
+
+/* === FINAL STABILITY PATCH — Account + form contrast ======================
+   This is the last cascade layer. Earlier historical contrast passes contain
+   conflicting theme rules; these scoped rules make the final surface explicit. */
+html, body {
+  color: #F7FAFF !important;
+  background: #07152F !important;
+}
+
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+  caret-color: #07152F !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+  opacity: 1 !important;
+}
+
+.cm-account-page {
+  color: #F7FAFF !important;
+}
+.cm-account-page > .bg-white {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+}
+.cm-account-page .bg-white input,
+.cm-account-page .bg-white textarea,
+.cm-account-page .bg-white select {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-account-page .bg-white .text-white {
+  color: #FFFFFF !important;
+}
+.cm-account-page button:disabled {
+  cursor: not-allowed;
+}
+
+/* Trust Center is embedded inside Account Settings and must retain white-card
+   surfaces while the surrounding account page stays navy. */
+.cm-account-page #account-trust-center .bg-white {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+}
+.cm-account-page #account-trust-center input,
+.cm-account-page #account-trust-center textarea,
+.cm-account-page #account-trust-center select {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+
+@media (max-width: 640px) {
+  .cm-account-page { padding-top: 28px !important; padding-bottom: 40px !important; }
+}

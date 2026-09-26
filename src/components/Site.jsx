@@ -2866,8 +2866,8 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
   };
 
   return (
-    <div className="max-w-xl mx-auto px-5 md:px-8 py-12">
-      <h1 className="cm-display font-bold text-2xl mb-8" style={{ color: '#334155' }}>Account settings</h1>
+    <div className="cm-account-page max-w-xl mx-auto px-5 md:px-8 py-12">
+      <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8FEAFF' }}>Account</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{ color: '#FFFFFF' }}>Account settings</h1><p className="text-sm mt-2" style={{ color: '#B9C7D8' }}>Manage your profile, verification, password, sessions and account controls.</p></div>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
         <p className="text-xs font-semibold mb-1" style={{ color: '#334155' }}>Account email</p>
@@ -4142,7 +4142,7 @@ const AdminPanel = ({ session }) => {
         setSetupError(
           missing
             ? 'The Commissioner master migration has not been applied. The Admin page requires the secure admin role, verification review, launch-gate, and NFC functions.'
-            : `Supabase setup check failed: ${error.message}`
+            : 'Supabase setup check failed. The required server configuration could not be verified.'
         );
         return;
       }
@@ -4215,7 +4215,7 @@ const AdminPanel = ({ session }) => {
       setCreateError(
         missing
           ? 'The Supabase admin_create_claim function is missing. Apply the latest Supabase migration shown in the Admin setup panel, then refresh the page.'
-          : error.message
+          : safeUserError(error, 'Could not create the requested profile.')
       );
       return;
     }
