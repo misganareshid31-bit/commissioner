@@ -166,6 +166,13 @@ async function fetchLiveBusinesses(limit = 48) {
 // changed by an admin without a redeploy.
 const LAUNCH_THRESHOLD = 50;
 
+// Creator verification eligibility bar, in followers/subscribers. Only used
+// as a fallback before the live value from public.platform_settings (via
+// commissioner_launch_stats' follower_threshold field) has loaded, or if
+// 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql hasn't been applied
+// to this database yet. Lowered from 50,000 to 15,000 on 2026-09-29.
+const FOLLOWER_THRESHOLD_FALLBACK = 15000;
+
 // Single source of truth for launch-gate stats, called from every page
 // that needs them. Reads the live counts and the live threshold in one
 // round trip via the commissioner_launch_stats() RPC, instead of each
@@ -183,6 +190,12 @@ async function fetchLaunchStats() {
       threshold: creatorThreshold,
       creatorThreshold,
       businessThreshold,
+      // Creator follower-count eligibility bar for verification (separate
+      // from the network launch thresholds above). Lives in
+      // public.platform_settings, editable via admin_set_follower_threshold().
+      // Falls back to 15000 if 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql
+      // hasn't been applied to this database yet.
+      followerThreshold: data.follower_threshold ?? FOLLOWER_THRESHOLD_FALLBACK,
       unlocked: creatorCount >= creatorThreshold && businessCount >= businessThreshold,
     };
   }
@@ -203,6 +216,7 @@ async function fetchLaunchStats() {
     threshold: LAUNCH_THRESHOLD,
     creatorThreshold: LAUNCH_THRESHOLD,
     businessThreshold: LAUNCH_THRESHOLD,
+    followerThreshold: FOLLOWER_THRESHOLD_FALLBACK,
     unlocked: creatorCount >= LAUNCH_THRESHOLD && businessCount >= LAUNCH_THRESHOLD,
   };
 }
@@ -3802,7 +3816,7 @@ const TrustCenter = ({ session, activeRole }) => {
     <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div>
     <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-      {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>50K+ eligibility</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>50K followers/subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.audience_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.audience_count).toLocaleString()} audience · threshold 50,000</p>}</div>}
+      {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>{eligibility?.threshold?`${Number(eligibility.threshold).toLocaleString()}+ eligibility`:'Follower eligibility'}</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{eligibility?.threshold?Number(eligibility.threshold).toLocaleString():'A minimum number of'} followers/subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.audience_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.audience_count).toLocaleString()} audience · threshold {Number(eligibility.threshold||FOLLOWER_THRESHOLD_FALLBACK).toLocaleString()}</p>}</div>}
       <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>Social ownership</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Supported OAuth connections are recorded as account metadata only. Credentials and tokens never belong in the client app.</p>{oauthConnections.length?<div className="mt-3 space-y-2">{oauthConnections.map(c=><div key={c.provider} className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold capitalize" style={{color:'#334155'}}>{c.provider}{c.username?` · @${c.username.replace(/^@/,'')}`:''}</span><span style={{color:c.status==='connected'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>:<p className="text-xs mt-3" style={{color:'#526078'}}>No supported OAuth account is connected. Manual/code/bio verification is available when a provider is unavailable.</p>}</div>
     </div>
     <div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}>
@@ -3851,6 +3865,10 @@ const B2BNetwork = ({ session, initialBusiness=null }) => {
 
 const VerificationAdminQueue = () => {
   const [creators,setCreators]=useState([]); const [businesses,setBusinesses]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(''); const [message,setMessage]=useState(''); const [expanded,setExpanded]=useState(null); const [evidenceUrl,setEvidenceUrl]=useState({});
+  // Live follower-eligibility bar from public.platform_settings, editable by
+  // an admin (see the Network launch threshold card) — not a hardcoded 50000.
+  const [followerThreshold,setFollowerThreshold]=useState(FOLLOWER_THRESHOLD_FALLBACK);
+  useEffect(()=>{fetchLaunchStats().then(s=>setFollowerThreshold(s.followerThreshold||FOLLOWER_THRESHOLD_FALLBACK))},[]);
   const load=async()=>{setLoading(true);const [{data:c},{data:b}]=await Promise.all([
     supabase.from('creator_verification_claims').select('*,creator_profiles(id,page_name,username,platforms,audience,verified,approved,onboarded,plan)').order('created_at',{ascending:false}),
     supabase.from('business_verification_claims').select('*,business_profiles(id,business_name,username,industry,verified,approved,onboarded,plan)').order('created_at',{ascending:false})
@@ -3877,7 +3895,7 @@ const VerificationAdminQueue = () => {
     if(error) setMessage(safeUserError(error, `Could not ${action} this request.`)); else await load();
   };
   const evidenceReady=(r)=>r._type==='creator'
-    ? Number(r.audience_count||0)>=50000 && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
+    ? Number(r.audience_count||0)>=followerThreshold && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
     : !!r.legal_business_name && !!r.representative_name && (!!r.registration_reference || !!r.trade_license_reference);
   const openEvidence=async(row)=>{
     const path=row.evidence_storage_path;
@@ -4173,6 +4191,34 @@ const AdminPanel = ({ session }) => {
       return;
     }
     setThresholdMessage('Saved.');
+    fetchLaunchStats().then(setLaunchStats);
+  };
+
+  // Creator follower-eligibility bar (separate setting from the network
+  // launch threshold above). Same live-round-trip / no-redeploy pattern.
+  const [followerThresholdDraft, setFollowerThresholdDraft] = useState('');
+  useEffect(() => {
+    if (launchStats) setFollowerThresholdDraft(String(launchStats.followerThreshold ?? ''));
+  }, [launchStats?.followerThreshold]);
+  const [savingFollowerThreshold, setSavingFollowerThreshold] = useState(false);
+  const [followerThresholdMessage, setFollowerThresholdMessage] = useState('');
+  const saveFollowerThreshold = async () => {
+    const f = parseInt(followerThresholdDraft, 10);
+    if (!Number.isFinite(f) || f < 0) {
+      setFollowerThresholdMessage('Enter a whole number, 0 or higher.');
+      return;
+    }
+    setSavingFollowerThreshold(true);
+    setFollowerThresholdMessage('');
+    const { error } = await supabase.rpc('admin_set_follower_threshold', { p_threshold: f });
+    setSavingFollowerThreshold(false);
+    if (error) {
+      setFollowerThresholdMessage(error.message?.includes('does not exist')
+        ? 'This database hasn\u2019t had 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql applied yet.'
+        : safeUserError(error, 'Could not save the threshold.'));
+      return;
+    }
+    setFollowerThresholdMessage('Saved.');
     fetchLaunchStats().then(setLaunchStats);
   };
 
@@ -4616,6 +4662,18 @@ const AdminPanel = ({ session }) => {
           <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
         </div>
         {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
+      </div>
+      <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB' }}>
+        <p className="text-sm font-bold" style={{ color: '#07152F' }}>Creator follower eligibility</p>
+        <p className="text-xs mt-1 mb-4" style={{ color: '#334155' }}>Minimum followers/subscribers a creator needs before a verification request can be approved. Takes effect immediately, no redeploy. Lowered from 50,000 to 15,000 on 2026-09-29.</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block">
+            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Followers/subscribers needed</span>
+            <input type="number" min="0" value={followerThresholdDraft} onChange={e => setFollowerThresholdDraft(e.target.value)} className="mt-1 w-40 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+          </label>
+          <button type="button" onClick={saveFollowerThreshold} disabled={savingFollowerThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingFollowerThreshold ? 'Saving…' : 'Save threshold'}</button>
+        </div>
+        {followerThresholdMessage && <p className="text-xs mt-3" style={{ color: followerThresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{followerThresholdMessage}</p>}
       </div>
       </>}
 
