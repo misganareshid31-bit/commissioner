@@ -59,11 +59,10 @@ security definer
 set search_path = public
 as $$
 declare
-  e text := lower(coalesce(auth.jwt()->>'email', ''));
   required_count integer;
   installed_count integer;
 begin
-  if e not in ('misganareshid27@gmail.com', 'admin@commissioner.app') then
+  if not public.is_admin() then
     raise exception 'not authorized';
   end if;
 
@@ -92,10 +91,9 @@ security definer
 set search_path = public
 as $$
 declare
-  e text := lower(coalesce(auth.jwt()->>'email', ''));
   deleted_id uuid;
 begin
-  if e not in ('misganareshid27@gmail.com', 'admin@commissioner.app') then
+  if not public.is_admin() then
     raise exception 'not authorized';
   end if;
 
@@ -125,11 +123,11 @@ grant execute on function public.admin_delete_page(text, uuid) to authenticated;
 drop policy if exists "Admin can update all creator profiles" on public.creator_profiles;
 create policy "Admin can update all creator profiles"
   on public.creator_profiles for update
-  using (lower(coalesce(auth.jwt()->>'email','')) in ('misganareshid27@gmail.com','admin@commissioner.app'))
-  with check (lower(coalesce(auth.jwt()->>'email','')) in ('misganareshid27@gmail.com','admin@commissioner.app'));
+  using (public.is_admin())
+  with check (public.is_admin());
 
 drop policy if exists "Admin can update all business profiles" on public.business_profiles;
 create policy "Admin can update all business profiles"
   on public.business_profiles for update
-  using (lower(coalesce(auth.jwt()->>'email','')) in ('misganareshid27@gmail.com','admin@commissioner.app'))
-  with check (lower(coalesce(auth.jwt()->>'email','')) in ('misganareshid27@gmail.com','admin@commissioner.app'));
+  using (public.is_admin())
+  with check (public.is_admin());

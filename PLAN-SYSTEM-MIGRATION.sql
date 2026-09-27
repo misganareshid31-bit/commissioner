@@ -52,7 +52,7 @@ end $$;
 create or replace function public.protect_admin_fields()
 returns trigger as $$
 begin
-  if auth.role() <> 'service_role' and coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+  if auth.role() <> 'service_role' and not public.is_admin() then
     new.approved = old.approved;
     new.verified = old.verified;
     new.plan = old.plan;

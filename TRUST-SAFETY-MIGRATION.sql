@@ -36,12 +36,12 @@ create policy "Reporters can view their own reports"
 drop policy if exists "Admin can view all reports" on public.user_reports;
 create policy "Admin can view all reports"
   on public.user_reports for select
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 drop policy if exists "Admin can update reports" on public.user_reports;
 create policy "Admin can update reports"
   on public.user_reports for update
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 create or replace function public.submit_report(
   p_reported_user_id uuid,
@@ -295,7 +295,7 @@ create policy "Users can view their own deletion requests"
 drop policy if exists "Admin can view all deletion requests" on public.account_deletion_requests;
 create policy "Admin can view all deletion requests"
   on public.account_deletion_requests for select
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 create or replace function public.request_account_deletion()
 returns void as $$

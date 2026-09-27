@@ -84,14 +84,14 @@ create policy "Public can view creator verification summary" on public.creator_v
 drop policy if exists "Creator manages own verification claim" on public.creator_verification_claims;
 create policy "Creator manages own verification claim" on public.creator_verification_claims for all using (exists (select 1 from public.creator_profiles p where p.id=creator_profile_id and p.auth_user_id=auth.uid())) with check (exists (select 1 from public.creator_profiles p where p.id=creator_profile_id and p.auth_user_id=auth.uid()));
 drop policy if exists "Admin manages creator verification claims" on public.creator_verification_claims;
-create policy "Admin manages creator verification claims" on public.creator_verification_claims for all using (coalesce(auth.jwt()->>'email','')='misganareshid27@gmail.com');
+create policy "Admin manages creator verification claims" on public.creator_verification_claims for all using (public.is_admin());
 
 drop policy if exists "Public can view business verification summary" on public.business_verification_claims;
 create policy "Public can view business verification summary" on public.business_verification_claims for select using (status = 'verified');
 drop policy if exists "Business manages own verification claim" on public.business_verification_claims;
 create policy "Business manages own verification claim" on public.business_verification_claims for all using (exists (select 1 from public.business_profiles p where p.id=business_profile_id and p.auth_user_id=auth.uid())) with check (exists (select 1 from public.business_profiles p where p.id=business_profile_id and p.auth_user_id=auth.uid()));
 drop policy if exists "Admin manages business verification claims" on public.business_verification_claims;
-create policy "Admin manages business verification claims" on public.business_verification_claims for all using (coalesce(auth.jwt()->>'email','')='misganareshid27@gmail.com');
+create policy "Admin manages business verification claims" on public.business_verification_claims for all using (public.is_admin());
 
 drop policy if exists "Public can view active marketplace listings" on public.marketplace_listings;
 create policy "Public can view active marketplace listings" on public.marketplace_listings for select using (
@@ -119,9 +119,9 @@ create policy "Recipients update B2B connection" on public.b2b_connections for u
 drop policy if exists "Users create reports" on public.profile_reports;
 create policy "Users create reports" on public.profile_reports for insert with check (reporter_user_id=auth.uid());
 drop policy if exists "Admins view reports" on public.profile_reports;
-create policy "Admins view reports" on public.profile_reports for select using (coalesce(auth.jwt()->>'email','')='misganareshid27@gmail.com');
+create policy "Admins view reports" on public.profile_reports for select using (public.is_admin());
 drop policy if exists "Admins update reports" on public.profile_reports;
-create policy "Admins update reports" on public.profile_reports for update using (coalesce(auth.jwt()->>'email','')='misganareshid27@gmail.com');
+create policy "Admins update reports" on public.profile_reports for update using (public.is_admin());
 
 create or replace function public.submit_creator_verification(p_creator_profile_id uuid, p_evidence_note text default '') returns uuid as $$
 declare v_id uuid;

@@ -99,7 +99,7 @@ alter table creator_profiles enable row level security;
 -- This is the ONE account allowed to see every profile, create claim
 -- links, and approve/verify people. Everything below checks against it —
 -- change this if the admin's login email ever changes.
--- ADMIN EMAIL: misganareshid27@gmail.com
+-- Admin access is controlled via public.admin_users / public.is_admin() (see ADMIN-ROLE-MIGRATION.sql)
 
 drop policy if exists "Public can view approved creator profiles" on creator_profiles;
 create policy "Public can view approved creator profiles"
@@ -121,12 +121,12 @@ create policy "Users can update their own profile"
 drop policy if exists "Admin can view all profiles" on creator_profiles;
 create policy "Admin can view all profiles"
   on creator_profiles for select
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 drop policy if exists "Admin can update all profiles" on creator_profiles;
 create policy "Admin can update all profiles"
   on creator_profiles for update
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 -- Safety net: don't let creators flip approved/verified on themselves
 -- through the app. Only the admin account, the Supabase dashboard, or a
@@ -134,7 +134,7 @@ create policy "Admin can update all profiles"
 create or replace function public.protect_admin_fields()
 returns trigger as $$
 begin
-  if auth.role() <> 'service_role' and coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+  if auth.role() <> 'service_role' and not public.is_admin() then
     new.approved = old.approved;
     new.verified = old.verified;
   end if;
@@ -243,7 +243,7 @@ grant execute on function public.claim_profile(text, text, text, text, text, tex
 create or replace function public.admin_check_setup()
 returns jsonb as $$
 begin
-  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+  if not public.is_admin() then
     raise exception 'not authorized';
   end if;
   return jsonb_build_object(
@@ -263,7 +263,7 @@ returns text as $$
 declare
   new_token text;
 begin
-  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+  if not public.is_admin() then
     raise exception 'not authorized';
   end if;
   new_token := encode(gen_random_bytes(16), 'hex');
@@ -281,7 +281,7 @@ grant execute on function public.admin_create_claim(text, text, boolean) to auth
 create or replace function public.admin_delete_page(p_kind text, p_page_id uuid)
 returns jsonb as $$
 begin
-  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+  if not public.is_admin() then
     raise exception 'not authorized';
   end if;
 
@@ -443,12 +443,12 @@ create policy "Businesses can update their own profile"
 drop policy if exists "Admin can view all business profiles" on business_profiles;
 create policy "Admin can view all business profiles"
   on business_profiles for select
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 drop policy if exists "Admin can update all business profiles" on business_profiles;
 create policy "Admin can update all business profiles"
   on business_profiles for update
-  using (coalesce(auth.jwt()->>'email', '') = 'misganareshid27@gmail.com');
+  using (public.is_admin());
 
 -- Same protection as creator_profiles — reuses the same trigger function,
 -- since it works generically off NEW/OLD approved+verified.
@@ -577,7 +577,7 @@ returns text as $$
 declare
   new_token text;
 begin
-  if coalesce(auth.jwt()->>'email', '') <> 'misganareshid27@gmail.com' then
+  if not public.is_admin() then
     raise exception 'not authorized';
   end if;
   new_token := encode(gen_random_bytes(16), 'hex');
