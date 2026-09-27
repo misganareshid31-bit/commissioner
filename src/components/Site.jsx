@@ -3732,7 +3732,7 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
 
 const TrustCenter = ({ session, activeRole }) => {
   const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
-  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'manual'});
+  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'manual'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
   const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',trade_license_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
     if(!session?.user?.id)return;
@@ -3773,13 +3773,29 @@ const TrustCenter = ({ session, activeRole }) => {
     const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile); const pct=completionPercent(checklist);
     if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}
     setBusy(true);setMsg('');
-    let error=null;
-    if(type==='creator'){
-      const {error:e}=await supabase.rpc('submit_creator_verification_details',{p_creator_profile_id:profile.id,p_evidence_note:note,p_platform:creatorDetails.platform||null,p_platform_account_id:creatorDetails.platform_account_id||null,p_claimed_username:creatorDetails.claimed_username||null,p_audience_count:creatorDetails.audience_count?Number(creatorDetails.audience_count):null,p_engagement_rate:creatorDetails.engagement_rate?Number(creatorDetails.engagement_rate):null,p_ownership_method:creatorDetails.ownership_method||'manual'}); error=e;
-    } else {
-      const {error:e}=await supabase.rpc('submit_business_verification_details',{p_business_profile_id:profile.id,p_evidence_note:note,...businessDetails}); error=e;
-    }
-    setBusy(false); if(error)setMsg(safeUserError(error, 'Could not submit the verification request.')); else{setMsg('Verification request submitted. An administrator will review the specific claims.');await load();}
+    let claimId=null;
+    try {
+      if(type==='creator'){
+        const {data,error}=await supabase.rpc('submit_creator_verification_details',{p_creator_profile_id:profile.id,p_evidence_note:note,p_platform:creatorDetails.platform||null,p_platform_account_id:creatorDetails.platform_account_id||null,p_claimed_username:creatorDetails.claimed_username||null,p_audience_count:creatorDetails.audience_count?Number(creatorDetails.audience_count):null,p_engagement_rate:creatorDetails.engagement_rate?Number(creatorDetails.engagement_rate):null,p_ownership_method:creatorDetails.ownership_method||'manual'});
+        if(error) throw error; claimId=data;
+      } else {
+        const {data,error}=await supabase.rpc('submit_business_verification_details',{p_business_profile_id:profile.id,p_evidence_note:note,...businessDetails});
+        if(error) throw error; claimId=data;
+      }
+      if(evidenceFile && claimId){
+        setEvidenceBusy(true);
+        const ext=(evidenceFile.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'')||'bin';
+        const path=`${session.user.id}/${type}/${profile.id}/${crypto.randomUUID()}.${ext}`;
+        const {error:uploadError}=await supabase.storage.from('verification-evidence').upload(path,evidenceFile,{upsert:false,contentType:evidenceFile.type||'application/octet-stream'});
+        if(uploadError) throw uploadError;
+        const {error:attachError}=await supabase.rpc('attach_verification_evidence',{p_kind:type,p_claim_id:claimId,p_storage_path:path});
+        if(attachError) throw attachError;
+      }
+      setMsg('Verification request submitted. The specific claims and evidence are now in the review queue.');
+      setEvidenceFile(null); await load();
+    } catch(err) {
+      setMsg(safeUserError(err,'Could not submit the verification request. No private evidence was made public.'));
+    } finally { setBusy(false); setEvidenceBusy(false); }
   };
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
   return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10">
@@ -3803,7 +3819,15 @@ const TrustCenter = ({ session, activeRole }) => {
         {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',registration_reference:'Commercial registration reference',trade_license_reference:'Trade license reference (if applicable)',tin_reference:'TIN reference (if applicable)',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
       </div>}
       <textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Add context for identity, ownership, audience or engagement evidence.':'Add context for the business information and representative evidence. Private documents should remain in the protected evidence store.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/>
-      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Submitting…':'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
+      <div className="mt-3 rounded-xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
+        <div className="flex items-start gap-3"><Lock size={16} style={{color:'#036377',marginTop:2}}/><div className="min-w-0 flex-1">
+          <p className="text-xs font-bold" style={{color:'#07152F'}}>Private verification evidence</p>
+          <p className="text-[11px] leading-5 mt-1" style={{color:'#526078'}}>Optional supporting document. It is stored privately and is never shown on your public profile.</p>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e=>setEvidenceFile(e.target.files?.[0]||null)} className="mt-3 block w-full text-xs" />
+          {evidenceFile&&<p className="text-[11px] mt-2" style={{color:'#036377'}}>Selected: {evidenceFile.name}</p>}
+        </div></div>
+      </div>
+      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
     </div>
   </div>;
 };
@@ -3826,7 +3850,7 @@ const B2BNetwork = ({ session, initialBusiness=null }) => {
 };
 
 const VerificationAdminQueue = () => {
-  const [creators,setCreators]=useState([]); const [businesses,setBusinesses]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(''); const [message,setMessage]=useState('');
+  const [creators,setCreators]=useState([]); const [businesses,setBusinesses]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(''); const [message,setMessage]=useState(''); const [expanded,setExpanded]=useState(null); const [evidenceUrl,setEvidenceUrl]=useState({});
   const load=async()=>{setLoading(true);const [{data:c},{data:b}]=await Promise.all([
     supabase.from('creator_verification_claims').select('*,creator_profiles(id,page_name,username,platforms,audience,verified,approved,onboarded,plan)').order('created_at',{ascending:false}),
     supabase.from('business_verification_claims').select('*,business_profiles(id,business_name,username,industry,verified,approved,onboarded,plan)').order('created_at',{ascending:false})
@@ -3852,6 +3876,19 @@ const VerificationAdminQueue = () => {
     setBusy('');
     if(error) setMessage(safeUserError(error, `Could not ${action} this request.`)); else await load();
   };
+  const evidenceReady=(r)=>r._type==='creator'
+    ? Number(r.audience_count||0)>=50000 && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
+    : !!r.legal_business_name && !!r.representative_name && (!!r.registration_reference || !!r.trade_license_reference);
+  const openEvidence=async(row)=>{
+    const path=row.evidence_storage_path;
+    if(!path){setMessage('No private evidence file is attached to this request.');return;}
+    const key=`${row._type}:${row.id}`;
+    if(evidenceUrl[key]){window.open(evidenceUrl[key],'_blank','noopener,noreferrer');return;}
+    const {data,error}=await supabase.storage.from('verification-evidence').createSignedUrl(path,300);
+    if(error||!data?.signedUrl){setMessage(safeUserError(error,'Could not open the private evidence file.'));return;}
+    setEvidenceUrl(v=>({...v,[key]:data.signedUrl}));
+    window.open(data.signedUrl,'_blank','noopener,noreferrer');
+  };
   if(loading)return <div className="border rounded-2xl p-5 mb-8" style={{borderColor:'#E5E7EB'}}><p className="text-sm" style={{color:'#334155'}}>Loading verification requests…</p></div>;
   const rows=[...creators.map(x=>({...x,_type:'creator',name:x.creator_profiles?.page_name||x.creator_profiles?.username||'Creator',profile:x.creator_profiles})),...businesses.map(x=>({...x,_type:'business',name:x.business_profiles?.business_name||x.business_profiles?.username||'Business',profile:x.business_profiles}))].sort((a,b)=>{const rank=r=>r.status==='pending'||r.status==='needs_recheck'?0:r.status==='rejected'?2:1;return rank(a)-rank(b)||new Date(b.created_at)-new Date(a.created_at)});
   const pending=rows.filter(r=>r.status==='pending'||r.status==='needs_recheck');
@@ -3864,11 +3901,38 @@ const VerificationAdminQueue = () => {
         <div className="flex flex-wrap gap-2 shrink-0">
           {!r.profile?.verified ? <button onClick={()=>act(r._type,r,'verify',r.profile?.plan||'basic')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-50" style={{background:'#00A8CC'}}>{busy===`${r._type}:${r.id}:verify`?'Verifying…':'Verify'}</button> : <button onClick={()=>act(r._type,r,'unverify')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{busy===`${r._type}:${r.id}:unverify`?'Unverifying…':'Unverify'}</button>}
           <button onClick={()=>act(r._type,r,r.profile?.approved?'unapprove':'approve')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:r.profile?.approved?'#E0FBFF':'#0E7A3B',color:r.profile?.approved?'#036377':'#FFFFFF'}}>{r.profile?.approved?(busy===`${r._type}:${r.id}:unapprove`?'Unapproving…':'Unapprove'):(busy===`${r._type}:${r.id}:approve`?'Approving…':'Approve')}</button>
+          <button type="button" onClick={()=>setExpanded(expanded===`${r._type}:${r.id}`?null:`${r._type}:${r.id}`)} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg border" style={{borderColor:'#BAE6FD',color:'#036377'}}>{expanded===`${r._type}:${r.id}`?'Hide evidence':'Review evidence'}</button>
           <button onClick={()=>act(r._type,r,'needs_recheck')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:'#FDE68A',color:'#92400E'}}>{busy===`${r._type}:${r.id}:needs_recheck`?'Marking…':'Needs re-check'}</button>
           <button onClick={()=>act(r._type,r,r.status==='rejected'?'unreject':'reject')} disabled={!!busy||r.status==='deleted'} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='rejected'?'#D1D5DB':'#FECACA',color:r.status==='rejected'?'#334155':'#B42318'}}>{r.status==='rejected'?(busy===`${r._type}:${r.id}:unreject`?'Unrejecting…':'Unreject'):(busy===`${r._type}:${r.id}:reject`?'Rejecting…':'Reject')}</button>
           <button onClick={()=>act(r._type,r,r.status==='deleted'?'restore':'delete')} disabled={!!busy} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:r.status==='deleted'?'#A7F3D0':'#E5E7EB',color:r.status==='deleted'?'#0E7A3B':'#334155'}}>{r.status==='deleted'?(busy===`${r._type}:${r.id}:restore`?'Restoring…':'Restore'):(busy===`${r._type}:${r.id}:delete`?'Deleting…':'Delete')}</button>
         </div>
       </div>
+      {expanded===`${r._type}:${r.id}`&&<div className="mt-4 rounded-xl border p-4" style={{borderColor:'#D7DFEA',background:'#F8FAFC'}}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+          <div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Evidence review</p><p className="text-[11px] mt-1" style={{color:'#526078'}}>Automatic checks support the review; confirm the underlying evidence before verifying.</p></div>
+          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:evidenceReady(r)?'#E9FBEF':'#FFF7ED',color:evidenceReady(r)?'#0E7A3B':'#9A4A0C'}}>{evidenceReady(r)?'Eligibility evidence present':'More evidence needed'}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]" style={{color:'#334155'}}>
+          {r._type==='creator'?<>
+            <div><b>Platform:</b> {r.platform||'—'}</div><div><b>Account ID:</b> {r.platform_account_id||'—'}</div>
+            <div><b>Claimed username:</b> {r.claimed_username||'—'}</div><div><b>Ownership method:</b> {r.ownership_method||'—'}</div>
+            <div><b>Audience:</b> {Number(r.audience_count||0).toLocaleString()}</div><div><b>Engagement:</b> {r.engagement_rate!=null?`${r.engagement_rate}%`:'—'}</div>
+            <div><b>Source:</b> {r.verification_source||'—'}</div>
+          </>:<>
+            <div><b>Legal name:</b> {r.legal_business_name||'—'}</div><div><b>Trade name:</b> {r.trade_name||'—'}</div>
+            <div><b>Registration:</b> {r.registration_reference||'—'}</div><div><b>Trade license:</b> {r.trade_license_reference||'—'}</div>
+            <div><b>TIN reference:</b> {r.tin_reference||'—'}</div><div><b>Activity:</b> {r.business_activity||'—'}</div>
+            <div><b>Representative:</b> {r.representative_name||'—'}</div><div><b>Official contact:</b> {r.official_contact||'—'}</div>
+            <div><b>Website:</b> {r.official_website||'—'}</div>
+          </>}
+          <div><b>Review status:</b> {String(r.status||'pending').replace('_',' ')}</div><div><b>Checked at:</b> {r.checked_at?new Date(r.checked_at).toLocaleString():'Not checked'}</div>
+        </div>
+        {r.evidence_note&&<div className="mt-3 rounded-lg border p-3" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}><p className="text-[10px] font-bold uppercase tracking-wider" style={{color:'#64748B'}}>Applicant note</p><p className="text-xs leading-5 mt-1" style={{color:'#334155'}}>{r.evidence_note}</p></div>}
+        <div className="flex flex-wrap gap-2 mt-3">
+          {r.evidence_storage_path&&<button type="button" onClick={()=>openEvidence(r)} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#07152F',color:'#FFFFFF'}}>Open private evidence</button>}
+          {!evidenceReady(r)&&<span className="text-[11px] self-center" style={{color:'#9A4A0C'}}>Do not verify until the required evidence is resolved.</span>}
+        </div>
+      </div>}
     </div>)}{!rows.length&&<p className="text-xs py-6 text-center" style={{color:'#9CA3AF'}}>No verification requests yet.</p>}</div>
   </div>;
 };
