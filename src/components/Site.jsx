@@ -3878,7 +3878,7 @@ const parseProfileInput = (platform, raw) => {
 };
 
 const TrustCenterInner = ({ session, activeRole }) => {
-  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(''); const [msgOk,setMsgOk]=useState(false); const [detailsKey,setDetailsKey]=useState(0); const [autoNote,setAutoNote]=useState('');
+  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(''); const [msgOk,setMsgOk]=useState(false); const [detailsKey,setDetailsKey]=useState(0); const [autoNote,setAutoNote]=useState(''); const [autoInfo,setAutoInfo]=useState(null); const [autoBusy,setAutoBusy]=useState(false);
   const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
   const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
@@ -3896,6 +3896,7 @@ const TrustCenterInner = ({ session, activeRole }) => {
           {const cv=Array.isArray(v)?(v[0]||null):(v||null); setClaim(cv&&typeof cv==='object'?cv:null);}
           const {data:rawClaim}=await supabase.from('creator_verification_claims').select('status,platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
           if(rawClaim){const {status:ownStatus,...fields}=rawClaim; const cleaned=Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v==null?'':String(v)])); const platKey=Object.keys(PLATFORM_GUIDE).find(k=>k.toLowerCase()===String(cleaned.platform||'').toLowerCase()); cleaned.platform=platKey||''; if(!['code','bio','oauth','manual'].includes(cleaned.ownership_method))cleaned.ownership_method='code'; setCreatorDetails(d=>({...d,...cleaned})); setClaim(cl=>({...(cl&&typeof cl==='object'?cl:{}),status:String(ownStatus||'pending')}));}
+          try{ const {data:ac}=await supabase.from('creator_verification_claims').select('auto_check_message,auto_verified,auto_checked_at').eq('creator_profile_id',c.id).maybeSingle(); setAutoInfo(ac&&typeof ac==='object'?ac:null); }catch{ setAutoInfo(null); }
           const {data:e}=await supabase.rpc('evaluate_creator_50k_eligibility',{p_creator_profile_id:c.id});
           {const ev=Array.isArray(e)?e[0]:e; if(ev && typeof ev==='object' && !ev.error) setEligibility(ev);}
           return;
@@ -3956,6 +3957,23 @@ const TrustCenterInner = ({ session, activeRole }) => {
     if(!c)return;
     setCreatorDetails(d=>({...d,platform_account_id:c.provider_account_id||d.platform_account_id,claimed_username:c.username?`@${String(c.username).replace(/^@/,'')}`:d.claimed_username,ownership_method:'oauth'}));
   };
+  const runAutoCheck=async(afterSubmit=false)=>{
+    setAutoBusy(true);
+    try{
+      const {data,error}=await supabase.functions.invoke('auto-verify',{body:{}});
+      if(error||!data||typeof data!=='object'){
+        if(!afterSubmit){setMsgOk(false);setMsg('Automatic check is not available right now. Your request is in the admin review queue.');}
+        return;
+      }
+      if(data.status==='verified'){setMsgOk(true);setMsg(data.message||'You are verified.');setDetailsKey(k=>k+1);}
+      else if(data.status==='pending'){setMsgOk(false);setMsg(data.message||'Automatic check could not confirm everything yet.');}
+      else if(afterSubmit){/* keep the submitted confirmation; the admin queue handles it */}
+      else {setMsgOk(data.status==='manual_review'||data.status==='not_configured');setMsg(data.message||'Your request is in the admin review queue.');}
+      try{ await load(); }catch{ /* status refresh is best-effort */ }
+    }catch{
+      if(!afterSubmit){setMsgOk(false);setMsg('Automatic check is not available right now. Your request is in the admin review queue.');}
+    }finally{ setAutoBusy(false); }
+  };
   const submit=async()=>{
     if(!profile)return;
     setMsgOk(false);
@@ -3995,6 +4013,7 @@ const TrustCenterInner = ({ session, activeRole }) => {
       setMsg('Verification request submitted. It is now in the admin review queue — you can leave this page; the status below updates when a reviewer decides.');
       setMsgOk(true); setEvidenceFile(null); setDetailsKey(k=>k+1);
       try{ await load(); }catch{ /* the request is saved; a failed refresh must never hide the confirmation */ }
+      if(type==='creator'&&String(creatorDetails.platform).toLowerCase()==='youtube'&&(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')) await runAutoCheck(true);
     } catch(err) {
       setMsg(safeUserError(err,'Could not submit the verification request. No private evidence was made public.'));
     } finally { setBusy(false); setEvidenceBusy(false); }
@@ -4055,6 +4074,12 @@ const TrustCenterInner = ({ session, activeRole }) => {
           {evidenceFile&&<p className="text-[11px] mt-2" style={{color:'#036377'}}>Selected: {evidenceFile.name}</p>}
         </div></div>
       </div>
+      {type==='creator'&&<div className="mt-4 rounded-xl p-4 text-[12px] leading-5" style={{background:'#F8FAFC',color:'#07152F',border:'1px solid #E5E7EB'}}>
+        <p className="font-bold text-[13px]">Automatic verification</p>
+        <p className="mt-1" style={{color:'#526078'}}>Creators with {followerBar.toLocaleString()}+ followers are verified automatically once we confirm two things straight from the platform: the real follower count, and your ownership code in your channel description. Automatic checks are live for YouTube. Other platforms are checked by an admin.</p>
+        {autoInfo?.auto_check_message&&claim?.status!=='verified'&&<p className="mt-2 font-semibold" style={{color:'#9A4A0C'}}>Last automatic check: {autoInfo.auto_check_message}</p>}
+        {String(creatorDetails.platform).toLowerCase()==='youtube'&&claim?.status&&claim.status!=='verified'&&<button type="button" disabled={autoBusy} onClick={()=>runAutoCheck(false)} className="mt-3 text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50" style={{background:'#E6F9FD',color:'#036377',border:'1px solid #BFEFFA'}}>{autoBusy?'Checking…':'Run automatic check now'}</button>}
+      </div>}
       <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<div role="status" className="text-xs leading-5 mt-3 rounded-xl p-3.5" style={msgOk?{background:'#E9FBEF',color:'#0E7A3B',border:'1px solid #B7E8C8'}:{background:'#FEF3F2',color:'#B42318',border:'1px solid #FECDCA'}}>{msgOk&&<b>✓ </b>}{msg}</div>}
     </div>
   </div>;
