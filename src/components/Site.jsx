@@ -3819,31 +3819,6 @@ const parseProfileInput = (platform, raw) => {
   return out;
 };
 
-// Turns a pasted profile link into the username / ID we store, so creators
-// do not have to work out what to type. Returns only fields it is sure of.
-const parseProfileInput = (platform, raw) => {
-  const text = String(raw || '').trim();
-  if (!text) return {};
-  let url;
-  try { url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`); } catch { return {}; }
-  if (!url.hostname.includes('.')) return {};
-  const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
-  const parts = url.pathname.split('/').filter(Boolean);
-  const out = {};
-  if (/youtube\.com$/.test(host)) {
-    if (parts[0] === 'channel' && parts[1]) out.id = parts[1];
-    else if (parts[0]?.startsWith('@')) out.username = parts[0];
-  } else if (/instagram\.com$/.test(host)) {
-    if (parts[0] && !['p', 'reel', 'reels', 'explore', 'stories'].includes(parts[0])) out.username = `@${parts[0]}`;
-  } else if (/tiktok\.com$/.test(host)) {
-    if (parts[0]?.startsWith('@')) out.username = parts[0];
-  } else if (/(facebook|fb)\.com$/.test(host)) {
-    if (parts[0] === 'profile.php') { const id = url.searchParams.get('id'); if (id) out.id = id; }
-    else if (parts[0] && !['pages', 'groups', 'watch', 'share'].includes(parts[0])) out.username = parts[0];
-  } else return {};
-  return out;
-};
-
 const TrustCenter = ({ session, activeRole }) => {
   const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
   const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
