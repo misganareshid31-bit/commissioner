@@ -440,6 +440,85 @@ update public.creator_profiles set claim_token = null where claimed = true and c
 update public.business_profiles set claim_token = null where claimed = true and claim_token is not null;
 
 -- ---------------------------------------------------------------------
+-- 6. Submit function: use the live follower threshold (it still had a
+--    hardcoded 50000, which stamped eligibility_status at submit time) and
+--    stop accepting "oauth" ownership unless that platform is genuinely
+--    connected for the caller. Same signature as before, so the frontend
+--    call is unchanged.
+-- ---------------------------------------------------------------------
+
+create or replace function public.submit_creator_verification_details(
+  p_creator_profile_id uuid,
+  p_evidence_note text default '',
+  p_platform text default null,
+  p_platform_account_id text default null,
+  p_claimed_username text default null,
+  p_audience_count bigint default null,
+  p_engagement_rate numeric default null,
+  p_ownership_method text default 'manual'
+) returns uuid
+language plpgsql security definer set search_path=public
+as $$
+declare
+  v_id uuid;
+  threshold int;
+begin
+  if not exists(select 1 from public.creator_profiles where id=p_creator_profile_id and auth_user_id=auth.uid()) then
+    raise exception 'not authorized';
+  end if;
+  if p_ownership_method not in ('oauth','code','bio','manual') then raise exception 'invalid ownership method'; end if;
+
+  if nullif(trim(coalesce(p_platform_account_id,'')),'') is null
+     and nullif(trim(coalesce(p_claimed_username,'')),'') is null then
+    raise exception 'enter your username or account ID so the reviewer can find your account';
+  end if;
+
+  if p_ownership_method = 'oauth' and not exists (
+    select 1 from public.social_oauth_connections
+    where user_id = auth.uid()
+      and lower(provider) = lower(coalesce(p_platform,''))
+      and status = 'connected'
+  ) then
+    raise exception 'connect your % account first, or choose a code/manual ownership proof', coalesce(p_platform,'social');
+  end if;
+
+  select coalesce(creator_follower_threshold,15000) into threshold from public.platform_settings where id = true;
+  threshold := coalesce(threshold, 15000);
+
+  insert into public.creator_verification_claims(
+    creator_profile_id,evidence_note,status,platform,platform_account_id,claimed_username,
+    audience_count,engagement_rate,ownership_method,verification_source,eligibility_status
+  ) values (
+    p_creator_profile_id,trim(coalesce(p_evidence_note,'')),'pending',p_platform,p_platform_account_id,
+    p_claimed_username,p_audience_count,p_engagement_rate,p_ownership_method,
+    case when p_ownership_method='oauth' then 'oauth' else 'manual' end,
+    case when coalesce(p_audience_count,0) >= threshold then case when p_ownership_method='manual' then 'pending_review' else 'eligible' end else 'not_eligible' end
+  )
+  on conflict (creator_profile_id) do update set
+    evidence_note=excluded.evidence_note, status='pending', platform=excluded.platform,
+    platform_account_id=excluded.platform_account_id, claimed_username=excluded.claimed_username,
+    audience_count=excluded.audience_count, engagement_rate=excluded.engagement_rate,
+    ownership_method=excluded.ownership_method, verification_source=excluded.verification_source,
+    eligibility_status=excluded.eligibility_status, updated_at=now()
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke all on function public.submit_creator_verification_details(uuid,text,text,text,text,bigint,numeric,text) from public;
+grant execute on function public.submit_creator_verification_details(uuid,text,text,text,text,bigint,numeric,text) to authenticated;
+
+-- Re-stamp eligibility on requests that were already submitted under the old
+-- 50,000 bar, so people between 15,000 and 50,000 are no longer marked
+-- not_eligible by stale data.
+update public.creator_verification_claims c
+set eligibility_status = case
+      when coalesce(c.audience_count,0) >= (select creator_follower_threshold from public.platform_settings where id = true)
+        then case when c.ownership_method = 'manual' then 'pending_review' else 'eligible' end
+      else 'not_eligible' end,
+    updated_at = now()
+where c.status = 'pending';
+
+-- ---------------------------------------------------------------------
 -- Verify after running:
 --   select public.admin_verification_readiness('creator', '<claim id>');
 --   -- 'threshold' in the response should now read 15000 (or whatever

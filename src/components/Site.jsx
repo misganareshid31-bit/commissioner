@@ -3744,10 +3744,110 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 relative cm-marketplace-page"><div className="flex justify-end mb-4"><button onClick={()=>setShowSetup(true)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white shadow-lg" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}><ShoppingBag size={15} className="inline mr-2"/>Marketplace setup</button></div><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Products & services</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Discover products and services offered by creators and businesses. Anyone with a Commissioner account can message a poster directly.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#E0FBFF':'transparent',color:tab===v?'#036377':'#334155'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#334155'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#334155'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#334155'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner, x.id)} disabled={session?.user?.id && x.owner?.auth_user_id === session.user.id} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-60 disabled:cursor-not-allowed" style={{background:'#E6007A'}}>{session?.user?.id && x.owner?.auth_user_id === session.user.id ? 'Your listing' : 'Message'}</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#334155'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}{showSetup&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(7,21,47,.55)',backdropFilter:'blur(8px)'}}><div className="w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-3xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Marketplace setup</p><h2 className="cm-display font-bold text-xl mt-1" style={{color:'#172033'}}>Manage your products and services</h2><p className="text-xs mt-1" style={{color:'#526078'}}>Your marketplace setup now lives here instead of on the dashboard.</p></div><button onClick={()=>setShowSetup(false)} className="w-9 h-9 rounded-xl border" style={{color:'#172033',borderColor:'#D7DFEA'}}>×</button></div>{activeRole==='business'?<BusinessDashboardMarketplaceSetup session={session}/>:<CreatorDashboardMarketplaceSetup session={session}/>}</div></div>}</div>;
 };
 
+// Where creators can find the identifiers we ask for, per platform. Menu
+// names on these platforms move around, so the wording points at the label
+// to look for rather than promising an exact click path.
+const PLATFORM_GUIDE = {
+  YouTube: {
+    idLabel: 'Channel ID (starts with UC…)',
+    idHelp: 'Open YouTube Studio → Settings → Channel → Advanced settings and copy “Channel ID”. You can also paste your channel URL and Commissioner will extract the channel ID when the URL contains /channel/UC….',
+    userLabel: 'Channel handle (e.g. @yourchannel)',
+    idPattern: /^UC[\w-]{22}$/,
+    idError: 'A YouTube Channel ID starts with “UC” and is 24 characters long. Open YouTube Studio → Settings → Channel → Advanced settings to confirm it.',
+  },
+  Instagram: {
+    idLabel: 'Instagram username / public profile link',
+    idHelp: 'Instagram normally does not expose a public numeric account ID in the app. Enter your @username or paste your profile link; Commissioner uses that public identifier for review.',
+    userLabel: '@username or profile link',
+  },
+  TikTok: {
+    idLabel: 'TikTok username / profile link',
+    idHelp: 'TikTok normally does not expose a public numeric account ID in the app. Enter your @username or paste your profile link; Commissioner uses that public identifier for review.',
+    userLabel: '@username or profile link',
+  },
+  Facebook: {
+    idLabel: 'Page ID or Page profile link',
+    idHelp: 'For a Facebook Page, open Page transparency and copy the Page ID. You can also paste the Page URL. For profile.php links, Commissioner can extract the numeric id automatically.',
+    userLabel: 'Page username or profile link',
+  },
+  X: {
+    idLabel: 'X username / profile link',
+    idHelp: 'X does not normally display the numeric account ID in the normal profile UI. Enter your @username or paste your profile link; a connected X account can also supply its provider account ID automatically.',
+    userLabel: '@username or profile link',
+  },
+  Twitch: {
+    idLabel: 'Twitch username / channel link',
+    idHelp: 'Open your Twitch channel and copy the channel URL or username. Twitch usernames are the practical public identifier; a connected account can supply its provider account ID automatically.',
+    userLabel: 'Channel username or link',
+  },
+  LinkedIn: {
+    idLabel: 'LinkedIn public profile / company URL',
+    idHelp: 'Open your LinkedIn profile or company page and copy the public URL from the address bar. LinkedIn public URLs are used for manual ownership review; a connected account can supply its provider account ID automatically.',
+    userLabel: 'Public profile or company URL',
+  },
+};
+
+// Turns a pasted profile link into the username / ID we store, so creators
+// do not have to work out what to type. Returns only fields it is sure of.
+const parseProfileInput = (platform, raw) => {
+  const text = String(raw || '').trim();
+  if (!text) return {};
+  let url;
+  try { url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`); } catch { return {}; }
+  if (!url.hostname.includes('.')) return {};
+  const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
+  const parts = url.pathname.split('/').filter(Boolean);
+  const out = {};
+  if (/youtube\.com$/.test(host)) {
+    if (parts[0] === 'channel' && parts[1]) out.id = parts[1];
+    else if (parts[0]?.startsWith('@')) out.username = parts[0];
+  } else if (/instagram\.com$/.test(host)) {
+    if (parts[0] && !['p', 'reel', 'reels', 'explore', 'stories'].includes(parts[0])) out.username = `@${parts[0]}`;
+  } else if (/tiktok\.com$/.test(host)) {
+    if (parts[0]?.startsWith('@')) out.username = parts[0];
+  } else if (/(facebook|fb)\.com$/.test(host)) {
+    if (parts[0] === 'profile.php') { const id = url.searchParams.get('id'); if (id) out.id = id; }
+    else if (parts[0] && !['pages', 'groups', 'watch', 'share'].includes(parts[0])) out.username = parts[0];
+  } else if (/x\.com$|twitter\.com$/.test(host)) {
+    if (parts[0] && !['home','explore','i','intent','share'].includes(parts[0])) out.username = `@${parts[0]}`;
+  } else if (/twitch\.tv$/.test(host)) {
+    if (parts[0]) out.username = parts[0];
+  } else if (/linkedin\.com$/.test(host)) {
+    if (parts[0] === 'in' && parts[1]) out.username = `linkedin.com/in/${parts[1]}`;
+    else if (parts[0] === 'company' && parts[1]) out.username = `linkedin.com/company/${parts[1]}`;
+  } else return {};
+  return out;
+};
+
+// Turns a pasted profile link into the username / ID we store, so creators
+// do not have to work out what to type. Returns only fields it is sure of.
+const parseProfileInput = (platform, raw) => {
+  const text = String(raw || '').trim();
+  if (!text) return {};
+  let url;
+  try { url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`); } catch { return {}; }
+  if (!url.hostname.includes('.')) return {};
+  const host = url.hostname.replace(/^www\./, '').replace(/^m\./, '');
+  const parts = url.pathname.split('/').filter(Boolean);
+  const out = {};
+  if (/youtube\.com$/.test(host)) {
+    if (parts[0] === 'channel' && parts[1]) out.id = parts[1];
+    else if (parts[0]?.startsWith('@')) out.username = parts[0];
+  } else if (/instagram\.com$/.test(host)) {
+    if (parts[0] && !['p', 'reel', 'reels', 'explore', 'stories'].includes(parts[0])) out.username = `@${parts[0]}`;
+  } else if (/tiktok\.com$/.test(host)) {
+    if (parts[0]?.startsWith('@')) out.username = parts[0];
+  } else if (/(facebook|fb)\.com$/.test(host)) {
+    if (parts[0] === 'profile.php') { const id = url.searchParams.get('id'); if (id) out.id = id; }
+    else if (parts[0] && !['pages', 'groups', 'watch', 'share'].includes(parts[0])) out.username = parts[0];
+  } else return {};
+  return out;
+};
+
 const TrustCenter = ({ session, activeRole }) => {
   const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
-  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'manual'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
-  const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',trade_license_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
+  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
+  const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
     if(!session?.user?.id)return;
     const preferred = activeRole === 'business' ? 'business' : 'creator';
@@ -3761,8 +3861,8 @@ const TrustCenter = ({ session, activeRole }) => {
           setType('creator'); setProfile(c);
           const {data:v}=await supabase.rpc('get_creator_verification_summary',{p_creator_profile_id:c.id});
           setClaim(Array.isArray(v)?(v[0]||null):(v||null));
-          const {data:rawClaim}=await supabase.from('creator_verification_claims').select('platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
-          if(rawClaim)setCreatorDetails(d=>({...d,...Object.fromEntries(Object.entries(rawClaim).map(([k,v])=>[k,v ?? '']))}));
+          const {data:rawClaim}=await supabase.from('creator_verification_claims').select('status,platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
+          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setCreatorDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
           const {data:e}=await supabase.rpc('evaluate_creator_50k_eligibility',{p_creator_profile_id:c.id});
           if(e && !e.error) setEligibility(e);
           return;
@@ -3773,24 +3873,67 @@ const TrustCenter = ({ session, activeRole }) => {
           setType('business'); setProfile(b);
           const {data:v}=await supabase.rpc('get_business_verification_summary',{p_business_profile_id:b.id});
           setClaim(Array.isArray(v)?(v[0]||null):(v||null));
-          const {data:rawClaim}=await supabase.from('business_verification_claims').select('legal_business_name,trade_name,registration_reference,trade_license_reference,tin_reference,business_activity,representative_name,official_contact,official_website').eq('business_profile_id',b.id).maybeSingle();
-          if(rawClaim)setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(rawClaim).map(([k,v])=>[k,v ?? '']))}));
+          const {data:rawClaim}=await supabase.from('business_verification_claims').select('status,legal_business_name,trade_name,registration_reference,trade_license_reference,tin_reference,business_activity,representative_name,official_contact,official_website').eq('business_profile_id',b.id).maybeSingle();
+          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
           setEligibility(null); return;
         }
       }
     }
     setProfile(null); setClaim(null); setEligibility(null); setType(preferred);
   };
-  useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
+  useEffect(()=>{
+    setType(activeRole || 'creator');
+    load().catch(()=>{setMsg('We could not refresh verification status. Your submitted verification request is still protected. Refresh this page to try again.');});
+  },[session?.user?.id, activeRole]);
+  useEffect(()=>{
+    if(!creatorDetails.platform)return;
+    const c=connectedForPlatform(creatorDetails.platform);
+    if(c?.status==='connected'){
+      setCreatorDetails(d=>({...d,
+        platform_account_id:d.platform_account_id||c.provider_account_id||'',
+        claimed_username:d.claimed_username||(c.username?`@${String(c.username).replace(/^@/,'')}`:'')
+      }));
+    }
+  },[creatorDetails.platform, oauthConnections.length]);
+  const guide=PLATFORM_GUIDE[creatorDetails.platform]||null;
+  const followerBar=Number(eligibility?.threshold||FOLLOWER_THRESHOLD_FALLBACK);
+  const verifyCode=profile?.id?`CMS-${String(profile.id).replace(/-/g,'').slice(0,6).toUpperCase()}`:'';
+  const normalizeProvider = (value) => {
+    const v=String(value||'').toLowerCase().trim();
+    return ({youtube:'youtube',instagram:'instagram',tiktok:'tiktok',facebook:'facebook',x:'x',twitter:'x',twitch:'twitch',linkedin:'linkedin'}[v]||v);
+  };
+  const connectedForPlatform=(platform)=>oauthConnections.find(c=>normalizeProvider(c.provider)===normalizeProvider(platform)&&c.status==='connected');
+  const oauthReady=!!creatorDetails.platform&&!!connectedForPlatform(creatorDetails.platform);
+  const autofillFrom=(raw)=>{
+    const found=parseProfileInput(creatorDetails.platform,raw);
+    if(found.id||found.username)setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));
+  };
+  const useConnectedAccount=()=>{
+    const c=connectedForPlatform(creatorDetails.platform);
+    if(!c)return;
+    setCreatorDetails(d=>({...d,platform_account_id:c.provider_account_id||d.platform_account_id,claimed_username:c.username?`@${String(c.username).replace(/^@/,'')}`:d.claimed_username,ownership_method:'oauth'}));
+  };
   const submit=async()=>{
     if(!profile)return;
     const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile); const pct=completionPercent(checklist);
     if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}
+    if(type==='creator'){
+      const connected=connectedForPlatform(creatorDetails.platform);
+      const idVal=String(creatorDetails.platform_account_id||connected?.provider_account_id||'').trim();
+      const userVal=String(creatorDetails.claimed_username||connected?.username||'').trim();
+      const aud=Number(creatorDetails.audience_count);
+      if(!creatorDetails.platform){setMsg('Choose the platform you are verifying.');return;}
+      if(!idVal&&!userVal){setMsg('Enter your username or profile link (or your account ID) so the reviewer can find your account.');return;}
+      if(guide?.idPattern&&idVal&&!guide.idPattern.test(idVal)){setMsg(guide.idError);return;}
+      if(!Number.isFinite(aud)||aud<=0){setMsg('Enter your current follower / subscriber count.');return;}
+      if(creatorDetails.ownership_method==='oauth'&&!oauthReady){setMsg(`Connect your ${creatorDetails.platform} account first, or choose "Code in your bio" as the ownership proof.`);return;}
+    }
     setBusy(true);setMsg('');
     let claimId=null;
     try {
       if(type==='creator'){
-        const {data,error}=await supabase.rpc('submit_creator_verification_details',{p_creator_profile_id:profile.id,p_evidence_note:note,p_platform:creatorDetails.platform||null,p_platform_account_id:creatorDetails.platform_account_id||null,p_claimed_username:creatorDetails.claimed_username||null,p_audience_count:creatorDetails.audience_count?Number(creatorDetails.audience_count):null,p_engagement_rate:creatorDetails.engagement_rate?Number(creatorDetails.engagement_rate):null,p_ownership_method:creatorDetails.ownership_method||'manual'});
+        const proofNote=(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')&&verifyCode?`Ownership code ${verifyCode} (placed in ${creatorDetails.platform} bio/description). `:'';
+        const {data,error}=await supabase.rpc('submit_creator_verification_details',{p_creator_profile_id:profile.id,p_evidence_note:proofNote+note,p_platform:creatorDetails.platform||null,p_platform_account_id:idVal||null,p_claimed_username:userVal||null,p_audience_count:creatorDetails.audience_count?Number(creatorDetails.audience_count):null,p_engagement_rate:creatorDetails.engagement_rate?Number(creatorDetails.engagement_rate):null,p_ownership_method:creatorDetails.ownership_method||'manual'});
         if(error) throw error; claimId=data;
       } else {
         const {data,error}=await supabase.rpc('submit_business_verification_details',{p_business_profile_id:profile.id,p_evidence_note:note,...businessDetails});
@@ -3805,14 +3948,14 @@ const TrustCenter = ({ session, activeRole }) => {
         const {error:attachError}=await supabase.rpc('attach_verification_evidence',{p_kind:type,p_claim_id:claimId,p_storage_path:path});
         if(attachError) throw attachError;
       }
-      setMsg('Verification request submitted. The specific claims and evidence are now in the review queue.');
+      setMsg('Verification request submitted. It is now in the admin review queue — you can leave this page; the status below updates when a reviewer decides.');
       setEvidenceFile(null); await load();
     } catch(err) {
       setMsg(safeUserError(err,'Could not submit the verification request. No private evidence was made public.'));
     } finally { setBusy(false); setEvidenceBusy(false); }
   };
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
-  return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10">
+  return <div data-verification-flow className="verification-flow max-w-4xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div>
     <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
@@ -3822,15 +3965,28 @@ const TrustCenter = ({ session, activeRole }) => {
     <div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}>
       <h2 className="text-sm font-semibold" style={{color:'#07152F'}}>Verification evidence</h2>
       <p className="text-xs mt-1 mb-4" style={{color:'#526078'}}>Provide only the facts needed for the reviewer. Never submit passwords, access tokens, or private payment information.</p>
-      {type==='creator' ? <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        <select value={creatorDetails.platform} onChange={e=>setCreatorDetails(d=>({...d,platform:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="">Platform</option><option>Instagram</option><option>TikTok</option><option>YouTube</option><option>Facebook</option></select>
-        <select value={creatorDetails.ownership_method} onChange={e=>setCreatorDetails(d=>({...d,ownership_method:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="oauth">OAuth ownership check</option><option value="code">Profile/code proof</option><option value="bio">Bio proof</option><option value="manual">Manual review</option></select>
-        <input value={creatorDetails.platform_account_id} onChange={e=>setCreatorDetails(d=>({...d,platform_account_id:e.target.value}))} placeholder="Platform account ID" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
-        <input value={creatorDetails.claimed_username} onChange={e=>setCreatorDetails(d=>({...d,claimed_username:e.target.value}))} placeholder="Claimed username / profile" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
-        <input type="number" min="0" value={creatorDetails.audience_count} onChange={e=>setCreatorDetails(d=>({...d,audience_count:e.target.value}))} placeholder="Audience / followers" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
-        <input type="number" min="0" step="0.01" value={creatorDetails.engagement_rate} onChange={e=>setCreatorDetails(d=>({...d,engagement_rate:e.target.value}))} placeholder="Engagement rate %" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+      {type==='creator' ? <div className="mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <select value={creatorDetails.platform} onChange={e=>setCreatorDetails(d=>({...d,platform:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="">Platform</option>{Object.keys(PLATFORM_GUIDE).map(k=><option key={k}>{k}</option>)}</select>
+        <select value={creatorDetails.ownership_method} onChange={e=>setCreatorDetails(d=>({...d,ownership_method:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="code">Put a code in your bio (recommended)</option><option value="oauth" disabled={!oauthReady}>{oauthReady?'Connected account':'Connected account (not connected yet)'}</option><option value="manual">Manual review by an admin</option></select>
+        <input value={creatorDetails.claimed_username} onChange={e=>setCreatorDetails(d=>({...d,claimed_username:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.userLabel||'Username or profile link'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input value={creatorDetails.platform_account_id} onChange={e=>setCreatorDetails(d=>({...d,platform_account_id:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.idLabel||'Account ID (optional)'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input type="number" min="0" value={creatorDetails.audience_count} onChange={e=>setCreatorDetails(d=>({...d,audience_count:e.target.value}))} placeholder="Current followers / subscribers" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input type="number" min="0" step="0.01" value={creatorDetails.engagement_rate} onChange={e=>setCreatorDetails(d=>({...d,engagement_rate:e.target.value}))} placeholder="Engagement rate % (optional)" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+      </div>
+      <div className="mt-3 rounded-xl p-3.5 text-[11px] leading-5" style={{background:'#F0FBFF',color:'#036377'}}>
+        <p className="font-bold">{creatorDetails.platform?`How to find your ${creatorDetails.platform} details`:'Pick a platform to see where to find your account details'}</p>
+        {guide&&<p className="mt-1">{guide.idHelp}</p>}
+        {guide&&<p className="mt-1">Tip: paste your profile link into either box and Commissioner extracts the public username or ID when the platform exposes it.</p>}
+        {oauthReady&&<button type="button" onClick={useConnectedAccount} className="mt-2 text-[11px] font-bold px-3 py-1.5 rounded-lg" style={{background:'#E6F9FD',color:'#036377'}}>Use connected {creatorDetails.platform} account automatically</button>}
+      </div>
+      {(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')&&verifyCode&&<div className="mt-3 rounded-xl border p-3.5" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}>
+        <p className="text-xs font-bold" style={{color:'#07152F'}}>Your ownership code: <span className="font-mono px-2 py-0.5 rounded" style={{background:'#F1F5F9'}}>{verifyCode}</span></p>
+        <p className="text-[11px] leading-5 mt-1" style={{color:'#526078'}}>Add this code to your {creatorDetails.platform||'social'} bio or channel description, then request review. Leave it there until a reviewer has checked it — you can remove it afterwards.</p>
+      </div>}
+      {creatorDetails.audience_count!==''&&Number(creatorDetails.audience_count)<followerBar&&<p className="text-[11px] mt-3" style={{color:'#9A4A0C'}}>Verification currently needs at least {followerBar.toLocaleString()} followers/subscribers. You can still submit, but it will be declined until you reach that.</p>}
       </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',registration_reference:'Commercial registration reference',trade_license_reference:'Trade license reference (if applicable)',tin_reference:'TIN reference (if applicable)',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
+        {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',registration_reference:'Commercial registration reference',tin_reference:'TIN reference (if applicable)',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
       </div>}
       <textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Add context for identity, ownership, audience or engagement evidence.':'Add context for the business information and representative evidence. Private documents should remain in the protected evidence store.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/>
       <div className="mt-3 rounded-xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
@@ -3841,7 +3997,7 @@ const TrustCenter = ({ session, activeRole }) => {
           {evidenceFile&&<p className="text-[11px] mt-2" style={{color:'#036377'}}>Selected: {evidenceFile.name}</p>}
         </div></div>
       </div>
-      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?`Current review: ${claim.status.replace('_',' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
+      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
     </div>
   </div>;
 };
@@ -3896,7 +4052,7 @@ const VerificationAdminQueue = () => {
   };
   const evidenceReady=(r)=>r._type==='creator'
     ? Number(r.audience_count||0)>=followerThreshold && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
-    : !!r.legal_business_name && !!r.representative_name && (!!r.registration_reference || !!r.trade_license_reference);
+    : !!r.legal_business_name && !!r.representative_name && (!!r.registration_reference);
   const openEvidence=async(row)=>{
     const path=row.evidence_storage_path;
     if(!path){setMessage('No private evidence file is attached to this request.');return;}
@@ -3938,7 +4094,7 @@ const VerificationAdminQueue = () => {
             <div><b>Source:</b> {r.verification_source||'—'}</div>
           </>:<>
             <div><b>Legal name:</b> {r.legal_business_name||'—'}</div><div><b>Trade name:</b> {r.trade_name||'—'}</div>
-            <div><b>Registration:</b> {r.registration_reference||'—'}</div><div><b>Trade license:</b> {r.trade_license_reference||'—'}</div>
+            <div><b>Registration:</b> {r.registration_reference||'—'}</div>
             <div><b>TIN reference:</b> {r.tin_reference||'—'}</div><div><b>Activity:</b> {r.business_activity||'—'}</div>
             <div><b>Representative:</b> {r.representative_name||'—'}</div><div><b>Official contact:</b> {r.official_contact||'—'}</div>
             <div><b>Website:</b> {r.official_website||'—'}</div>

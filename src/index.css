@@ -4,7 +4,7 @@
 
 /* Commissioner professional polish layer */
 :root { color-scheme: light; }
-body { margin: 0; background: #f8fafc; color: #FFFFFF; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: #f8fafc; color: #07152F; -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font: inherit; }
 button { transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease; }
 button:hover { transform: translateY(-1px); }
@@ -1481,4 +1481,22 @@ html, body {
 
 @media (max-width: 640px) {
   .cm-account-page { padding-top: 28px !important; padding-bottom: 40px !important; }
+}
+
+/* Verification flow stability: never allow a light verification surface to
+   inherit white body text or flash a dark/blank canvas after submission. */
+.cm-root .verification-flow,
+.cm-root [data-verification-flow] {
+  color: #07152F;
+  background: #F8FAFC;
+}
+.cm-root .verification-flow input,
+.cm-root .verification-flow textarea,
+.cm-root .verification-flow select,
+.cm-root [data-verification-flow] input,
+.cm-root [data-verification-flow] textarea,
+.cm-root [data-verification-flow] select {
+  color: #07152F !important;
+  background: #FFFFFF !important;
+  -webkit-text-fill-color: #07152F;
 }
