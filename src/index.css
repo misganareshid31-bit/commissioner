@@ -1500,3 +1500,37 @@ html, body {
   background: #FFFFFF !important;
   -webkit-text-fill-color: #07152F;
 }
+
+/* Verification flow: keep every card light and every label readable.
+   The global dark theme turns .bg-white into navy while these labels use dark
+   inline colours, which made the screen look black (dark text on navy). Inside
+   the verification flow the cards stay white with dark text. */
+.cm-root .verification-flow .bg-white,
+.cm-root [data-verification-flow] .bg-white {
+  background: #FFFFFF !important;
+  color: #07152F !important;
+}
+.cm-root .verification-flow .border,
+.cm-root [data-verification-flow] .border {
+  border-color: #E5E7EB !important;
+}
+.cm-root .verification-flow [style*="background: rgb(255, 255, 255)"],
+.cm-root [data-verification-flow] [style*="background: rgb(255, 255, 255)"] {
+  background: #FFFFFF !important;
+}
+.cm-root .verification-flow select option,
+.cm-root [data-verification-flow] select option {
+  color: #07152F;
+  background: #FFFFFF;
+}
+.cm-root .verification-flow input::placeholder,
+.cm-root .verification-flow textarea::placeholder,
+.cm-root [data-verification-flow] input::placeholder,
+.cm-root [data-verification-flow] textarea::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+}
+.cm-root .verification-flow .text-white,
+.cm-root [data-verification-flow] .text-white {
+  color: #FFFFFF !important;
+}

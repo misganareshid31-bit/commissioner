@@ -3750,40 +3750,98 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
 const PLATFORM_GUIDE = {
   YouTube: {
     idLabel: 'Channel ID (starts with UC…)',
-    idHelp: 'Open YouTube Studio → Settings → Channel → Advanced settings and copy “Channel ID”. You can also paste your channel URL and Commissioner will extract the channel ID when the URL contains /channel/UC….',
-    userLabel: 'Channel handle (e.g. @yourchannel)',
+    idHelp: 'Your YouTube Channel ID starts with “UC” and is 24 characters long.',
+    userLabel: 'Channel handle (e.g. @yourchannel) or channel link',
     idPattern: /^UC[\w-]{22}$/,
     idError: 'A YouTube Channel ID starts with “UC” and is 24 characters long. Open YouTube Studio → Settings → Channel → Advanced settings to confirm it.',
+    openUrl: 'https://www.youtube.com/account_advanced',
+    openLabel: 'Open YouTube advanced settings',
+    steps: [
+      'Sign in to YouTube on a computer (the mobile app does not show the Channel ID).',
+      'Open the link below, or go to YouTube Studio → Settings → Channel → Advanced settings.',
+      'Copy the “Channel ID” (it starts with UC). Paste it into the account ID box.',
+      'Your handle is the @name shown on your channel page. You can also paste your channel link and we extract what we can.',
+    ],
   },
   Instagram: {
     idLabel: 'Instagram username / public profile link',
-    idHelp: 'Instagram normally does not expose a public numeric account ID in the app. Enter your @username or paste your profile link; Commissioner uses that public identifier for review.',
+    idHelp: 'Instagram does not show a public numeric account ID. Your @username or profile link is the identifier we use.',
     userLabel: '@username or profile link',
+    openUrl: 'https://www.instagram.com/',
+    openLabel: 'Open Instagram',
+    steps: [
+      'Open Instagram and go to your profile.',
+      'Your username is the name at the top of the profile, without spaces (for example @yourname).',
+      'To copy your link: tap Share profile → Copy link, or open instagram.com/yourname in a browser.',
+      'Paste the username or the link into the username box. No numeric ID is needed.',
+    ],
   },
   TikTok: {
     idLabel: 'TikTok username / profile link',
-    idHelp: 'TikTok normally does not expose a public numeric account ID in the app. Enter your @username or paste your profile link; Commissioner uses that public identifier for review.',
+    idHelp: 'TikTok does not show a public numeric account ID. Your @username or profile link is the identifier we use.',
     userLabel: '@username or profile link',
+    openUrl: 'https://www.tiktok.com/',
+    openLabel: 'Open TikTok',
+    steps: [
+      'Open TikTok and go to Profile.',
+      'Your username is shown under your profile photo and starts with @.',
+      'To copy your link: tap the share icon → Copy link (it looks like tiktok.com/@yourname).',
+      'Paste the username or the link into the username box. No numeric ID is needed.',
+    ],
   },
   Facebook: {
-    idLabel: 'Page ID or Page profile link',
-    idHelp: 'For a Facebook Page, open Page transparency and copy the Page ID. You can also paste the Page URL. For profile.php links, Commissioner can extract the numeric id automatically.',
+    idLabel: 'Page ID or Page link',
+    idHelp: 'For a Page, the numeric Page ID is found under Page transparency. A Page link or username also works.',
     userLabel: 'Page username or profile link',
+    idPattern: /^\d{5,20}$/,
+    idError: 'A Facebook Page ID is a number (5–20 digits). Check Page transparency on your Page, or paste your Page link instead.',
+    openUrl: 'https://business.facebook.com/settings/info',
+    openLabel: 'Open Meta Business info',
+    steps: [
+      'Open your Facebook Page (you must be an admin of the Page).',
+      'Go to About → Page transparency → See all, and copy the “Page ID”.',
+      'Or open Meta Business Suite → Settings → Business info, where the Page ID is also listed.',
+      'For a personal profile, paste the profile link. Links like profile.php?id=… have the ID extracted automatically.',
+    ],
   },
   X: {
-    idLabel: 'X username / profile link',
-    idHelp: 'X does not normally display the numeric account ID in the normal profile UI. Enter your @username or paste your profile link; a connected X account can also supply its provider account ID automatically.',
+    idLabel: 'X account ID (optional)',
+    idHelp: 'X does not show the numeric account ID in the normal profile. Your @username or profile link is enough.',
     userLabel: '@username or profile link',
+    openUrl: 'https://x.com/settings/your_twitter_data/account',
+    openLabel: 'Open X account settings',
+    steps: [
+      'Open X and go to your profile. Your @username is shown under your display name.',
+      'To copy your link, open x.com/yourname in a browser and copy the address.',
+      'Paste the username or the link into the username box. The numeric ID is optional.',
+      'If you connect your X account, the account ID is filled in for you automatically.',
+    ],
   },
   Twitch: {
-    idLabel: 'Twitch username / channel link',
-    idHelp: 'Open your Twitch channel and copy the channel URL or username. Twitch usernames are the practical public identifier; a connected account can supply its provider account ID automatically.',
+    idLabel: 'Twitch account ID (optional)',
+    idHelp: 'Your Twitch channel name is the public identifier. The numeric ID is optional and filled in automatically when you connect your account.',
     userLabel: 'Channel username or link',
+    openUrl: 'https://www.twitch.tv/settings/profile',
+    openLabel: 'Open Twitch profile settings',
+    steps: [
+      'Open Twitch and click your profile picture → Channel (or Settings).',
+      'Your username is your channel name, and your link looks like twitch.tv/yourname.',
+      'Paste the username or the link into the username box.',
+      'If you connect your Twitch account, the account ID is filled in for you automatically.',
+    ],
   },
   LinkedIn: {
     idLabel: 'LinkedIn public profile / company URL',
-    idHelp: 'Open your LinkedIn profile or company page and copy the public URL from the address bar. LinkedIn public URLs are used for manual ownership review; a connected account can supply its provider account ID automatically.',
+    idHelp: 'LinkedIn uses your public profile or company page URL as the identifier.',
     userLabel: 'Public profile or company URL',
+    openUrl: 'https://www.linkedin.com/public-profile/settings',
+    openLabel: 'Open LinkedIn public profile settings',
+    steps: [
+      'Open LinkedIn and go to your profile (or your company page).',
+      'For a person: click Contact info, or Edit public profile & URL, and copy the URL (linkedin.com/in/yourname).',
+      'For a company: open the page and copy the address from the browser (linkedin.com/company/yourcompany).',
+      'Paste the URL into either box. We extract the identifier automatically.',
+    ],
   },
 };
 
@@ -3819,8 +3877,8 @@ const parseProfileInput = (platform, raw) => {
   return out;
 };
 
-const TrustCenter = ({ session, activeRole }) => {
-  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
+const TrustCenterInner = ({ session, activeRole }) => {
+  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(''); const [msgOk,setMsgOk]=useState(false); const [detailsKey,setDetailsKey]=useState(0); const [autoNote,setAutoNote]=useState('');
   const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
   const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
@@ -3828,18 +3886,18 @@ const TrustCenter = ({ session, activeRole }) => {
     const preferred = activeRole === 'business' ? 'business' : 'creator';
     const order = preferred === 'business' ? ['business','creator'] : ['creator','business'];
     const {data:connections}=await supabase.from('social_oauth_connections').select('provider,provider_account_id,username,scopes,connected_at,expires_at,last_checked_at,status').eq('user_id',session.user.id);
-    setOauthConnections(connections || []);
+    setOauthConnections((Array.isArray(connections)?connections:[]).filter(c=>c&&typeof c==='object').map(c=>({...c,provider:String(c.provider||''),username:c.username==null?'':String(c.username)})));
     for (const role of order) {
       if (role === 'creator') {
         const {data:c}=await supabase.from('creator_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
         if(c){
           setType('creator'); setProfile(c);
           const {data:v}=await supabase.rpc('get_creator_verification_summary',{p_creator_profile_id:c.id});
-          setClaim(Array.isArray(v)?(v[0]||null):(v||null));
+          {const cv=Array.isArray(v)?(v[0]||null):(v||null); setClaim(cv&&typeof cv==='object'?cv:null);}
           const {data:rawClaim}=await supabase.from('creator_verification_claims').select('status,platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
-          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setCreatorDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
+          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; const cleaned=Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v==null?'':String(v)])); const platKey=Object.keys(PLATFORM_GUIDE).find(k=>k.toLowerCase()===String(cleaned.platform||'').toLowerCase()); cleaned.platform=platKey||''; if(!['code','bio','oauth','manual'].includes(cleaned.ownership_method))cleaned.ownership_method='code'; setCreatorDetails(d=>({...d,...cleaned})); setClaim(cl=>({...(cl&&typeof cl==='object'?cl:{}),status:String(ownStatus||'pending')}));}
           const {data:e}=await supabase.rpc('evaluate_creator_50k_eligibility',{p_creator_profile_id:c.id});
-          if(e && !e.error) setEligibility(e);
+          {const ev=Array.isArray(e)?e[0]:e; if(ev && typeof ev==='object' && !ev.error) setEligibility(ev);}
           return;
         }
       } else {
@@ -3847,9 +3905,9 @@ const TrustCenter = ({ session, activeRole }) => {
         if(b){
           setType('business'); setProfile(b);
           const {data:v}=await supabase.rpc('get_business_verification_summary',{p_business_profile_id:b.id});
-          setClaim(Array.isArray(v)?(v[0]||null):(v||null));
+          {const cv=Array.isArray(v)?(v[0]||null):(v||null); setClaim(cv&&typeof cv==='object'?cv:null);}
           const {data:rawClaim}=await supabase.from('business_verification_claims').select('status,legal_business_name,trade_name,registration_reference,trade_license_reference,tin_reference,business_activity,representative_name,official_contact,official_website').eq('business_profile_id',b.id).maybeSingle();
-          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
+          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v==null?'':String(v)]))})); setClaim(cl=>({...(cl&&typeof cl==='object'?cl:{}),status:String(ownStatus||'pending')}));}
           setEligibility(null); return;
         }
       }
@@ -3871,6 +3929,7 @@ const TrustCenter = ({ session, activeRole }) => {
     }
   },[creatorDetails.platform, oauthConnections.length]);
   const guide=PLATFORM_GUIDE[creatorDetails.platform]||null;
+  const profilePct=(()=>{try{return profile?completionPercent(type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile)):0;}catch{return 0;}})();
   const followerBar=Number(eligibility?.threshold||FOLLOWER_THRESHOLD_FALLBACK);
   const verifyCode=profile?.id?`CMS-${String(profile.id).replace(/-/g,'').slice(0,6).toUpperCase()}`:'';
   const normalizeProvider = (value) => {
@@ -3881,7 +3940,16 @@ const TrustCenter = ({ session, activeRole }) => {
   const oauthReady=!!creatorDetails.platform&&!!connectedForPlatform(creatorDetails.platform);
   const autofillFrom=(raw)=>{
     const found=parseProfileInput(creatorDetails.platform,raw);
-    if(found.id||found.username)setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));
+    if(found.id||found.username){
+      setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));
+      setAutoNote(`Detected from your link:${found.username?` username ${found.username}`:''}${found.id?` account ID ${found.id}`:''}`);
+    } else if(/https?:\/\//i.test(String(raw||''))){
+      setAutoNote('We could not read a username or ID from that link. Type your @username instead, or follow the steps above.');
+    }
+  };
+  const onIdentityInput=(field,value)=>{
+    setCreatorDetails(d=>({...d,[field]:value}));
+    if(/^(https?:\/\/|www\.)|\.(com|tv|be|me)\//i.test(String(value||'').trim()))autofillFrom(value);
   };
   const useConnectedAccount=()=>{
     const c=connectedForPlatform(creatorDetails.platform);
@@ -3890,6 +3958,7 @@ const TrustCenter = ({ session, activeRole }) => {
   };
   const submit=async()=>{
     if(!profile)return;
+    setMsgOk(false);
     const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile); const pct=completionPercent(checklist);
     if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}
     if(type==='creator'){
@@ -3924,7 +3993,8 @@ const TrustCenter = ({ session, activeRole }) => {
         if(attachError) throw attachError;
       }
       setMsg('Verification request submitted. It is now in the admin review queue — you can leave this page; the status below updates when a reviewer decides.');
-      setEvidenceFile(null); await load();
+      setMsgOk(true); setEvidenceFile(null); setDetailsKey(k=>k+1);
+      try{ await load(); }catch{ /* the request is saved; a failed refresh must never hide the confirmation */ }
     } catch(err) {
       setMsg(safeUserError(err,'Could not submit the verification request. No private evidence was made public.'));
     } finally { setBusy(false); setEvidenceBusy(false); }
@@ -3932,7 +4002,7 @@ const TrustCenter = ({ session, activeRole }) => {
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
   return <div data-verification-flow className="verification-flow max-w-4xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div>
-    <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div>
+    <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails key={detailsKey} type={type} id={profile?.id}/></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
       {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>{eligibility?.threshold?`${Number(eligibility.threshold).toLocaleString()}+ eligibility`:'Follower eligibility'}</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{eligibility?.threshold?Number(eligibility.threshold).toLocaleString():'A minimum number of'} followers/subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.audience_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.audience_count).toLocaleString()} audience · threshold {Number(eligibility.threshold||FOLLOWER_THRESHOLD_FALLBACK).toLocaleString()}</p>}</div>}
       <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>Social ownership</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Supported OAuth connections are recorded as account metadata only. Credentials and tokens never belong in the client app.</p>{oauthConnections.length?<div className="mt-3 space-y-2">{oauthConnections.map(c=><div key={c.provider} className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold capitalize" style={{color:'#334155'}}>{c.provider}{c.username?` · @${c.username.replace(/^@/,'')}`:''}</span><span style={{color:c.status==='connected'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>:<p className="text-xs mt-3" style={{color:'#526078'}}>No supported OAuth account is connected. Manual/code/bio verification is available when a provider is unavailable.</p>}</div>
@@ -3944,16 +4014,29 @@ const TrustCenter = ({ session, activeRole }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <select value={creatorDetails.platform} onChange={e=>setCreatorDetails(d=>({...d,platform:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="">Platform</option>{Object.keys(PLATFORM_GUIDE).map(k=><option key={k}>{k}</option>)}</select>
         <select value={creatorDetails.ownership_method} onChange={e=>setCreatorDetails(d=>({...d,ownership_method:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="code">Put a code in your bio (recommended)</option><option value="oauth" disabled={!oauthReady}>{oauthReady?'Connected account':'Connected account (not connected yet)'}</option><option value="manual">Manual review by an admin</option></select>
-        <input value={creatorDetails.claimed_username} onChange={e=>setCreatorDetails(d=>({...d,claimed_username:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.userLabel||'Username or profile link'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
-        <input value={creatorDetails.platform_account_id} onChange={e=>setCreatorDetails(d=>({...d,platform_account_id:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.idLabel||'Account ID (optional)'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input value={creatorDetails.claimed_username} onChange={e=>onIdentityInput('claimed_username',e.target.value)} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.userLabel||'Username or profile link'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input value={creatorDetails.platform_account_id} onChange={e=>onIdentityInput('platform_account_id',e.target.value)} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.idLabel||'Account ID (optional)'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
         <input type="number" min="0" value={creatorDetails.audience_count} onChange={e=>setCreatorDetails(d=>({...d,audience_count:e.target.value}))} placeholder="Current followers / subscribers" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
         <input type="number" min="0" step="0.01" value={creatorDetails.engagement_rate} onChange={e=>setCreatorDetails(d=>({...d,engagement_rate:e.target.value}))} placeholder="Engagement rate % (optional)" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
       </div>
-      <div className="mt-3 rounded-xl p-3.5 text-[11px] leading-5" style={{background:'#F0FBFF',color:'#036377'}}>
-        <p className="font-bold">{creatorDetails.platform?`How to find your ${creatorDetails.platform} details`:'Pick a platform to see where to find your account details'}</p>
+      <div className="mt-3 rounded-xl p-4 text-[12px] leading-5" style={{background:'#F0FBFF',color:'#036377',border:'1px solid #BFEFFA'}}>
+        <p className="font-bold text-[13px]">{creatorDetails.platform?`How to find your ${creatorDetails.platform} account ID / username`:'Pick a platform to see exactly where to find your account ID'}</p>
         {guide&&<p className="mt-1">{guide.idHelp}</p>}
-        {guide&&<p className="mt-1">Tip: paste your profile link into either box and Commissioner extracts the public username or ID when the platform exposes it.</p>}
+        {guide&&<ol className="mt-2 space-y-1 list-decimal pl-5">{(guide.steps||[]).map((t,i)=><li key={i}>{t}</li>)}</ol>}
+        {guide?.openUrl&&<a href={guide.openUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-[11px] font-bold px-3 py-1.5 rounded-lg" style={{background:'#FFFFFF',color:'#036377',border:'1px solid #BFEFFA'}}>{guide.openLabel||'Open'} ↗</a>}
+        {guide&&<p className="mt-3">Shortcut: paste your profile link into either box and Commissioner fills in the username or ID for you.</p>}
+        {autoNote&&<p className="mt-2 font-semibold" style={{color:'#0E7A3B'}}>{autoNote}</p>}
         {oauthReady&&<button type="button" onClick={useConnectedAccount} className="mt-2 text-[11px] font-bold px-3 py-1.5 rounded-lg" style={{background:'#E6F9FD',color:'#036377'}}>Use connected {creatorDetails.platform} account automatically</button>}
+      </div>
+      <div className="mt-3 rounded-xl p-4 text-[12px] leading-5" style={{background:'#FFFFFF',color:'#07152F',border:'1px solid #E5E7EB'}}>
+        <p className="font-bold text-[13px]">Before you request review</p>
+        <ul className="mt-2 space-y-1">{[
+          [profilePct>=100,`Profile is 100% complete (${profilePct}%)`],
+          [!!creatorDetails.platform,'Platform chosen'],
+          [!!(String(creatorDetails.platform_account_id||'').trim()||String(creatorDetails.claimed_username||'').trim()),'Username, link or account ID entered'],
+          [Number(creatorDetails.audience_count)>0,'Current follower / subscriber count entered'],
+          [creatorDetails.ownership_method==='manual'||creatorDetails.ownership_method==='oauth'?(creatorDetails.ownership_method==='manual'||oauthReady):!!verifyCode,creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio'?'Ownership code ready — put it in your bio, then submit':(creatorDetails.ownership_method==='oauth'?'Account connected':'Manual review chosen')],
+        ].map(([ok,label],i)=><li key={i} style={{color:ok?'#0E7A3B':'#526078'}}>{ok?'✓':'○'} {label}</li>)}</ul>
       </div>
       {(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')&&verifyCode&&<div className="mt-3 rounded-xl border p-3.5" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}>
         <p className="text-xs font-bold" style={{color:'#07152F'}}>Your ownership code: <span className="font-mono px-2 py-0.5 rounded" style={{background:'#F1F5F9'}}>{verifyCode}</span></p>
@@ -3972,10 +4055,29 @@ const TrustCenter = ({ session, activeRole }) => {
           {evidenceFile&&<p className="text-[11px] mt-2" style={{color:'#036377'}}>Selected: {evidenceFile.name}</p>}
         </div></div>
       </div>
-      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
+      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<div role="status" className="text-xs leading-5 mt-3 rounded-xl p-3.5" style={msgOk?{background:'#E9FBEF',color:'#0E7A3B',border:'1px solid #B7E8C8'}:{background:'#FEF3F2',color:'#B42318',border:'1px solid #FECDCA'}}>{msgOk&&<b>✓ </b>}{msg}</div>}
     </div>
   </div>;
 };
+
+// Keeps a single rendering problem inside verification from blanking the whole
+// page. Shows a light, readable card with a retry instead of a dark screen.
+class TrustBoundary extends React.Component {
+  constructor(props){ super(props); this.state={error:null,attempt:0}; }
+  static getDerivedStateFromError(error){ return {error}; }
+  componentDidCatch(error){ console.error('Verification screen error:', error); }
+  render(){
+    if(!this.state.error) return <React.Fragment key={this.state.attempt}>{this.props.children}</React.Fragment>;
+    return <div data-verification-flow className="verification-flow max-w-xl mx-auto px-5 py-16 text-center">
+      <div className="bg-white border rounded-2xl p-8" style={{borderColor:'#E5E7EB'}}>
+        <p className="text-sm font-bold" style={{color:'#07152F'}}>We could not show your verification status</p>
+        <p className="text-xs mt-2 leading-5" style={{color:'#526078'}}>If you just submitted, your request was saved. Tap reload to see its status.</p>
+        <button type="button" onClick={()=>this.setState(st=>({error:null,attempt:st.attempt+1}))} className="mt-5 text-white text-sm font-semibold px-5 py-2.5 rounded-lg" style={{background:'#E6007A'}}>Reload verification</button>
+      </div>
+    </div>;
+  }
+}
+const TrustCenter = (props) => <TrustBoundary><TrustCenterInner {...props}/></TrustBoundary>;
 
 const B2BNetwork = ({ session, initialBusiness=null }) => {
   const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [messageTarget,setMessageTarget]=useState(null); const [busyTarget,setBusyTarget]=useState(null);

@@ -1,39 +1,25 @@
-# Commissioner verification — account ID guide
+# Commissioner verification — how to find your account ID
 
-Commissioner accepts either a platform account ID when the platform exposes one, or a public username/profile link. Users should never submit passwords, access tokens, private payment information, or login credentials.
+Commissioner needs the **social account being verified** (not your Commissioner account). Never submit passwords, access tokens or login codes.
 
-## Automatic behavior
+The verification screen shows these same steps for the platform you pick, with a button that opens the right page. Pasting a profile link into either box fills in the username or ID automatically.
 
-- Paste a supported public profile/channel URL into the username or account-ID field.
-- Commissioner extracts the public identifier it can safely determine.
-- If the user has a connected social OAuth account, Commissioner can automatically use the provider account ID and username stored for that connection.
-- For platforms that do not expose a public numeric ID in their normal UI, the public username/profile URL is the correct review identifier.
+| Platform | What to enter | Where to find it |
+|---|---|---|
+| YouTube | Channel ID (starts with `UC`, 24 characters) and/or @handle | Computer only: YouTube Studio → Settings → Channel → Advanced settings → Channel ID, or youtube.com/account_advanced |
+| Instagram | @username or profile link (no numeric ID) | Your profile → username at the top; Share profile → Copy link |
+| TikTok | @username or profile link (no numeric ID) | Profile → @name under your photo; Share → Copy link |
+| Facebook | Page ID (digits) or Page link | Page → About → Page transparency → Page ID, or Meta Business Suite → Settings → Business info. `profile.php?id=…` links are parsed automatically |
+| X | @username or profile link | Profile → @name under your display name; x.com/yourname |
+| Twitch | Channel name or link | twitch.tv/yourname; Settings → Profile |
+| LinkedIn | Public profile or company URL | Contact info / Edit public profile & URL (linkedin.com/in/…), or the company page address (linkedin.com/company/…) |
 
-## Platforms
+## What is automatic
+- Links are parsed into the username / ID (YouTube, Instagram, TikTok, Facebook, X, Twitch, LinkedIn).
+- Connected accounts fill in the provider ID and username with one click.
+- A checklist shows what is still missing before you request review.
+- Your ownership code is generated for you. Put it in your bio, then submit.
+- After submitting, the status card refreshes and shows the confirmation.
 
-### YouTube
-Open YouTube Studio → Settings → Channel → Advanced settings and copy **Channel ID**. It starts with `UC` and is 24 characters long. Pasting a `/channel/UC...` URL also lets Commissioner extract it.
-
-### Instagram
-Instagram normally does not expose a public numeric account ID in the normal app UI. Use the **@username** or paste the public Instagram profile link.
-
-### TikTok
-TikTok normally does not expose a public numeric account ID in the normal app UI. Use the **@username** or paste the public TikTok profile link.
-
-### Facebook
-For a Page, open **Page transparency** and copy the **Page ID**. You can also paste the Page URL. A `profile.php?id=...` link can be parsed automatically.
-
-### X
-Use the **@username** or paste the public X profile URL. A connected X account can supply the provider account ID automatically.
-
-### Twitch
-Use the channel username or public channel URL. A connected Twitch account can supply the provider account ID automatically.
-
-### LinkedIn
-Paste the public profile or company URL. A connected LinkedIn account can supply the provider account ID automatically.
-
-## Important
-
-The account ID is not the same as a Commissioner account ID. The verification form asks for the **social platform account being verified**. Commissioner should use the platform's public identifier or a securely connected provider identifier.
-
-The verification request is still reviewed by Commissioner. An account ID alone does not prove ownership or guarantee verification.
+## What still needs a person
+An ID alone does not prove ownership. A Commissioner admin checks the ownership code or connected account and the follower count before verifying.
