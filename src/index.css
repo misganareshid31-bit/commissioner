@@ -4,7 +4,7 @@
 
 /* Commissioner professional polish layer */
 :root { color-scheme: light; }
-body { margin: 0; background: #f8fafc; color: #07152F; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: #f8fafc; color: #FFFFFF; -webkit-font-smoothing: antialiased; }
 button, input, textarea, select { font: inherit; }
 button { transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease; }
 button:hover { transform: translateY(-1px); }
@@ -1483,54 +1483,9 @@ html, body {
   .cm-account-page { padding-top: 28px !important; padding-bottom: 40px !important; }
 }
 
-/* Verification flow stability: never allow a light verification surface to
-   inherit white body text or flash a dark/blank canvas after submission. */
-.cm-root .verification-flow,
-.cm-root [data-verification-flow] {
-  color: #07152F;
-  background: #F8FAFC;
-}
-.cm-root .verification-flow input,
-.cm-root .verification-flow textarea,
-.cm-root .verification-flow select,
-.cm-root [data-verification-flow] input,
-.cm-root [data-verification-flow] textarea,
-.cm-root [data-verification-flow] select {
-  color: #07152F !important;
-  background: #FFFFFF !important;
-  -webkit-text-fill-color: #07152F;
-}
-
-/* Verification flow: keep every card light and every label readable.
-   The global dark theme turns .bg-white into navy while these labels use dark
-   inline colours, which made the screen look black (dark text on navy). Inside
-   the verification flow the cards stay white with dark text. */
-.cm-root .verification-flow .bg-white,
-.cm-root [data-verification-flow] .bg-white {
-  background: #FFFFFF !important;
-  color: #07152F !important;
-}
-.cm-root .verification-flow .border,
-.cm-root [data-verification-flow] .border {
-  border-color: #E5E7EB !important;
-}
-.cm-root .verification-flow [style*="background: rgb(255, 255, 255)"],
-.cm-root [data-verification-flow] [style*="background: rgb(255, 255, 255)"] {
-  background: #FFFFFF !important;
-}
-.cm-root .verification-flow select option,
-.cm-root [data-verification-flow] select option {
-  color: #07152F;
-  background: #FFFFFF;
-}
-.cm-root .verification-flow input::placeholder,
-.cm-root .verification-flow textarea::placeholder,
-.cm-root [data-verification-flow] input::placeholder,
-.cm-root [data-verification-flow] textarea::placeholder {
-  color: #64748B !important;
-  -webkit-text-fill-color: #64748B !important;
-}
-.cm-root .verification-flow .text-white,
-.cm-root [data-verification-flow] .text-white {
-  color: #FFFFFF !important;
-}
+.cm-auth-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #D7DFEA;background:#fff;color:#172033;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;cursor:pointer;transition:.18s ease}
+.cm-auth-google:hover{border-color:#B8C4D4;box-shadow:0 6px 18px rgba(7,21,47,.08)}
+.cm-auth-google:disabled{opacity:.6;cursor:not-allowed}
+.cm-google-mark{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:16px;font-weight:800;color:#4285F4;font-family:Arial,sans-serif}
+.cm-auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:#7A8798;font-size:11px}
+.cm-auth-divider:before,.cm-auth-divider:after{content:"";height:1px;flex:1;background:#E5E7EB}

@@ -95,6 +95,12 @@ export default function Auth({ onAuthenticated }) {
   }, [cooldown]);
 
   const clearMessages = () => { setError(''); setNotice(''); };
+  const authCallbackUrl = () => {
+    const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+    return returnTo
+      ? `${window.location.origin}/auth/callback?returnTo=${encodeURIComponent(returnTo)}`
+      : `${window.location.origin}/auth/callback`;
+  };
 
   const sendConfirmation = async (targetEmail) => {
     if (loading || cooldown) return;
@@ -145,7 +151,7 @@ export default function Auth({ onAuthenticated }) {
         password,
         options: {
           data: { role },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: authCallbackUrl(),
         },
       })
     );
@@ -264,6 +270,26 @@ export default function Auth({ onAuthenticated }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    clearMessages();
+    setLoading(true);
+    try {
+      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+      if (returnTo) sessionStorage.setItem('commissioner_oauth_return_to', returnTo);
+      const { error: oauthError } = await withTimeout(
+        supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: authCallbackUrl(),
+          },
+        })
+      );
+      if (oauthError) setError(oauthError.message || 'Google sign-in could not be started.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignOut = async () => { await supabase.auth.signOut(); };
   const handleSignOutAll = async () => { await supabase.auth.signOut({ scope: 'global' }); };
 
@@ -351,6 +377,12 @@ export default function Auth({ onAuthenticated }) {
         <h1>{signup ? 'Create your account' : 'Welcome back'}</h1>
         <p>{signup ? 'Build your professional Commissioner identity.' : 'Sign in to continue to your workspace.'}</p>
       </div>
+
+      <button type="button" className="cm-auth-google" onClick={handleGoogleSignIn} disabled={loading}>
+        <span className="cm-google-mark" aria-hidden="true">G</span>
+        <span>{loading ? 'Connecting…' : 'Continue with Google'}</span>
+      </button>
+      <div className="cm-auth-divider"><span>or continue with email</span></div>
 
       <div className="cm-auth-tabs" role="tablist">
         <button type="button" className={!signup ? 'is-active' : ''} onClick={() => { setMode('signin'); clearMessages(); }}>

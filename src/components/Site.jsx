@@ -81,6 +81,12 @@ function firstNonEmpty(obj, keys) {
 }
 
 // Never surface raw Supabase/PostgreSQL/schema details to end users.
+const DEFAULT_NFC_VISIBILITY = { bio:true, location:true, language:true, socials:true, services:true, portfolio:true, website:true, contact:true, verification:true };
+const nfcVisible = (profile, key) => {
+  const settings = profile?.nfc_visibility && typeof profile.nfc_visibility === 'object' ? profile.nfc_visibility : DEFAULT_NFC_VISIBILITY;
+  return settings[key] !== false;
+};
+
 function safeUserError(error, fallback = 'Something went wrong. Please try again.') {
   const message = String(error?.message || '').toLowerCase();
   if (!message) return fallback;
@@ -103,7 +109,7 @@ function safeUserError(error, fallback = 'Something went wrong. Please try again
 async function fetchLiveCreators(limit = 48) {
   const { data, error } = await supabase
     .from('creator_profiles_ranked')
-    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified, plan')
+    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, nfc_visibility, contact_email, verified, plan')
     .eq('onboarded', true)
     .order('effective_plan_rank', { ascending: false })
     .order('created_at', { ascending: false })
@@ -137,7 +143,7 @@ async function fetchLiveCreators(limit = 48) {
 async function fetchLiveBusinesses(limit = 48) {
   const { data, error } = await supabase
     .from('business_profiles')
-    .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, verified, approved, onboarded, plan, created_at')
+    .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, nfc_visibility, contact_email, verified, approved, onboarded, plan, created_at')
     .eq('onboarded', true)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -170,7 +176,7 @@ const LAUNCH_THRESHOLD = 50;
 // as a fallback before the live value from public.platform_settings (via
 // commissioner_launch_stats' follower_threshold field) has loaded, or if
 // 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql hasn't been applied
-// to this database yet. Lowered from 50,000 to 15,000 on 2026-09-29.
+// to this database yet. General creator eligibility is 15,000 followers/subscribers; YouTube uses a separate 1,000-subscriber minimum.
 const FOLLOWER_THRESHOLD_FALLBACK = 15000;
 
 // Single source of truth for launch-gate stats, called from every page
@@ -1780,21 +1786,23 @@ const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''});
   const [logoFile,setLogoFile]=useState(null); const [logoPreview,setLogoPreview]=useState('');
-  const [saving,setSaving]=useState(false); const [uploadingLogo,setUploadingLogo]=useState(false); const [error,setError]=useState(''); const [saved,setSaved]=useState(false);
+  const [bannerFile,setBannerFile]=useState(null); const [bannerPreview,setBannerPreview]=useState('');
+  const [saving,setSaving]=useState(false); const [uploadingLogo,setUploadingLogo]=useState(false); const [uploadingBanner,setUploadingBanner]=useState(false); const [error,setError]=useState(''); const [saved,setSaved]=useState(false);
   const businessDraftKey = session?.user?.id ? `commissioner_business_onboarding_draft_${session.user.id}` : '';
-  const persistBusinessDraft = (nextStep=step) => { if (!businessDraftKey || editMode) return; try { localStorage.setItem(businessDraftKey, JSON.stringify({ form, logoPreview, step: nextStep, savedAt: Date.now() })); } catch {} };
-  useEffect(()=>{ if(!businessDraftKey || editMode) return; try { const raw=localStorage.getItem(businessDraftKey); if(!raw) return; const d=JSON.parse(raw); if(d.form) setForm(f=>({...f,...d.form})); if(d.logoPreview) setLogoPreview(d.logoPreview); if(Number.isInteger(d.step)) setStep(Math.max(1,Math.min(3,d.step))); } catch {} },[businessDraftKey,editMode]);
-  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website,avatar_url,onboarded').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{if(data?.onboarded&&!editMode){setPage('dashboard');return;}if(data){setForm(f=>({...f,...data}));setLogoPreview(data.avatar_url||'')}})},[session?.user?.id,editMode]);
+  const persistBusinessDraft = (nextStep=step) => { if (!businessDraftKey || editMode) return; try { localStorage.setItem(businessDraftKey, JSON.stringify({ form, logoPreview, bannerPreview, step: nextStep, savedAt: Date.now() })); } catch {} };
+  useEffect(()=>{ if(!businessDraftKey || editMode) return; try { const raw=localStorage.getItem(businessDraftKey); if(!raw) return; const d=JSON.parse(raw); if(d.form) setForm(f=>({...f,...d.form})); if(d.logoPreview) setLogoPreview(d.logoPreview); if(d.bannerPreview) setBannerPreview(d.bannerPreview); if(Number.isInteger(d.step)) setStep(Math.max(1,Math.min(3,d.step))); } catch {} },[businessDraftKey,editMode]);
+  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website,avatar_url,banner_url,onboarded').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{if(data?.onboarded&&!editMode){setPage('dashboard');return;}if(data){setForm(f=>({...f,...data}));setLogoPreview(data.avatar_url||'');setBannerPreview(data.banner_url||'')}})},[session?.user?.id,editMode]);
   const update=(key,value)=>setForm(f=>({...f,[key]:value}));
   const next=()=>{setError('');if(step===1){const missing=[['Business name',form.business_name],['Username',form.username],['Logo',logoPreview],['City/location',form.city],['Language',form.language]].filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items: ${missing.join(', ')}.`);return;}}if(step===2&&!form.industry.trim()){setError('Enter your industry to continue.');return;}if(step===2&&!form.bio.trim()){setError('Add a short business description to continue.');return;}setStep(s=>{const n=Math.min(3,s+1); setTimeout(()=>persistBusinessDraft(n),0); return n;});};
   const uploadLogo=async(file)=>{setLogoFile(file);setLogoPreview(URL.createObjectURL(file));};
-  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview;if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');// Verification is optional. Completing setup only saves the profile;
+  const uploadBanner=async(file)=>{setBannerFile(file);setBannerPreview(URL.createObjectURL(file));};
+  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview; let bannerUrl=bannerPreview;if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);}if(bannerFile){setUploadingBanner(true);const ext=bannerFile.name.split('.').pop();const path=`${session.user.id}/business-banner-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('banners').upload(path,bannerFile,{upsert:false,contentType:bannerFile.type||undefined,cacheControl:'3600'});if(uploadError)throw uploadError;bannerUrl=supabase.storage.from('banners').getPublicUrl(path).data.publicUrl;setUploadingBanner(false);}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,banner_url:bannerUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');// Verification is optional. Completing setup only saves the profile;
   // the owner can request verification later from Trust Center.
-  if(businessDraftKey){try{localStorage.removeItem(businessDraftKey)}catch{}}setSaved(true);}catch(err){setError(safeUserError(err, 'Something went wrong.'));}finally{setSaving(false);setUploadingLogo(false);}};
+  if(businessDraftKey){try{localStorage.removeItem(businessDraftKey)}catch{}}setSaved(true);}catch(err){setError(safeUserError(err, 'Something went wrong.'));}finally{setSaving(false);setUploadingLogo(false);setUploadingBanner(false);}};
   if(saved){return <div className="max-w-2xl mx-auto px-5 md:px-8 py-20"><div className="bg-white border rounded-2xl p-7 md:p-9 text-center" style={{borderColor:'#D7DFEA'}}><CheckCircle2 size={36} className="mx-auto mb-3" style={{color:'#0E7A3B'}}/><h2 className="text-xl font-bold" style={{color:'#07152F'}}>Your business profile is ready.</h2><p className="text-sm mt-2 leading-6" style={{color:'#475569'}}>Your setup is saved. Verification is separate and is not automatic.</p><div className="text-left rounded-xl p-4 mt-5" style={{background:'#F8FAFC',border:'1px solid #E2E8F0'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>To request verification</p><ol className="text-xs leading-6 mt-2 pl-5 list-decimal" style={{color:'#475569'}}><li>Open <strong>Account Settings</strong>.</li><li>Open <strong>Verification & Trust</strong>.</li><li>Make sure your business profile is complete.</li><li>Submit the verification request with the business information and authorized-representative details you want reviewed.</li><li>Wait for the administrator review and decision.</li></ol></div><button onClick={()=>setPage('account')} className="mt-5 text-white text-sm font-semibold px-5 py-2.5 rounded-xl" style={{background:'#0E7C93'}}>Open Account Settings</button></div></div>;}
 
   const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold" style={{color:'#07152F'}}>{label}{required?' *':''}</span><input value={form[key]||''} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#07152F'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#526078'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#036377':'#64748B'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold" style={{color:'#07152F'}}>About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#526078'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#07152F'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#526078'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#526078'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#526078'}}>Your required profile is complete. Finishing now saves the business profile. Verification is a separate step: open Account Settings → Verification & Trust, review your completion, then request a verification review.</p><div className="rounded-xl p-4 mt-4" style={{background:'#F8FAFC',border:'1px solid #E2E8F0'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Optional after setup</p><p className="text-xs leading-5 mt-1" style={{color:'#475569'}}>Your website and additional business details can be expanded later. Services/products, contact details and other professional information can also be added from your workspace.</p></div></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>{if(step===1){setPage('dashboard')}else{const prev=Math.max(1,step-1);setStep(prev);setTimeout(()=>persistBusinessDraft(prev),0)}}} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#07152F'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#526078'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#036377':'#64748B'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/><div><ImageUploadTile label="Business banner (optional)" shape="banner" previewUrl={bannerPreview} onFile={uploadBanner} uploading={uploadingBanner}/><div className="mt-2 rounded-xl border overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}><img src="/business-banner-example.svg" alt="Example of a suitable Commissioner business banner" className="w-full h-24 object-cover"/><p className="px-2.5 py-2 text-[10px] leading-4" style={{color:'#64748B'}}>Example: 1500 × 500 px. Use a clean brand, product, workspace or atmosphere image. Avoid tiny text.</p></div></div>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold" style={{color:'#07152F'}}>About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#526078'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#07152F'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#526078'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#526078'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#526078'}}>Your required profile is complete. Finishing now saves the business profile. Verification is a separate step: open Account Settings → Verification & Trust, review your completion, then request a verification review.</p><div className="rounded-xl p-4 mt-4" style={{background:'#F8FAFC',border:'1px solid #E2E8F0'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Optional after setup</p><p className="text-xs leading-5 mt-1" style={{color:'#475569'}}>Your website and additional business details can be expanded later. Services/products, contact details and other professional information can also be added from your workspace.</p></div></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>{if(step===1){setPage('dashboard')}else{const prev=Math.max(1,step-1);setStep(prev);setTimeout(()=>persistBusinessDraft(prev),0)}}} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?((uploadingLogo||uploadingBanner)?'Uploading media…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -2408,6 +2416,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
   const [preferences, setPreferences] = useState('');
 
   const [saving, setSaving] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
   const draftKey = session?.user?.id ? `commissioner_creator_onboarding_draft_${session.user.id}` : '';
@@ -2983,9 +2992,13 @@ const CreatorClaimForm = ({ token }) => {
   const [portfolioLink, setPortfolioLink] = useState('');
   const [availability, setAvailability] = useState('Available now');
   const [preferences, setPreferences] = useState('');
+  const [nfcVisibility, setNfcVisibility] = useState({...DEFAULT_NFC_VISIBILITY});
   const [saving, setSaving] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => { supabase.auth.getUser().then(({data}) => setAccountEmail(data.user?.email || '')); }, []);
 
   useEffect(() => {
     supabase.rpc('get_claim_profile', { p_token: token }).then(({ data, error }) => {
@@ -3003,6 +3016,7 @@ const CreatorClaimForm = ({ token }) => {
       setPortfolioLink(row.portfolio_link || '');
       setAvailability(row.availability || 'Available now');
       setPreferences(row.professional_preferences || '');
+      setNfcVisibility({...DEFAULT_NFC_VISIBILITY, ...(row.nfc_visibility || {})});
       setLoading(false);
     });
   }, [token]);
@@ -3041,6 +3055,11 @@ const CreatorClaimForm = ({ token }) => {
       });
       if (error) throw error;
       if (!data) { setNotFound(true); return; }
+      const { data: ownedProfile } = await supabase.from('creator_profiles').select('id').eq('auth_user_id', (await supabase.auth.getUser()).data.user?.id).maybeSingle();
+      if (ownedProfile?.id) {
+        const { error: preferenceError } = await supabase.from('creator_profiles').update({ contact_email: (await supabase.auth.getUser()).data.user?.email || null, nfc_visibility: nfcVisibility }).eq('id', ownedProfile.id);
+        if (preferenceError) throw preferenceError;
+      }
       setSaved(true);
     } catch (err) {
       setSaveError(safeUserError(err, 'Something went wrong saving your profile.'));
@@ -3116,7 +3135,14 @@ const CreatorClaimForm = ({ token }) => {
         </div>
 
         <OnboardingField label="Portfolio link" placeholder="https://" icon={Link2} value={portfolioLink} onChange={e => setPortfolioLink(e.target.value)} />
+        <OnboardingField label="Email for this Commissioner profile" placeholder="Your account email" icon={Mail} value={accountEmail} onChange={()=>{}} type="email" />
+        <p className="text-[11px] -mt-3" style={{color:'#64748B'}}>This is the email on the account you used to claim the card. It is used to secure ownership of this open-ended profile.</p>
         <OnboardingField label="Availability" placeholder="e.g. Available now" icon={Calendar} value={availability} onChange={e => setAvailability(e.target.value)} />
+        <div className="rounded-2xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
+          <p className="text-sm font-semibold" style={{color:'#172033'}}>Choose what future NFC taps show</p>
+          <p className="text-[11px] mt-1 mb-3" style={{color:'#64748B'}}>After setup, the card becomes an information page. Turn off anything you do not want displayed.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{[['bio','Bio / about'],['location','Location'],['language','Language'],['socials','Social links'],['services','Services / rates'],['portfolio','Portfolio'],['website','Portfolio link'],['contact','Contact email'],['verification','Verification details']].map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold bg-white" style={{borderColor:'#E5E7EB',color:'#334155'}}><input type="checkbox" checked={nfcVisibility[key] !== false} onChange={e=>setNfcVisibility(v=>({...v,[key]:e.target.checked}))}/>{label}</label>)}</div>
+        </div>
         <div>
           <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>Anything else businesses should know? <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span></label>
           <textarea value={preferences} onChange={e => setPreferences(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
@@ -3149,6 +3175,7 @@ const BusinessClaimForm = ({ token }) => {
   const [lookingFor, setLookingFor] = useState([]);
   const [budgetRange, setBudgetRange] = useState('');
   const [preferences, setPreferences] = useState('');
+  const [nfcVisibility, setNfcVisibility] = useState({...DEFAULT_NFC_VISIBILITY});
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const [bannerFile, setBannerFile] = useState(null);
@@ -3156,9 +3183,11 @@ const BusinessClaimForm = ({ token }) => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => { supabase.auth.getUser().then(({data}) => setAccountEmail(data.user?.email || '')); }, []);
   useEffect(() => {
     supabase.rpc('get_claim_business', { p_token: token }).then(({ data, error }) => {
       if (error || !data || data.length === 0) { setNotFound(true); setLoading(false); return; }
@@ -3175,6 +3204,7 @@ const BusinessClaimForm = ({ token }) => {
       setPreferences(row.preferences || '');
       setAvatarPreview(row.avatar_url || '');
       setBannerPreview(row.banner_url || '');
+      setNfcVisibility({...DEFAULT_NFC_VISIBILITY, ...(row.nfc_visibility || {})});
       setLoading(false);
     });
   }, [token]);
@@ -3214,6 +3244,12 @@ const BusinessClaimForm = ({ token }) => {
       });
       if (error) throw error;
       if (!data) { setNotFound(true); return; }
+      const { data: authData } = await supabase.auth.getUser();
+      const { data: ownedProfile } = await supabase.from('business_profiles').select('id').eq('auth_user_id', authData.user?.id).maybeSingle();
+      if (ownedProfile?.id) {
+        const { error: preferenceError } = await supabase.from('business_profiles').update({ contact_email: authData.user?.email || null, nfc_visibility: nfcVisibility }).eq('id', ownedProfile.id);
+        if (preferenceError) throw preferenceError;
+      }
       setSaved(true);
     } catch (err) {
       setSaveError(safeUserError(err, 'Something went wrong saving your profile.'));
@@ -3265,7 +3301,14 @@ const BusinessClaimForm = ({ token }) => {
           <OnboardingField label="City" placeholder="e.g. Addis Ababa" icon={MapPin} value={city} onChange={e => setCity(e.target.value)} />
           <OnboardingField label="Language" placeholder="e.g. Amharic, English" icon={Languages} value={language} onChange={e => setLanguage(e.target.value)} />
         </div>
+        <OnboardingField label="Email for this Commissioner profile" placeholder="Your account email" icon={Mail} value={accountEmail} onChange={()=>{}} type="email" />
+        <p className="text-[11px] -mt-3" style={{color:'#64748B'}}>This is the email on the account you used to claim the card. It is used to secure ownership of this open-ended profile.</p>
         <OnboardingField label="Website" placeholder="https://" icon={Globe} value={website} onChange={e => setWebsite(e.target.value)} />
+        <div className="rounded-2xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
+          <p className="text-sm font-semibold" style={{color:'#172033'}}>Choose what future NFC taps show</p>
+          <p className="text-[11px] mt-1 mb-3" style={{color:'#64748B'}}>After setup, the card becomes an information page. Turn off anything you do not want displayed.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{[['bio','About'],['location','Location'],['language','Language'],['socials','Social links'],['website','Website'],['contact','Contact email'],['verification','Verification details']].map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold bg-white" style={{borderColor:'#E5E7EB',color:'#334155'}}><input type="checkbox" checked={nfcVisibility[key] !== false} onChange={e=>setNfcVisibility(v=>({...v,[key]:e.target.checked}))}/>{label}</label>)}</div>
+        </div>
         <div>
           <label className="text-xs font-semibold block mb-1.5" style={{ color: '#334155' }}>About the business</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="What do you do, and what kind of creators are you looking for?" rows={3} className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{ borderColor: '#E5E7EB' }} />
@@ -3383,7 +3426,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.page_name || profile.username || 'Creator'}</h1>
                 </div>
-                <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+                <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{nfcVisible(profile,'location') && profile.city ? ` · ${profile.city}` : ''}</p>
                 <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
               </div>
               {!canEdit && profile.auth_user_id && (
@@ -3394,14 +3437,14 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
             </div>
             <div className="flex flex-wrap gap-2 mb-6">
               {profile.primary_niche && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FDE7F1', color: '#99154F' }}>{profile.primary_niche}</span>}
-              {profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
+              {nfcVisible(profile,'language') && profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
               {profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
             </div>
-            {profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
-            <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>
-            <CreatorProducts profile={profile} />
+            {nfcVisible(profile,'bio') && profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
+            {nfcVisible(profile,'verification') && <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>}
+            {nfcVisible(profile,'services') && <CreatorProducts profile={profile} />}
             <WorkWithMe profile={profile} />
-            {socialEntries.length > 0 && (
+            {nfcVisible(profile,'socials') && socialEntries.length > 0 && (
               <div className="mb-7">
                 <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Social platforms</p>
                 <div className="flex flex-wrap gap-2">
@@ -3418,7 +3461,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 </div>
               </div>
             )}
-            {serviceEntries.length > 0 && (
+            {nfcVisible(profile,'services') && serviceEntries.length > 0 && (
               <div className="mb-7">
                 <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Collaboration services</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -3426,8 +3469,9 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 </div>
               </div>
             )}
-            {Array.isArray(profile.portfolio_media) && profile.portfolio_media.length > 0 && <div className="mb-7"><p className="text-sm font-semibold mb-3" style={{color:'#07152F'}}>Portfolio</p><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{profile.portfolio_media.map((item,i)=><div key={`${item.url||'portfolio'}-${i}`} className="rounded-xl overflow-hidden border bg-white" style={{borderColor:'#E5E7EB'}}>{item.type==='video'?<video src={item.url} controls className="w-full h-40 object-cover"/>:<img src={item.url} alt={item.name||'Portfolio work'} className="w-full h-40 object-cover"/>}</div>)}</div></div>}
-            {profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF', color:'#036377' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15}/></a>}
+            {nfcVisible(profile,'portfolio') && Array.isArray(profile.portfolio_media) && profile.portfolio_media.length > 0 && <div className="mb-7"><p className="text-sm font-semibold mb-3" style={{color:'#07152F'}}>Portfolio</p><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{profile.portfolio_media.map((item,i)=><div key={`${item.url||'portfolio'}-${i}`} className="rounded-xl overflow-hidden border bg-white" style={{borderColor:'#E5E7EB'}}>{item.type==='video'?<video src={item.url} controls className="w-full h-40 object-cover"/>:<img src={item.url} alt={item.name||'Portfolio work'} className="w-full h-40 object-cover"/>}</div>)}</div></div>}
+            {nfcVisible(profile,'website') && profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF', color:'#036377' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15}/></a>}
+            {nfcVisible(profile,'contact') && profile.contact_email && <div className="mb-7 rounded-xl border px-4 py-3" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}><p className="text-[10px] font-bold uppercase tracking-wider" style={{color:'#64748B'}}>Contact</p><a href={`mailto:${profile.contact_email}`} className="text-sm font-semibold mt-1 inline-block" style={{color:'#036377'}}>{profile.contact_email}</a></div>}
             {canEdit && (
               <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
                 <button onClick={onEdit} className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#E6007A' }}>
@@ -3478,7 +3522,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) =>
             </div>
             <div className="pb-1">
               <div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.business_name || profile.username || 'Business'}</h1></div>
-              <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+              <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{nfcVisible(profile,'location') && profile.city ? ` · ${profile.city}` : ''}</p>
               <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
             </div>
             {profile.auth_user_id && (
@@ -3488,10 +3532,10 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) =>
             )}
           </div>
           {profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
-          {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
-          <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>
+          {nfcVisible(profile,'bio') && profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
+          {nfcVisible(profile,'verification') && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
           <div className="flex flex-wrap gap-3">
-            {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+            {nfcVisible(profile,'website') && profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
           {canEdit && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
@@ -3522,7 +3566,7 @@ const OfficialBusinessPage = ({ id, session, setPage }) => {
   const owner = Boolean(session?.user?.id && profile?.auth_user_id === session.user.id);
   useEffect(() => {
     setLoading(true);
-    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => {
+    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, nfc_visibility, contact_email, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => {
       setProfile(data || null); setLoading(false);
     });
   }, [id]);
@@ -3545,7 +3589,7 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from('creator_profiles')
-      .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, approved, onboarded')
+      .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, nfc_visibility, contact_email, approved, onboarded')
       .eq('id', id)
       .maybeSingle();
     if (!error && data) {
@@ -3637,12 +3681,17 @@ const ClaimGate = ({ token, session, setPage }) => {
   if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
   if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest NFC ownership hardening migration, then try again.</p></div>;
   if (!session) return (
-    <div className="max-w-lg mx-auto px-5 md:px-8 py-24">
-      <div className="bg-white border rounded-2xl p-7 text-center" style={{borderColor:'#E5E7EB'}}>
-        <ShieldCheck size={30} className="mx-auto mb-4" style={{color:'#7C3AED'}}/>
-        <h1 className="cm-display font-bold text-2xl" style={{color:'#172033'}}>Claim your Commissioner card</h1>
-        <p className="text-sm mt-2 leading-6" style={{color:'#526078'}}>Sign in or create your Commissioner account first. Your account will be linked to this gifted NFC profile so only you can edit it.</p>
-        <button onClick={()=>{ const returnTo=`/?claim=${encodeURIComponent(token)}`; window.location.href=`/?auth=1&returnTo=${encodeURIComponent(returnTo)}`; }} className="mt-6 text-white text-sm font-semibold px-5 py-3 rounded-xl" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED,#00A8C4)'}}>Sign in to claim</button>
+    <div className="max-w-xl mx-auto px-5 md:px-8 py-14 md:py-20">
+      <div className="bg-white border rounded-3xl p-7 md:p-9 shadow-sm" style={{borderColor:'#E5E7EB'}}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5" style={{background:'#E0FBFF',color:'#036377'}}><Zap size={22}/></div>
+        <p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Your Commissioner NFC card</p>
+        <h1 className="cm-display font-bold text-2xl md:text-3xl mt-2" style={{color:'#172033'}}>Tap once. Set it up. Then share your identity.</h1>
+        <p className="text-sm mt-3 leading-6" style={{color:'#526078'}}>This is an open-ended Commissioner profile. The first person who receives the card can connect an email/account, add their details, choose what the NFC page shows, and finish the setup. After that, every tap becomes an information page.</p>
+        <div className="grid sm:grid-cols-3 gap-3 mt-6">
+          {[['1','Connect','Use Google or email to secure the profile.'],['2','Customize','Add your name, photo, links and details.'],['3','Share','Future taps open the finished profile.']].map(([n,t,d])=><div key={n} className="rounded-2xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}><span className="text-xs font-bold" style={{color:'#E6007A'}}>0{n}</span><p className="text-sm font-bold mt-2" style={{color:'#172033'}}>{t}</p><p className="text-[11px] leading-5 mt-1" style={{color:'#64748B'}}>{d}</p></div>)}
+        </div>
+        <button onClick={()=>{ const returnTo=`/?claim=${encodeURIComponent(token)}`; sessionStorage.setItem('commissioner_oauth_return_to', returnTo); window.location.href=`/?auth=1&returnTo=${encodeURIComponent(returnTo)}`; }} className="mt-7 w-full text-white text-sm font-bold px-5 py-3.5 rounded-xl" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED,#00A8C4)'}}>Continue to secure your card</button>
+        <p className="text-[11px] text-center mt-3" style={{color:'#7A8798'}}>Google sign-in and email sign-in are both available on the next screen.</p>
       </div>
     </div>
   );
@@ -3750,98 +3799,25 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
 const PLATFORM_GUIDE = {
   YouTube: {
     idLabel: 'Channel ID (starts with UC…)',
-    idHelp: 'Your YouTube Channel ID starts with “UC” and is 24 characters long.',
-    userLabel: 'Channel handle (e.g. @yourchannel) or channel link',
+    idHelp: 'Open YouTube Studio → Settings → Channel → Advanced settings and copy "Channel ID". On a computer you can also go to youtube.com/account_advanced while signed in. Pasting your channel link here also works.',
+    userLabel: 'Channel handle (e.g. @yourchannel)',
     idPattern: /^UC[\w-]{22}$/,
-    idError: 'A YouTube Channel ID starts with “UC” and is 24 characters long. Open YouTube Studio → Settings → Channel → Advanced settings to confirm it.',
-    openUrl: 'https://www.youtube.com/account_advanced',
-    openLabel: 'Open YouTube advanced settings',
-    steps: [
-      'Sign in to YouTube on a computer (the mobile app does not show the Channel ID).',
-      'Open the link below, or go to YouTube Studio → Settings → Channel → Advanced settings.',
-      'Copy the “Channel ID” (it starts with UC). Paste it into the account ID box.',
-      'Your handle is the @name shown on your channel page. You can also paste your channel link and we extract what we can.',
-    ],
+    idError: 'A YouTube Channel ID starts with "UC" and is 24 characters long. Check YouTube Studio → Settings → Channel → Advanced settings.',
   },
   Instagram: {
-    idLabel: 'Instagram username / public profile link',
-    idHelp: 'Instagram does not show a public numeric account ID. Your @username or profile link is the identifier we use.',
-    userLabel: '@username or profile link',
-    openUrl: 'https://www.instagram.com/',
-    openLabel: 'Open Instagram',
-    steps: [
-      'Open Instagram and go to your profile.',
-      'Your username is the name at the top of the profile, without spaces (for example @yourname).',
-      'To copy your link: tap Share profile → Copy link, or open instagram.com/yourname in a browser.',
-      'Paste the username or the link into the username box. No numeric ID is needed.',
-    ],
+    idLabel: 'Numeric account ID (optional)',
+    idHelp: 'Instagram does not show a numeric ID in the app, so you can leave this blank. Your @username is enough for review.',
+    userLabel: 'Instagram username (e.g. @yourname)',
   },
   TikTok: {
-    idLabel: 'TikTok username / profile link',
-    idHelp: 'TikTok does not show a public numeric account ID. Your @username or profile link is the identifier we use.',
-    userLabel: '@username or profile link',
-    openUrl: 'https://www.tiktok.com/',
-    openLabel: 'Open TikTok',
-    steps: [
-      'Open TikTok and go to Profile.',
-      'Your username is shown under your profile photo and starts with @.',
-      'To copy your link: tap the share icon → Copy link (it looks like tiktok.com/@yourname).',
-      'Paste the username or the link into the username box. No numeric ID is needed.',
-    ],
+    idLabel: 'Numeric account ID (optional)',
+    idHelp: 'TikTok does not show a numeric ID in the app, so you can leave this blank. Your @username is enough for review.',
+    userLabel: 'TikTok username (e.g. @yourname)',
   },
   Facebook: {
-    idLabel: 'Page ID or Page link',
-    idHelp: 'For a Page, the numeric Page ID is found under Page transparency. A Page link or username also works.',
-    userLabel: 'Page username or profile link',
-    idPattern: /^\d{5,20}$/,
-    idError: 'A Facebook Page ID is a number (5–20 digits). Check Page transparency on your Page, or paste your Page link instead.',
-    openUrl: 'https://business.facebook.com/settings/info',
-    openLabel: 'Open Meta Business info',
-    steps: [
-      'Open your Facebook Page (you must be an admin of the Page).',
-      'Go to About → Page transparency → See all, and copy the “Page ID”.',
-      'Or open Meta Business Suite → Settings → Business info, where the Page ID is also listed.',
-      'For a personal profile, paste the profile link. Links like profile.php?id=… have the ID extracted automatically.',
-    ],
-  },
-  X: {
-    idLabel: 'X account ID (optional)',
-    idHelp: 'X does not show the numeric account ID in the normal profile. Your @username or profile link is enough.',
-    userLabel: '@username or profile link',
-    openUrl: 'https://x.com/settings/your_twitter_data/account',
-    openLabel: 'Open X account settings',
-    steps: [
-      'Open X and go to your profile. Your @username is shown under your display name.',
-      'To copy your link, open x.com/yourname in a browser and copy the address.',
-      'Paste the username or the link into the username box. The numeric ID is optional.',
-      'If you connect your X account, the account ID is filled in for you automatically.',
-    ],
-  },
-  Twitch: {
-    idLabel: 'Twitch account ID (optional)',
-    idHelp: 'Your Twitch channel name is the public identifier. The numeric ID is optional and filled in automatically when you connect your account.',
-    userLabel: 'Channel username or link',
-    openUrl: 'https://www.twitch.tv/settings/profile',
-    openLabel: 'Open Twitch profile settings',
-    steps: [
-      'Open Twitch and click your profile picture → Channel (or Settings).',
-      'Your username is your channel name, and your link looks like twitch.tv/yourname.',
-      'Paste the username or the link into the username box.',
-      'If you connect your Twitch account, the account ID is filled in for you automatically.',
-    ],
-  },
-  LinkedIn: {
-    idLabel: 'LinkedIn public profile / company URL',
-    idHelp: 'LinkedIn uses your public profile or company page URL as the identifier.',
-    userLabel: 'Public profile or company URL',
-    openUrl: 'https://www.linkedin.com/public-profile/settings',
-    openLabel: 'Open LinkedIn public profile settings',
-    steps: [
-      'Open LinkedIn and go to your profile (or your company page).',
-      'For a person: click Contact info, or Edit public profile & URL, and copy the URL (linkedin.com/in/yourname).',
-      'For a company: open the page and copy the address from the browser (linkedin.com/company/yourcompany).',
-      'Paste the URL into either box. We extract the identifier automatically.',
-    ],
+    idLabel: 'Page ID (optional)',
+    idHelp: 'On your Facebook Page, look for "Page transparency" under About and copy the Page ID. It is also listed in Meta Business Suite under Settings → Business info. If you can’t find it, your Page username is enough.',
+    userLabel: 'Page username or link',
   },
 };
 
@@ -3866,39 +3842,31 @@ const parseProfileInput = (platform, raw) => {
   } else if (/(facebook|fb)\.com$/.test(host)) {
     if (parts[0] === 'profile.php') { const id = url.searchParams.get('id'); if (id) out.id = id; }
     else if (parts[0] && !['pages', 'groups', 'watch', 'share'].includes(parts[0])) out.username = parts[0];
-  } else if (/x\.com$|twitter\.com$/.test(host)) {
-    if (parts[0] && !['home','explore','i','intent','share'].includes(parts[0])) out.username = `@${parts[0]}`;
-  } else if (/twitch\.tv$/.test(host)) {
-    if (parts[0]) out.username = parts[0];
-  } else if (/linkedin\.com$/.test(host)) {
-    if (parts[0] === 'in' && parts[1]) out.username = `linkedin.com/in/${parts[1]}`;
-    else if (parts[0] === 'company' && parts[1]) out.username = `linkedin.com/company/${parts[1]}`;
   } else return {};
   return out;
 };
 
-const TrustCenterInner = ({ session, activeRole }) => {
-  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(''); const [msgOk,setMsgOk]=useState(false); const [detailsKey,setDetailsKey]=useState(0); const [autoNote,setAutoNote]=useState(''); const [autoInfo,setAutoInfo]=useState(null); const [autoBusy,setAutoBusy]=useState(false);
+const TrustCenter = ({ session, activeRole }) => {
+  const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
   const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
-  const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
+  const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',trade_license_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
     if(!session?.user?.id)return;
     const preferred = activeRole === 'business' ? 'business' : 'creator';
     const order = preferred === 'business' ? ['business','creator'] : ['creator','business'];
     const {data:connections}=await supabase.from('social_oauth_connections').select('provider,provider_account_id,username,scopes,connected_at,expires_at,last_checked_at,status').eq('user_id',session.user.id);
-    setOauthConnections((Array.isArray(connections)?connections:[]).filter(c=>c&&typeof c==='object').map(c=>({...c,provider:String(c.provider||''),username:c.username==null?'':String(c.username)})));
+    setOauthConnections(connections || []);
     for (const role of order) {
       if (role === 'creator') {
         const {data:c}=await supabase.from('creator_profiles').select('*').eq('auth_user_id',session.user.id).maybeSingle();
         if(c){
           setType('creator'); setProfile(c);
           const {data:v}=await supabase.rpc('get_creator_verification_summary',{p_creator_profile_id:c.id});
-          {const cv=Array.isArray(v)?(v[0]||null):(v||null); setClaim(cv&&typeof cv==='object'?cv:null);}
+          setClaim(Array.isArray(v)?(v[0]||null):(v||null));
           const {data:rawClaim}=await supabase.from('creator_verification_claims').select('status,platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
-          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; const cleaned=Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v==null?'':String(v)])); const platKey=Object.keys(PLATFORM_GUIDE).find(k=>k.toLowerCase()===String(cleaned.platform||'').toLowerCase()); cleaned.platform=platKey||''; if(!['code','bio','oauth','manual'].includes(cleaned.ownership_method))cleaned.ownership_method='code'; setCreatorDetails(d=>({...d,...cleaned})); setClaim(cl=>({...(cl&&typeof cl==='object'?cl:{}),status:String(ownStatus||'pending')}));}
-          try{ const {data:ac}=await supabase.from('creator_verification_claims').select('auto_check_message,auto_verified,auto_checked_at').eq('creator_profile_id',c.id).maybeSingle(); setAutoInfo(ac&&typeof ac==='object'?ac:null); }catch{ setAutoInfo(null); }
+          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setCreatorDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
           const {data:e}=await supabase.rpc('evaluate_creator_50k_eligibility',{p_creator_profile_id:c.id});
-          {const ev=Array.isArray(e)?e[0]:e; if(ev && typeof ev==='object' && !ev.error) setEligibility(ev);}
+          if(e && !e.error) setEligibility(e);
           return;
         }
       } else {
@@ -3906,84 +3874,27 @@ const TrustCenterInner = ({ session, activeRole }) => {
         if(b){
           setType('business'); setProfile(b);
           const {data:v}=await supabase.rpc('get_business_verification_summary',{p_business_profile_id:b.id});
-          {const cv=Array.isArray(v)?(v[0]||null):(v||null); setClaim(cv&&typeof cv==='object'?cv:null);}
+          setClaim(Array.isArray(v)?(v[0]||null):(v||null));
           const {data:rawClaim}=await supabase.from('business_verification_claims').select('status,legal_business_name,trade_name,registration_reference,trade_license_reference,tin_reference,business_activity,representative_name,official_contact,official_website').eq('business_profile_id',b.id).maybeSingle();
-          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v==null?'':String(v)]))})); setClaim(cl=>({...(cl&&typeof cl==='object'?cl:{}),status:String(ownStatus||'pending')}));}
+          if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
           setEligibility(null); return;
         }
       }
     }
     setProfile(null); setClaim(null); setEligibility(null); setType(preferred);
   };
-  useEffect(()=>{
-    setType(activeRole || 'creator');
-    load().catch(()=>{setMsg('We could not refresh verification status. Your submitted verification request is still protected. Refresh this page to try again.');});
-  },[session?.user?.id, activeRole]);
-  useEffect(()=>{
-    if(!creatorDetails.platform)return;
-    const c=connectedForPlatform(creatorDetails.platform);
-    if(c?.status==='connected'){
-      setCreatorDetails(d=>({...d,
-        platform_account_id:d.platform_account_id||c.provider_account_id||'',
-        claimed_username:d.claimed_username||(c.username?`@${String(c.username).replace(/^@/,'')}`:'')
-      }));
-    }
-  },[creatorDetails.platform, oauthConnections.length]);
+  useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
   const guide=PLATFORM_GUIDE[creatorDetails.platform]||null;
-  const profilePct=(()=>{try{return profile?completionPercent(type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile)):0;}catch{return 0;}})();
   const followerBar=Number(eligibility?.threshold||FOLLOWER_THRESHOLD_FALLBACK);
   const verifyCode=profile?.id?`CMS-${String(profile.id).replace(/-/g,'').slice(0,6).toUpperCase()}`:'';
-  const normalizeProvider = (value) => {
-    const v=String(value||'').toLowerCase().trim();
-    return ({youtube:'youtube',instagram:'instagram',tiktok:'tiktok',facebook:'facebook',x:'x',twitter:'x',twitch:'twitch',linkedin:'linkedin'}[v]||v);
-  };
-  const connectedForPlatform=(platform)=>oauthConnections.find(c=>normalizeProvider(c.provider)===normalizeProvider(platform)&&c.status==='connected');
-  const oauthReady=!!creatorDetails.platform&&!!connectedForPlatform(creatorDetails.platform);
-  const autofillFrom=(raw)=>{
-    const found=parseProfileInput(creatorDetails.platform,raw);
-    if(found.id||found.username){
-      setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));
-      setAutoNote(`Detected from your link:${found.username?` username ${found.username}`:''}${found.id?` account ID ${found.id}`:''}`);
-    } else if(/https?:\/\//i.test(String(raw||''))){
-      setAutoNote('We could not read a username or ID from that link. Type your @username instead, or follow the steps above.');
-    }
-  };
-  const onIdentityInput=(field,value)=>{
-    setCreatorDetails(d=>({...d,[field]:value}));
-    if(/^(https?:\/\/|www\.)|\.(com|tv|be|me)\//i.test(String(value||'').trim()))autofillFrom(value);
-  };
-  const useConnectedAccount=()=>{
-    const c=connectedForPlatform(creatorDetails.platform);
-    if(!c)return;
-    setCreatorDetails(d=>({...d,platform_account_id:c.provider_account_id||d.platform_account_id,claimed_username:c.username?`@${String(c.username).replace(/^@/,'')}`:d.claimed_username,ownership_method:'oauth'}));
-  };
-  const runAutoCheck=async(afterSubmit=false)=>{
-    setAutoBusy(true);
-    try{
-      const {data,error}=await supabase.functions.invoke('auto-verify',{body:{}});
-      if(error||!data||typeof data!=='object'){
-        if(!afterSubmit){setMsgOk(false);setMsg('Automatic check is not available right now. Your request is in the admin review queue.');}
-        return;
-      }
-      if(data.status==='verified'){setMsgOk(true);setMsg(data.message||'You are verified.');setDetailsKey(k=>k+1);}
-      else if(data.status==='pending'){setMsgOk(false);setMsg(data.message||'Automatic check could not confirm everything yet.');}
-      else if(afterSubmit){/* keep the submitted confirmation; the admin queue handles it */}
-      else {setMsgOk(data.status==='manual_review'||data.status==='not_configured');setMsg(data.message||'Your request is in the admin review queue.');}
-      try{ await load(); }catch{ /* status refresh is best-effort */ }
-    }catch{
-      if(!afterSubmit){setMsgOk(false);setMsg('Automatic check is not available right now. Your request is in the admin review queue.');}
-    }finally{ setAutoBusy(false); }
-  };
+  const oauthReady=!!creatorDetails.platform&&oauthConnections.some(c=>String(c.provider||'').toLowerCase()===creatorDetails.platform.toLowerCase()&&c.status==='connected');
+  const autofillFrom=(raw)=>{const found=parseProfileInput(creatorDetails.platform,raw); if(found.id||found.username)setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));};
   const submit=async()=>{
     if(!profile)return;
-    setMsgOk(false);
     const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile); const pct=completionPercent(checklist);
     if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}
     if(type==='creator'){
-      const connected=connectedForPlatform(creatorDetails.platform);
-      const idVal=String(creatorDetails.platform_account_id||connected?.provider_account_id||'').trim();
-      const userVal=String(creatorDetails.claimed_username||connected?.username||'').trim();
-      const aud=Number(creatorDetails.audience_count);
+      const idVal=String(creatorDetails.platform_account_id||'').trim(); const userVal=String(creatorDetails.claimed_username||'').trim(); const aud=Number(creatorDetails.audience_count);
       if(!creatorDetails.platform){setMsg('Choose the platform you are verifying.');return;}
       if(!idVal&&!userVal){setMsg('Enter your username or profile link (or your account ID) so the reviewer can find your account.');return;}
       if(guide?.idPattern&&idVal&&!guide.idPattern.test(idVal)){setMsg(guide.idError);return;}
@@ -3995,7 +3906,7 @@ const TrustCenterInner = ({ session, activeRole }) => {
     try {
       if(type==='creator'){
         const proofNote=(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')&&verifyCode?`Ownership code ${verifyCode} (placed in ${creatorDetails.platform} bio/description). `:'';
-        const {data,error}=await supabase.rpc('submit_creator_verification_details',{p_creator_profile_id:profile.id,p_evidence_note:proofNote+note,p_platform:creatorDetails.platform||null,p_platform_account_id:idVal||null,p_claimed_username:userVal||null,p_audience_count:creatorDetails.audience_count?Number(creatorDetails.audience_count):null,p_engagement_rate:creatorDetails.engagement_rate?Number(creatorDetails.engagement_rate):null,p_ownership_method:creatorDetails.ownership_method||'manual'});
+        const {data,error}=await supabase.rpc('submit_creator_verification_details',{p_creator_profile_id:profile.id,p_evidence_note:proofNote+note,p_platform:creatorDetails.platform||null,p_platform_account_id:creatorDetails.platform_account_id||null,p_claimed_username:creatorDetails.claimed_username||null,p_audience_count:creatorDetails.audience_count?Number(creatorDetails.audience_count):null,p_engagement_rate:creatorDetails.engagement_rate?Number(creatorDetails.engagement_rate):null,p_ownership_method:creatorDetails.ownership_method||'manual'});
         if(error) throw error; claimId=data;
       } else {
         const {data,error}=await supabase.rpc('submit_business_verification_details',{p_business_profile_id:profile.id,p_evidence_note:note,...businessDetails});
@@ -4011,17 +3922,15 @@ const TrustCenterInner = ({ session, activeRole }) => {
         if(attachError) throw attachError;
       }
       setMsg('Verification request submitted. It is now in the admin review queue — you can leave this page; the status below updates when a reviewer decides.');
-      setMsgOk(true); setEvidenceFile(null); setDetailsKey(k=>k+1);
-      try{ await load(); }catch{ /* the request is saved; a failed refresh must never hide the confirmation */ }
-      if(type==='creator'&&String(creatorDetails.platform).toLowerCase()==='youtube'&&(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')) await runAutoCheck(true);
+      setEvidenceFile(null); await load();
     } catch(err) {
       setMsg(safeUserError(err,'Could not submit the verification request. No private evidence was made public.'));
     } finally { setBusy(false); setEvidenceBusy(false); }
   };
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
-  return <div data-verification-flow className="verification-flow max-w-4xl mx-auto px-5 md:px-8 py-10">
+  return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div>
-    <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails key={detailsKey} type={type} id={profile?.id}/></div>
+    <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
       {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>{eligibility?.threshold?`${Number(eligibility.threshold).toLocaleString()}+ eligibility`:'Follower eligibility'}</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{eligibility?.threshold?Number(eligibility.threshold).toLocaleString():'A minimum number of'} followers/subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.audience_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.audience_count).toLocaleString()} audience · threshold {Number(eligibility.threshold||FOLLOWER_THRESHOLD_FALLBACK).toLocaleString()}</p>}</div>}
       <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>Social ownership</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Supported OAuth connections are recorded as account metadata only. Credentials and tokens never belong in the client app.</p>{oauthConnections.length?<div className="mt-3 space-y-2">{oauthConnections.map(c=><div key={c.provider} className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold capitalize" style={{color:'#334155'}}>{c.provider}{c.username?` · @${c.username.replace(/^@/,'')}`:''}</span><span style={{color:c.status==='connected'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>:<p className="text-xs mt-3" style={{color:'#526078'}}>No supported OAuth account is connected. Manual/code/bio verification is available when a provider is unavailable.</p>}</div>
@@ -4033,29 +3942,15 @@ const TrustCenterInner = ({ session, activeRole }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <select value={creatorDetails.platform} onChange={e=>setCreatorDetails(d=>({...d,platform:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="">Platform</option>{Object.keys(PLATFORM_GUIDE).map(k=><option key={k}>{k}</option>)}</select>
         <select value={creatorDetails.ownership_method} onChange={e=>setCreatorDetails(d=>({...d,ownership_method:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="code">Put a code in your bio (recommended)</option><option value="oauth" disabled={!oauthReady}>{oauthReady?'Connected account':'Connected account (not connected yet)'}</option><option value="manual">Manual review by an admin</option></select>
-        <input value={creatorDetails.claimed_username} onChange={e=>onIdentityInput('claimed_username',e.target.value)} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.userLabel||'Username or profile link'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
-        <input value={creatorDetails.platform_account_id} onChange={e=>onIdentityInput('platform_account_id',e.target.value)} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.idLabel||'Account ID (optional)'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input value={creatorDetails.claimed_username} onChange={e=>setCreatorDetails(d=>({...d,claimed_username:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.userLabel||'Username or profile link'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
+        <input value={creatorDetails.platform_account_id} onChange={e=>setCreatorDetails(d=>({...d,platform_account_id:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.idLabel||'Account ID (optional)'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
         <input type="number" min="0" value={creatorDetails.audience_count} onChange={e=>setCreatorDetails(d=>({...d,audience_count:e.target.value}))} placeholder="Current followers / subscribers" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
         <input type="number" min="0" step="0.01" value={creatorDetails.engagement_rate} onChange={e=>setCreatorDetails(d=>({...d,engagement_rate:e.target.value}))} placeholder="Engagement rate % (optional)" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
       </div>
-      <div className="mt-3 rounded-xl p-4 text-[12px] leading-5" style={{background:'#F0FBFF',color:'#036377',border:'1px solid #BFEFFA'}}>
-        <p className="font-bold text-[13px]">{creatorDetails.platform?`How to find your ${creatorDetails.platform} account ID / username`:'Pick a platform to see exactly where to find your account ID'}</p>
+      <div className="mt-3 rounded-xl p-3.5 text-[11px] leading-5" style={{background:'#F0FBFF',color:'#036377'}}>
+        <p className="font-bold">{creatorDetails.platform?`How to find your ${creatorDetails.platform} details`:'Pick a platform to see where to find your account details'}</p>
         {guide&&<p className="mt-1">{guide.idHelp}</p>}
-        {guide&&<ol className="mt-2 space-y-1 list-decimal pl-5">{(guide.steps||[]).map((t,i)=><li key={i}>{t}</li>)}</ol>}
-        {guide?.openUrl&&<a href={guide.openUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-3 text-[11px] font-bold px-3 py-1.5 rounded-lg" style={{background:'#FFFFFF',color:'#036377',border:'1px solid #BFEFFA'}}>{guide.openLabel||'Open'} ↗</a>}
-        {guide&&<p className="mt-3">Shortcut: paste your profile link into either box and Commissioner fills in the username or ID for you.</p>}
-        {autoNote&&<p className="mt-2 font-semibold" style={{color:'#0E7A3B'}}>{autoNote}</p>}
-        {oauthReady&&<button type="button" onClick={useConnectedAccount} className="mt-2 text-[11px] font-bold px-3 py-1.5 rounded-lg" style={{background:'#E6F9FD',color:'#036377'}}>Use connected {creatorDetails.platform} account automatically</button>}
-      </div>
-      <div className="mt-3 rounded-xl p-4 text-[12px] leading-5" style={{background:'#FFFFFF',color:'#07152F',border:'1px solid #E5E7EB'}}>
-        <p className="font-bold text-[13px]">Before you request review</p>
-        <ul className="mt-2 space-y-1">{[
-          [profilePct>=100,`Profile is 100% complete (${profilePct}%)`],
-          [!!creatorDetails.platform,'Platform chosen'],
-          [!!(String(creatorDetails.platform_account_id||'').trim()||String(creatorDetails.claimed_username||'').trim()),'Username, link or account ID entered'],
-          [Number(creatorDetails.audience_count)>0,'Current follower / subscriber count entered'],
-          [creatorDetails.ownership_method==='manual'||creatorDetails.ownership_method==='oauth'?(creatorDetails.ownership_method==='manual'||oauthReady):!!verifyCode,creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio'?'Ownership code ready — put it in your bio, then submit':(creatorDetails.ownership_method==='oauth'?'Account connected':'Manual review chosen')],
-        ].map(([ok,label],i)=><li key={i} style={{color:ok?'#0E7A3B':'#526078'}}>{ok?'✓':'○'} {label}</li>)}</ul>
+        {guide&&<p className="mt-1">Tip: paste your profile link into either box and we fill in the username or ID for you.</p>}
       </div>
       {(creatorDetails.ownership_method==='code'||creatorDetails.ownership_method==='bio')&&verifyCode&&<div className="mt-3 rounded-xl border p-3.5" style={{borderColor:'#E5E7EB',background:'#FFFFFF'}}>
         <p className="text-xs font-bold" style={{color:'#07152F'}}>Your ownership code: <span className="font-mono px-2 py-0.5 rounded" style={{background:'#F1F5F9'}}>{verifyCode}</span></p>
@@ -4063,7 +3958,7 @@ const TrustCenterInner = ({ session, activeRole }) => {
       </div>}
       {creatorDetails.audience_count!==''&&Number(creatorDetails.audience_count)<followerBar&&<p className="text-[11px] mt-3" style={{color:'#9A4A0C'}}>Verification currently needs at least {followerBar.toLocaleString()} followers/subscribers. You can still submit, but it will be declined until you reach that.</p>}
       </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',registration_reference:'Commercial registration reference',tin_reference:'TIN reference (if applicable)',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
+        {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',registration_reference:'Commercial registration reference',trade_license_reference:'Trade license reference (if applicable)',tin_reference:'TIN reference (if applicable)',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
       </div>}
       <textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Add context for identity, ownership, audience or engagement evidence.':'Add context for the business information and representative evidence. Private documents should remain in the protected evidence store.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/>
       <div className="mt-3 rounded-xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
@@ -4074,35 +3969,10 @@ const TrustCenterInner = ({ session, activeRole }) => {
           {evidenceFile&&<p className="text-[11px] mt-2" style={{color:'#036377'}}>Selected: {evidenceFile.name}</p>}
         </div></div>
       </div>
-      {type==='creator'&&<div className="mt-4 rounded-xl p-4 text-[12px] leading-5" style={{background:'#F8FAFC',color:'#07152F',border:'1px solid #E5E7EB'}}>
-        <p className="font-bold text-[13px]">Automatic verification</p>
-        <p className="mt-1" style={{color:'#526078'}}>Creators with {followerBar.toLocaleString()}+ followers are verified automatically once we confirm two things straight from the platform: the real follower count, and your ownership code in your channel description. Automatic checks are live for YouTube. Other platforms are checked by an admin.</p>
-        {autoInfo?.auto_check_message&&claim?.status!=='verified'&&<p className="mt-2 font-semibold" style={{color:'#9A4A0C'}}>Last automatic check: {autoInfo.auto_check_message}</p>}
-        {String(creatorDetails.platform).toLowerCase()==='youtube'&&claim?.status&&claim.status!=='verified'&&<button type="button" disabled={autoBusy} onClick={()=>runAutoCheck(false)} className="mt-3 text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50" style={{background:'#E6F9FD',color:'#036377',border:'1px solid #BFEFFA'}}>{autoBusy?'Checking…':'Run automatic check now'}</button>}
-      </div>}
-      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<div role="status" className="text-xs leading-5 mt-3 rounded-xl p-3.5" style={msgOk?{background:'#E9FBEF',color:'#0E7A3B',border:'1px solid #B7E8C8'}:{background:'#FEF3F2',color:'#B42318',border:'1px solid #FECDCA'}}>{msgOk&&<b>✓ </b>}{msg}</div>}
+      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
     </div>
   </div>;
 };
-
-// Keeps a single rendering problem inside verification from blanking the whole
-// page. Shows a light, readable card with a retry instead of a dark screen.
-class TrustBoundary extends React.Component {
-  constructor(props){ super(props); this.state={error:null,attempt:0}; }
-  static getDerivedStateFromError(error){ return {error}; }
-  componentDidCatch(error){ console.error('Verification screen error:', error); }
-  render(){
-    if(!this.state.error) return <React.Fragment key={this.state.attempt}>{this.props.children}</React.Fragment>;
-    return <div data-verification-flow className="verification-flow max-w-xl mx-auto px-5 py-16 text-center">
-      <div className="bg-white border rounded-2xl p-8" style={{borderColor:'#E5E7EB'}}>
-        <p className="text-sm font-bold" style={{color:'#07152F'}}>We could not show your verification status</p>
-        <p className="text-xs mt-2 leading-5" style={{color:'#526078'}}>If you just submitted, your request was saved. Tap reload to see its status.</p>
-        <button type="button" onClick={()=>this.setState(st=>({error:null,attempt:st.attempt+1}))} className="mt-5 text-white text-sm font-semibold px-5 py-2.5 rounded-lg" style={{background:'#E6007A'}}>Reload verification</button>
-      </div>
-    </div>;
-  }
-}
-const TrustCenter = (props) => <TrustBoundary><TrustCenterInner {...props}/></TrustBoundary>;
 
 const B2BNetwork = ({ session, initialBusiness=null }) => {
   const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [messageTarget,setMessageTarget]=useState(null); const [busyTarget,setBusyTarget]=useState(null);
@@ -4153,8 +4023,8 @@ const VerificationAdminQueue = () => {
     if(error) setMessage(safeUserError(error, `Could not ${action} this request.`)); else await load();
   };
   const evidenceReady=(r)=>r._type==='creator'
-    ? Number(r.audience_count||0)>=followerThreshold && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
-    : !!r.legal_business_name && !!r.representative_name && (!!r.registration_reference);
+    ? Number(r.audience_count||0)>=(String(r.platform||'').toLowerCase()==='youtube'?1000:followerThreshold) && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
+    : !!r.legal_business_name && !!r.representative_name;
   const openEvidence=async(row)=>{
     const path=row.evidence_storage_path;
     if(!path){setMessage('No private evidence file is attached to this request.');return;}
@@ -4196,7 +4066,7 @@ const VerificationAdminQueue = () => {
             <div><b>Source:</b> {r.verification_source||'—'}</div>
           </>:<>
             <div><b>Legal name:</b> {r.legal_business_name||'—'}</div><div><b>Trade name:</b> {r.trade_name||'—'}</div>
-            <div><b>Registration:</b> {r.registration_reference||'—'}</div>
+            <div><b>Business information:</b> {r.registration_reference||r.trade_name||'Provided'}</div><div><b>Authorized representative:</b> {r.representative_name||'—'}</div>
             <div><b>TIN reference:</b> {r.tin_reference||'—'}</div><div><b>Activity:</b> {r.business_activity||'—'}</div>
             <div><b>Representative:</b> {r.representative_name||'—'}</div><div><b>Official contact:</b> {r.official_contact||'—'}</div>
             <div><b>Website:</b> {r.official_website||'—'}</div>
@@ -4613,10 +4483,14 @@ const AdminPanel = ({ session }) => {
       return;
     }
     const officialPath = claimType === 'creator' ? `/creator/${createdRow.id}` : `/business/${createdRow.id}`;
-    const link = `${window.location.origin}${officialPath}`;
+    const officialLink = `${window.location.origin}${officialPath}`;
     const setup = `${window.location.origin}/?claim=${token}`;
-    setNewLink(link);
+    // Program the physical card with the stable claim URL. Before setup it
+    // opens the recipient setup flow; after setup the same URL becomes the
+    // information page, so the card never needs to be rewritten.
+    setNewLink(setup);
     setSetupLink(setup);
+    void officialLink;
     resetBuilder();
     loadRows();
   };
@@ -4746,7 +4620,7 @@ const AdminPanel = ({ session }) => {
   );
 
   const RowCard = ({ r }) => {
-    const rowLink = r.id ? `${window.location.origin}/${r.kind === 'creator' ? 'creator' : 'business'}/${r.id}` : '';
+    const rowLink = r.claim_token ? `${window.location.origin}/?claim=${r.claim_token}` : (r.id ? `${window.location.origin}/${r.kind === 'creator' ? 'creator' : 'business'}/${r.id}` : '');
     const rowSetupLink = r.claim_token ? `${window.location.origin}/?claim=${r.claim_token}` : '';
     return (
       <div className="bg-white border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
@@ -5053,7 +4927,7 @@ const AdminPanel = ({ session }) => {
 
         {newLink && (
           <div className="mt-4 border rounded-xl p-4" style={{ borderColor: '#00D9FF', background: '#E0FBFF' }}>
-            <p className="text-xs font-semibold mb-2" style={{ color: '#036377' }}>Official creator page — write this URL to the NFC card</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: '#036377' }}>Permanent NFC setup + profile URL — write this URL to the NFC card</p>
             <div className="flex items-center gap-2">
               <p className="text-xs flex-1 truncate cm-mono" style={{ color: '#036377' }}>{newLink}</p>
               <button onClick={() => window.open(newLink, '_blank', 'noopener,noreferrer')} className="text-xs font-semibold shrink-0" style={{ color: '#172033' }}>Open</button>
@@ -5590,6 +5464,8 @@ export default function Commissioner() {
     const params = new URLSearchParams(window.location.search);
     return params.get('auth') === '1' ? (params.get('returnTo') || '/') : null;
   });
+  const [callbackReturnTo] = useState(() => new URLSearchParams(window.location.search).get('returnTo'));
+
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const officialType = pathParts[0] || '';
   const officialId = pathParts[1] || '';
@@ -5696,8 +5572,10 @@ export default function Commissioner() {
         setPage('reset-password');
         return;
       }
-      if (sess && authRedirect) {
-        window.history.replaceState({}, '', authRedirect);
+      if (sess && (authRedirect || callbackReturnTo || sessionStorage.getItem('commissioner_oauth_return_to'))) {
+        const target = authRedirect || callbackReturnTo || sessionStorage.getItem('commissioner_oauth_return_to') || '/';
+        sessionStorage.removeItem('commissioner_oauth_return_to');
+        window.history.replaceState({}, '', target);
         window.location.reload();
         return;
       }
