@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
   ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail,
-  ShieldCheck, UserRound
+  ShieldCheck, UserRound, Chrome
 } from 'lucide-react';
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -76,34 +76,9 @@ export default function Auth({ onAuthenticated }) {
   const [cooldown, setCooldown] = useState(0);
   const [resendSent, setResendSent] = useState(false);
 
-  const handleGoogle = async () => {
-    clearMessages();
-    setLoading(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error: googleError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        queryParams: { prompt: 'select_account' },
-      },
-    });
-    if (googleError) {
-      setLoading(false);
-      setError(googleError.message || 'Google sign-in could not be started. Check that Google is enabled in Supabase Authentication → Providers.');
-      return;
-    }
-    // The browser will leave this page for Google. Keep the button disabled
-    // while the OAuth redirect is being prepared.
-  };
-
   useEffect(() => {
     sessionStorage.removeItem('commissioner_intended_role');
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session && onAuthenticated) {
-        onAuthenticated(data.session, intendedRole ? role : undefined);
-      }
-    });
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (nextSession && onAuthenticated) {
@@ -289,6 +264,32 @@ export default function Auth({ onAuthenticated }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    clearMessages();
+    setLoading(true);
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo');
+    if (requestedReturnTo) localStorage.setItem('commissioner_auth_return_to', requestedReturnTo);
+    const { error: oauthError } = await withTimeout(
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: { access_type: 'offline', prompt: 'select_account' },
+        },
+      })
+    );
+    setLoading(false);
+    if (oauthError) {
+      const msg = oauthError.message || 'Google sign-in failed.';
+      if (/redirect|url/i.test(msg)) {
+        setError(`Add ${redirectTo} to Supabase Authentication → URL Configuration → Redirect URLs.`);
+      } else {
+        setError(msg);
+      }
+    }
+  };
+
   const handleSignOut = async () => { await supabase.auth.signOut(); };
   const handleSignOutAll = async () => { await supabase.auth.signOut({ scope: 'global' }); };
 
@@ -402,15 +403,14 @@ export default function Auth({ onAuthenticated }) {
       <button
         type="button"
         className="cm-auth-google"
-        onClick={handleGoogle}
+        onClick={handleGoogleSignIn}
         disabled={loading}
-        aria-label="Continue with Google"
       >
-        <span className="cm-google-mark" aria-hidden="true">G</span>
-        <span>{loading ? 'Connecting to Google…' : 'Continue with Google'}</span>
+        <Chrome size={17} />
+        <span>{loading ? 'Connecting…' : 'Continue with Google'}</span>
       </button>
 
-      <div className="cm-auth-divider" aria-hidden="true"><span>or</span></div>
+      <div className="cm-auth-divider"><span>or continue with email</span></div>
 
       <form onSubmit={signup ? handleSignUp : handleSignIn} className="cm-auth-form">
         <Field icon={Mail} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required />

@@ -522,55 +522,6 @@ body { min-width: 320px; }
   background: rgba(248,113,113,.08);
   color: #FFB4B4;
 }
-.cm-auth-google {
-  width: 100%;
-  min-height: 48px;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 1px solid #526887;
-  border-radius: 13px;
-  background: #FFFFFF;
-  color: #07152F !important;
-  -webkit-text-fill-color: #07152F !important;
-  font-weight: 800;
-  box-shadow: 0 6px 18px rgba(0,0,0,.12);
-}
-.cm-auth-google:hover:not(:disabled) { background: #F5F8FC; transform: translateY(-1px); }
-.cm-auth-google:disabled { opacity: .65; cursor: wait; }
-.cm-google-mark {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #FFFFFF;
-  color: #4285F4 !important;
-  -webkit-text-fill-color: #4285F4 !important;
-  border: 1px solid #D7DFEA;
-  font-size: 14px;
-  font-weight: 900;
-}
-.cm-auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 16px 0 14px;
-  color: #91A5BE;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .12em;
-}
-.cm-auth-divider::before,
-.cm-auth-divider::after {
-  content: '';
-  height: 1px;
-  flex: 1;
-  background: #29405F;
-}
 .cm-auth-submit { width: 100%; margin-top: 4px; }
 .cm-auth-primary:disabled,
 .cm-auth-secondary:disabled { opacity: .55; cursor: not-allowed; }
@@ -1531,3 +1482,10 @@ html, body {
 @media (max-width: 640px) {
   .cm-account-page { padding-top: 28px !important; padding-bottom: 40px !important; }
 }
+
+
+.cm-auth-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px;border:1px solid #D7DDE7;border-radius:12px;background:#fff;color:#172033;font-size:14px;font-weight:700;cursor:pointer;transition:.18s ease;}
+.cm-auth-google:hover{border-color:#B9C3D3;box-shadow:0 4px 16px rgba(7,21,47,.07);}
+.cm-auth-google:disabled{opacity:.55;cursor:not-allowed;}
+.cm-auth-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:#64748B;font-size:11px;font-weight:600;}
+.cm-auth-divider:before,.cm-auth-divider:after{content:"";height:1px;background:#E5E7EB;flex:1;}

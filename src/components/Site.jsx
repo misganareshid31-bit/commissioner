@@ -5271,8 +5271,6 @@ export default function Commissioner() {
   // component listener is attached.
   const initialRecoveryRoute = window.location.pathname.replace(/\/+$/, '') === '/auth/callback' &&
     /(^|&)type=recovery(&|$)/.test(window.location.hash.replace(/^#/, ''));
-  const initialOAuthCallbackRoute = window.location.pathname.replace(/\/+$/, '') === '/auth/callback' &&
-    new URLSearchParams(window.location.search).has('code');
   const [page, setPage] = useState(initialRecoveryRoute ? 'reset-password' : (initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home')));
   const [editingProfile, setEditingProfile] = useState(false);
   // Which setup flow the onboarding screen should show. This is set
@@ -5411,7 +5409,9 @@ export default function Commissioner() {
   const [claimToken] = useState(() => new URLSearchParams(window.location.search).get('claim'));
   const [authRedirect] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('auth') === '1' ? (params.get('returnTo') || '/') : null;
+    const fromUrl = params.get('auth') === '1' ? (params.get('returnTo') || '/') : null;
+    if (fromUrl) localStorage.setItem('commissioner_auth_return_to', fromUrl);
+    return fromUrl || localStorage.getItem('commissioner_auth_return_to');
   });
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const officialType = pathParts[0] || '';
@@ -5475,25 +5475,6 @@ export default function Commissioner() {
   const onApply = (campaign) => { setAppliedIds(a => a.includes(campaign.id) ? a : [...a, campaign.id]); };
 
   useEffect(() => {
-    let cancelled = false;
-    const finishOAuthCallback = async () => {
-      if (!initialOAuthCallbackRoute || initialRecoveryRoute) return;
-      const code = new URLSearchParams(window.location.search).get('code');
-      if (!code) return;
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      if (cancelled) return;
-      if (error) {
-        console.error('Commissioner Google OAuth callback failed:', error);
-        window.history.replaceState({}, '', '/');
-        setPage('auth');
-        return;
-      }
-      window.history.replaceState({}, '', '/');
-      if (data?.session) setSession(data.session);
-      setPage('auth');
-    };
-    finishOAuthCallback();
-
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       if (initialRecoveryRoute) {
@@ -5539,18 +5520,13 @@ export default function Commissioner() {
         return;
       }
       if (sess && authRedirect) {
-        window.history.replaceState({}, '', authRedirect);
-        window.location.reload();
+        localStorage.removeItem('commissioner_auth_return_to');
+        window.location.href = authRedirect;
         return;
       }
-      // The Auth component owns the transition from the auth screen so it can
-      // preserve the intended creator/business role after Google OAuth.
-      // Do not immediately replace /auth with the dashboard here.
+      if (sess) setPage(p => (p === 'auth' ? 'dashboard' : p));
     });
-    return () => {
-      cancelled = true;
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   if (page === 'reset-password') {
