@@ -2881,7 +2881,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
 
   return (
     <div className="cm-account-page max-w-xl mx-auto px-5 md:px-8 py-12">
-      <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8FEAFF' }}>Account</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{ color: '#FFFFFF' }}>Account settings</h1><p className="text-sm mt-2" style={{ color: '#B9C7D8' }}>Manage your profile, verification, password, sessions and account controls.</p></div>
+      <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#007E99' }}>Account</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{ color: '#07152F' }}>Account settings</h1><p className="text-sm mt-2" style={{ color: '#475569' }}>Manage your profile, verification, password, sessions and account controls.</p></div>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
         <p className="text-xs font-semibold mb-1" style={{ color: '#334155' }}>Account email</p>
@@ -5565,7 +5565,7 @@ export default function Commissioner() {
   }
   if (claimToken) {
     return (
-      <div className="cm-root min-h-screen" style={{ background: '#07152F' }}>
+      <div className="cm-root min-h-screen" style={{ background: '#F4F7FD' }}>
         <FontLoader />
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
           <BackButton onClick={() => { window.location.href = '/'; }} />
@@ -5576,7 +5576,7 @@ export default function Commissioner() {
   }
 
   return (
-    <div className="cm-root min-h-screen" style={{ background: '#07152F' }}>
+    <div className="cm-root min-h-screen" style={{ background: '#F4F7FD' }}>
       <FontLoader />
       <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} openOnboarding={openOnboarding} />
       <main className="cm-page-canvas">
