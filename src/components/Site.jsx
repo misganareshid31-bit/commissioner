@@ -21,7 +21,6 @@ import {
 
 const FontLoader = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
     .cm-root, .cm-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
     .cm-display { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
     .cm-mono { font-family: 'IBM Plex Mono', monospace; letter-spacing: -0.01em; }
@@ -797,7 +796,7 @@ const Footer = ({ setPage }) => {
       user_id: (await supabase.auth.getUser()).data.user?.id || null,
     });
     if (error) {
-      setFeedbackState(error.code === '42P01' ? 'Feedback is not connected yet. Run the latest feedback migration included with this ZIP.' : safeUserError(error, 'Could not send feedback.'));
+      setFeedbackState(error.code === '42P01' ? 'Feedback is temporarily unavailable. Please try again later.' : safeUserError(error, 'Could not send feedback.'));
       return;
     }
     setFeedback('');
@@ -3635,7 +3634,7 @@ const ClaimGate = ({ token, session, setPage }) => {
   if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
-  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest NFC ownership hardening migration, then try again.</p></div>;
+  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>We couldn’t open this card</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but its details couldn’t be loaded right now. Please try again in a moment.</p></div>;
   if (!session) return (
     <div className="max-w-lg mx-auto px-5 md:px-8 py-24">
       <div className="bg-white border rounded-2xl p-7 text-center" style={{borderColor:'#E5E7EB'}}>
@@ -4183,7 +4182,7 @@ const AdminPromotions = () => {
   return <section className="cm-admin-panel-card">
     <div className="mb-5">
       <p className="text-sm font-bold" style={{color:'#07152F'}}>Promotions</p>
-      <p className="text-xs mt-1" style={{color:'#526078'}}>Admin-controlled promoted content. Promotions are separate from organic discovery and require the production promotion migration.</p>
+      <p className="text-xs mt-1" style={{color:'#526078'}}>Admin-controlled promoted content. Promotions are kept separate from organic discovery.</p>
     </div>
     <form onSubmit={create} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
       <input required placeholder="Promotion title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
@@ -4338,7 +4337,7 @@ const AdminPanel = ({ session }) => {
 
       setSetupStatus(data?.ready ? 'ready' : 'missing');
       if (!data?.ready) {
-        setSetupError('The Supabase admin migration is incomplete. Apply the latest supabase-schema.sql, then refresh this page.');
+        setSetupError('Admin setup is incomplete. Run COMMISSIONER-MASTER-MIGRATION.sql in the Supabase SQL Editor, then refresh this page.');
       }
     };
 
@@ -4372,7 +4371,7 @@ const AdminPanel = ({ session }) => {
 
   const handleCreate = async () => {
     if (setupStatus !== 'ready') {
-      setCreateError('Admin setup is not ready. Apply the latest Supabase migration shown above, then refresh the page.');
+      setCreateError('Admin setup is not ready. Run COMMISSIONER-MASTER-MIGRATION.sql in the Supabase SQL Editor, then refresh the page.');
       return;
     }
     // A gift card may intentionally start blank. The recipient fills the
@@ -4403,7 +4402,7 @@ const AdminPanel = ({ session }) => {
       setSetupStatus(missing ? 'missing' : setupStatus);
       setCreateError(
         missing
-          ? 'The Supabase admin_create_claim function is missing. Apply the latest Supabase migration shown in the Admin setup panel, then refresh the page.'
+          ? 'The gift-profile function is missing. Run COMMISSIONER-MASTER-MIGRATION.sql in the Supabase SQL Editor, then refresh the page.'
           : safeUserError(error, 'Could not create the requested profile.')
       );
       return;
@@ -5446,11 +5445,25 @@ export default function Commissioner() {
     return () => window.removeEventListener('commissioner:open-messages', openMessages);
   }, [session?.user?.id]);
   useEffect(() => { fetchLaunchStats().then(setLaunchStats); }, []);
+  // Client-side route changes for /creator/:id and /business/:id so opening a
+  // profile no longer reboots the whole app (and re-downloads everything).
+  const [, setRouteTick] = useState(0);
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setRouteTick(t => t + 1);
+    window.scrollTo(0, 0);
+  };
+  useEffect(() => {
+    const onRoute = () => setRouteTick(t => t + 1);
+    window.addEventListener('popstate', onRoute);
+    return () => window.removeEventListener('popstate', onRoute);
+  }, []);
   useEffect(() => {
     if (!session) { setIsAdmin(false); return; }
     supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data));
   }, [session?.user?.id]);
   const [siteControls, setSiteControls] = useState({site_closed:false,site_message:'',disabled_pages:[]});
+  const [controlsTick, setControlsTick] = useState(0);
   useEffect(() => {
     let cancelled=false;
     supabase.from('commissioner_site_controls').select('site_closed,site_message,disabled_pages').eq('id',true).maybeSingle().then(({data})=>{
@@ -5458,7 +5471,13 @@ export default function Commissioner() {
       setSiteControls({site_closed:!!data.site_closed,site_message:data.site_message||'',disabled_pages:Array.isArray(data.disabled_pages)?data.disabled_pages:[]});
     });
     return ()=>{cancelled=true;};
-  }, [page]);
+  }, [controlsTick]);
+  useEffect(() => {
+    // Re-check admin site controls when the tab becomes visible again instead of on every navigation.
+    const onVisible = () => { if (document.visibilityState === 'visible') setControlsTick(t => t + 1); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
   const pageLabels = {home:'Homepage',explore:'Explore',creators:'Explore creators',businesses:'Explore businesses',campaigns:'Campaigns',marketplace:'Marketplace',network:'B2B network',trust:'Trust & verification',messages:'Messages',spotlight:'Spotlight',pricing:'Plans',dashboard:'Dashboard',account:'Account settings',onboarding:'Profile setup'};
   const availabilityBlocked = !isAdmin && (siteControls.site_closed || siteControls.disabled_pages.includes(page));
   const networkLaunched = !!launchStats?.unlocked || isAdmin;
@@ -5590,15 +5609,15 @@ export default function Commissioner() {
       {availabilityBlocked ? <MaintenanceScreen message={siteControls.site_message} pageLabel={siteControls.site_closed ? null : pageLabels[page]} /> : <>
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
       {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
-      {page === 'explore' && <ExploreHub session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} onBusinessConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
-      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'explore' && <ExploreHub session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ navigateTo(`/creator/${encodeURIComponent(c.id)}`); }} onBusinessConnect={async (b,action) => { if (action === 'view') { navigateTo(`/business/${encodeURIComponent(b.id)}`); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { navigateTo(`/business/${encodeURIComponent(b.id)}`); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
       {page === 'marketplace' && <Marketplace session={session} activeRole={activeRole} onMessage={async (owner, listingId) => {
         if (!session) { setPage('auth'); return; }
         const id = owner?.auth_user_id || owner?.authUserId;
         if (!id || id === session.user.id) return;
         if (listingId && String(listingId).match(/^[0-9a-f-]{36}$/i)) {
           const { data, error } = await supabase.rpc('start_marketplace_inquiry', { p_listing_id: listingId });
-          if (error) { setToast(safeUserError(error, 'Could not start the marketplace conversation. Please run the latest marketplace messaging SQL migration.')); setTimeout(()=>setToast(''),5000); return; }
+          if (error) { setToast(safeUserError(error, 'Could not start the conversation. Please try again.')); setTimeout(()=>setToast(''),5000); return; }
           setMessageConversationId(data); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages'); return;
         }
         setMessageConversationId(null); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages');
