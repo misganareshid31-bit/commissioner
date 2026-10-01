@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import {
   ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail,
-  ShieldCheck, UserRound, Chrome
+  ShieldCheck, UserRound
 } from 'lucide-react';
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -75,6 +75,7 @@ export default function Auth({ onAuthenticated }) {
   const [checkContext, setCheckContext] = useState('signup');
   const [cooldown, setCooldown] = useState(0);
   const [resendSent, setResendSent] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     sessionStorage.removeItem('commissioner_intended_role');
@@ -266,27 +267,19 @@ export default function Auth({ onAuthenticated }) {
 
   const handleGoogleSignIn = async () => {
     clearMessages();
-    setLoading(true);
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo');
-    if (requestedReturnTo) localStorage.setItem('commissioner_auth_return_to', requestedReturnTo);
-    const { error: oauthError } = await withTimeout(
+    setGoogleLoading(true);
+    const { error: googleError } = await withTimeout(
       supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: { access_type: 'offline', prompt: 'select_account' },
         },
       })
     );
-    setLoading(false);
-    if (oauthError) {
-      const msg = oauthError.message || 'Google sign-in failed.';
-      if (/redirect|url/i.test(msg)) {
-        setError(`Add ${redirectTo} to Supabase Authentication → URL Configuration → Redirect URLs.`);
-      } else {
-        setError(msg);
-      }
+    if (googleError) {
+      setGoogleLoading(false);
+      setError(googleError.message || 'Google sign-in is temporarily unavailable. Please try again.');
     }
   };
 
@@ -400,14 +393,9 @@ export default function Auth({ onAuthenticated }) {
         </div>
       )}
 
-      <button
-        type="button"
-        className="cm-auth-google"
-        onClick={handleGoogleSignIn}
-        disabled={loading}
-      >
-        <Chrome size={17} />
-        <span>{loading ? 'Connecting…' : 'Continue with Google'}</span>
+      <button type="button" className="cm-auth-google" onClick={handleGoogleSignIn} disabled={loading || googleLoading}>
+        <span className="cm-auth-google-mark" aria-hidden="true">G</span>
+        <span>{googleLoading ? 'Connecting to Google…' : 'Continue with Google'}</span>
       </button>
 
       <div className="cm-auth-divider"><span>or continue with email</span></div>

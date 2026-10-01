@@ -21,6 +21,7 @@ import {
 
 const FontLoader = () => (
   <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
     .cm-root, .cm-root * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
     .cm-display { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
     .cm-mono { font-family: 'IBM Plex Mono', monospace; letter-spacing: -0.01em; }
@@ -136,7 +137,7 @@ async function fetchLiveCreators(limit = 48) {
 async function fetchLiveBusinesses(limit = 48) {
   const { data, error } = await supabase
     .from('business_profiles')
-    .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, verified, approved, onboarded, plan, created_at')
+    .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, verified, onboarded, plan, created_at')
     .eq('onboarded', true)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -165,12 +166,10 @@ async function fetchLiveBusinesses(limit = 48) {
 // changed by an admin without a redeploy.
 const LAUNCH_THRESHOLD = 50;
 
-// Creator verification eligibility bar, in followers/subscribers. Only used
-// as a fallback before the live value from public.platform_settings (via
-// commissioner_launch_stats' follower_threshold field) has loaded, or if
-// 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql hasn't been applied
-// to this database yet. Lowered from 50,000 to 15,000 on 2026-09-29.
-const FOLLOWER_THRESHOLD_FALLBACK = 15000;
+// Current creator verification requirement. The authoritative value is
+// public.verification_settings.youtube_subscriber_threshold; this fallback
+// keeps the UI deterministic before the migration has been applied.
+const FOLLOWER_THRESHOLD_FALLBACK = 1000;
 
 // Single source of truth for launch-gate stats, called from every page
 // that needs them. Reads the live counts and the live threshold in one
@@ -368,15 +367,15 @@ const ActivePromotionBanner = ({ placement }) => {
     (async()=>{
       const [{data:gate},{data:rows}]=await Promise.all([
         supabase.rpc('commissioner_feature_gates'),
-        supabase.from('promotions').select('id,title,description,target_url').eq('active',true).eq('placement',placement).or(`start_at.is.null,start_at.lte.${new Date().toISOString()}`).or(`end_at.is.null,end_at.gt.${new Date().toISOString()}`).order('created_at',{ascending:false}).limit(1)
+        supabase.from('promotions').select('id,title,description,target_url,creative_url,cta_label').eq('active',true).eq('placement',placement).or(`start_at.is.null,start_at.lte.${new Date().toISOString()}`).or(`end_at.is.null,end_at.gt.${new Date().toISOString()}`).order('created_at',{ascending:false}).limit(1)
       ]);
-      if(!cancelled && gate?.promotions_unlocked && rows?.[0]) setRow(rows[0]);
+      if(!cancelled && gate?.promotions_unlocked && rows?.[0]) { setRow(rows[0]); supabase.rpc('admin_record_promotion_impression',{p_promotion_id:rows[0].id}).catch(()=>{}); }
     })();
     return ()=>{cancelled=true;};
   },[placement]);
   if(!row)return null;
   const body=<div className="flex items-start gap-3"><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:'#FDE7F1',color:'#E6007A'}}><Megaphone size={17}/></div><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Promoted</p><p className="text-sm font-bold mt-0.5" style={{color:'#07152F'}}>{row.title}</p>{row.description&&<p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{row.description}</p>}</div></div>;
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 pt-4"><div className="bg-white border rounded-2xl px-4 py-3" style={{borderColor:'#F3C1D9'}}>{row.target_url?<a href={row.target_url} target={row.target_url.startsWith('/')?'_self':'_blank'} rel="noreferrer" className="block">{body}</a>:body}</div></div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 pt-4"><div className="bg-white border rounded-2xl px-4 py-3" style={{borderColor:'#F3C1D9'}}>{row.target_url?<a href={row.target_url} target={row.target_url.startsWith('/')?'_self':'_blank'} rel="noreferrer" onClick={()=>supabase.rpc('admin_record_promotion_click',{p_promotion_id:row.id}).catch(()=>{})} className="block">{body}</a>:body}</div></div>;
 };
 
 const StatusPill = ({ status }) => {
@@ -796,7 +795,7 @@ const Footer = ({ setPage }) => {
       user_id: (await supabase.auth.getUser()).data.user?.id || null,
     });
     if (error) {
-      setFeedbackState(error.code === '42P01' ? 'Feedback is temporarily unavailable. Please try again later.' : safeUserError(error, 'Could not send feedback.'));
+      setFeedbackState(error.code === '42P01' ? 'Feedback is not connected yet. Run the latest feedback migration included with this ZIP.' : safeUserError(error, 'Could not send feedback.'));
       return;
     }
     setFeedback('');
@@ -971,8 +970,8 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
         <div className="max-w-7xl mx-auto px-5 md:px-8">
           <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#FF4FA6'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#9FB0C4'}}>Completed Commissioner profiles are shown here. Verification is separate.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Explore creators</button><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Explore businesses</button></div></div>
           {(creators.length || businesses.length) ? <div className="grid lg:grid-cols-2 gap-5">
-            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured creators</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>LIVE DATA</span></div>{creators.slice(0,3).map(c=><div key={c.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={c.name} size={42} src={c.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{c.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{c.niche}{c.city?` · ${c.city}`:''}</p></div>{c.verified&&<VerifiedIcon size={14}/>}</div>)}{!creators.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No approved creators yet.</p>}</div>
-            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured businesses</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>LIVE DATA</span></div>{businesses.slice(0,3).map(b=><div key={b.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={b.name} size={42} src={b.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{b.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{b.industry}{b.city?` · ${b.city}`:''}</p></div>{b.verified&&<VerifiedIcon size={14}/>}</div>)}{!businesses.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No approved businesses yet.</p>}</div>
+            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured creators</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>LIVE DATA</span></div>{creators.slice(0,3).map(c=><div key={c.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={c.name} size={42} src={c.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{c.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{c.niche}{c.city?` · ${c.city}`:''}</p></div>{c.verified&&<VerifiedIcon size={14}/>}</div>)}{!creators.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No creators have joined yet.</p>}</div>
+            <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured businesses</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>LIVE DATA</span></div>{businesses.slice(0,3).map(b=><div key={b.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={b.name} size={42} src={b.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{b.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{b.industry}{b.city?` · ${b.city}`:''}</p></div>{b.verified&&<VerifiedIcon size={14}/>}</div>)}{!businesses.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No businesses have joined yet.</p>}</div>
           </div> : <div className="bg-white border rounded-2xl p-10 text-center" style={{borderColor:'#E5E7EB'}}><Users size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-bold" style={{color:'#334155'}}>The Commissioner network is being built.</p><p className="text-xs mt-1" style={{color:'#334155'}}>Approved creators and businesses will appear here automatically.</p></div>}
         </div>
       </section>
@@ -1210,7 +1209,7 @@ const CampaignPostSetup = ({ session, onClose }) => {
   const [form,setForm]=useState({title:'',description:'',niche:'',budget:'',deadline:'',location:'',requirements:''});
   const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
   const submit=async(e)=>{e.preventDefault(); if(!session){return;} if(!form.title.trim()||!form.description.trim()){setMsg('Add a campaign title and description.');return;} setBusy(true);setMsg('');
-    const {data:profile,error:profileError}=await supabase.from('business_profiles').select('id,business_name,approved,onboarded').eq('auth_user_id',session.user.id).maybeSingle();
+    const {data:profile,error:profileError}=await supabase.from('business_profiles').select('id,business_name,onboarded').eq('auth_user_id',session.user.id).maybeSingle();
     if(profileError||!profile){setMsg('Create your Business profile before posting a campaign.');setBusy(false);return;}
     if(!profile.onboarded){setMsg('Complete your Business profile setup before posting a campaign.');setBusy(false);return;}
     const {error}=await supabase.from('campaigns').insert({business_profile_id:profile.id,title:form.title.trim(),description:form.description.trim(),niche:form.niche.trim()||null,budget:form.budget.trim()||null,deadline:form.deadline||null,location:form.location.trim()||null,requirements:form.requirements.trim()||null,status:'published'});
@@ -1549,7 +1548,7 @@ const CreatorDashboard = ({ session, setPage }) => {
     if (!session) return;
     supabase
       .from('creator_profiles')
-      .select('id, page_name, username, avatar_url, city, language, bio, verified, primary_niche, secondary_niches, platforms, audience, services, portfolio_link, availability, professional_preferences, onboarded, approved, plan, plan_expires_at')
+      .select('id, page_name, username, avatar_url, city, language, bio, verified, primary_niche, secondary_niches, platforms, audience, services, portfolio_link, availability, professional_preferences, onboarded, plan, plan_expires_at')
       .eq('auth_user_id', session.user.id)
       .single()
       .then(({ data }) => { setProfile(data || null); setProfileLoading(false); });
@@ -1581,12 +1580,12 @@ const CreatorDashboard = ({ session, setPage }) => {
     {profile?.onboarded && (
       <div
         className="flex items-center gap-2 rounded-xl p-4 mb-6 text-sm font-semibold"
-        style={profile?.approved
+        style={profile?.onboarded
           ? { background: '#E9FBEF', color: '#0E7A3B' }
           : { background: '#FFF1E5', color: '#9A4A0C' }}
       >
-        {profile?.approved
-          ? <><CheckCircle2 size={16} /> Your profile is approved and visible to businesses.</>
+        {profile?.onboarded
+          ? <><CheckCircle2 size={16} /> Your profile is published and visible in Explore.</>
           : <><Clock size={16} /> Your profile is submitted and pending approval — it won't appear in Discover creators until reviewed.</>}
       </div>
     )}
@@ -1778,22 +1777,22 @@ const Dashboard = ({ session, activeRole, setPage }) => {
 const BusinessOnboarding = ({ session, setPage, editMode = false }) => {
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({business_name:'',username:'',city:'',language:'',bio:'',industry:'',website:''});
-  const [logoFile,setLogoFile]=useState(null); const [logoPreview,setLogoPreview]=useState('');
+  const [logoFile,setLogoFile]=useState(null); const [logoPreview,setLogoPreview]=useState(''); const [bannerFile,setBannerFile]=useState(null); const [bannerPreview,setBannerPreview]=useState('');
   const [saving,setSaving]=useState(false); const [uploadingLogo,setUploadingLogo]=useState(false); const [error,setError]=useState(''); const [saved,setSaved]=useState(false);
   const businessDraftKey = session?.user?.id ? `commissioner_business_onboarding_draft_${session.user.id}` : '';
   const persistBusinessDraft = (nextStep=step) => { if (!businessDraftKey || editMode) return; try { localStorage.setItem(businessDraftKey, JSON.stringify({ form, logoPreview, step: nextStep, savedAt: Date.now() })); } catch {} };
   useEffect(()=>{ if(!businessDraftKey || editMode) return; try { const raw=localStorage.getItem(businessDraftKey); if(!raw) return; const d=JSON.parse(raw); if(d.form) setForm(f=>({...f,...d.form})); if(d.logoPreview) setLogoPreview(d.logoPreview); if(Number.isInteger(d.step)) setStep(Math.max(1,Math.min(3,d.step))); } catch {} },[businessDraftKey,editMode]);
-  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website,avatar_url,onboarded').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{if(data?.onboarded&&!editMode){setPage('dashboard');return;}if(data){setForm(f=>({...f,...data}));setLogoPreview(data.avatar_url||'')}})},[session?.user?.id,editMode]);
+  useEffect(()=>{if(!session)return;supabase.from('business_profiles').select('business_name,username,city,language,bio,industry,website,avatar_url,banner_url,onboarded').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{if(data?.onboarded&&!editMode){setPage('dashboard');return;}if(data){setForm(f=>({...f,...data}));setLogoPreview(data.avatar_url||'');setBannerPreview(data.banner_url||'')}})},[session?.user?.id,editMode]);
   const update=(key,value)=>setForm(f=>({...f,[key]:value}));
   const next=()=>{setError('');if(step===1){const missing=[['Business name',form.business_name],['Username',form.username],['Logo',logoPreview],['City/location',form.city],['Language',form.language]].filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items: ${missing.join(', ')}.`);return;}}if(step===2&&!form.industry.trim()){setError('Enter your industry to continue.');return;}if(step===2&&!form.bio.trim()){setError('Add a short business description to continue.');return;}setStep(s=>{const n=Math.min(3,s+1); setTimeout(()=>persistBusinessDraft(n),0); return n;});};
-  const uploadLogo=async(file)=>{setLogoFile(file);setLogoPreview(URL.createObjectURL(file));};
-  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview;if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');// Verification is optional. Completing setup only saves the profile;
+  const uploadLogo=async(file)=>{setLogoFile(file);setLogoPreview(URL.createObjectURL(file));}; const uploadBanner=async(file)=>{setBannerFile(file);setBannerPreview(URL.createObjectURL(file));};
+  const save=async()=>{if(!session?.user?.id){setError('Your session expired. Please sign in again.');return;}const draft={...form,avatar_url:logoPreview};const missing=businessCompletionChecklist(draft).filter(([,v])=>!hasProfileValue(v)).map(([l])=>l);if(missing.length){setError(`Complete these required items before requesting verification: ${missing.join(', ')}.`);setStep(missing.some(x=>['Business name','Username','Logo','City/location','Language'].includes(x))?1:2);return;}setSaving(true);setError('');try{let avatarUrl=logoPreview; let bannerUrl=bannerPreview; if(logoFile){setUploadingLogo(true);const ext=logoFile.name.split('.').pop();const path=`${session.user.id}/business-avatar-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('avatars').upload(path,logoFile,{upsert:true});if(uploadError)throw uploadError;avatarUrl=supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;setUploadingLogo(false);} if(bannerFile){const ext=bannerFile.name.split('.').pop();const path=`${session.user.id}/business-banner-${Date.now()}.${ext}`;const {error:uploadError}=await supabase.storage.from('banners').upload(path,bannerFile,{upsert:true});if(uploadError)throw uploadError;bannerUrl=supabase.storage.from('banners').getPublicUrl(path).data.publicUrl;}const payload={...form,business_name:form.business_name.trim(),username:form.username.trim().replace(/^@/,''),auth_user_id:session.user.id,avatar_url:avatarUrl,banner_url:bannerUrl,onboarded:true,claimed:true};const {data:savedProfile,error:saveError}=await supabase.from('business_profiles').upsert(payload,{onConflict:'auth_user_id'}).select('id').single();if(saveError)throw new Error(saveError.code==='23505'?'That username is already in use. Please choose another one.':'We could not create your business profile. Please try again.');// Verification is optional. Completing setup only saves the profile;
   // the owner can request verification later from Trust Center.
   if(businessDraftKey){try{localStorage.removeItem(businessDraftKey)}catch{}}setSaved(true);}catch(err){setError(safeUserError(err, 'Something went wrong.'));}finally{setSaving(false);setUploadingLogo(false);}};
   if(saved){return <div className="max-w-2xl mx-auto px-5 md:px-8 py-20"><div className="bg-white border rounded-2xl p-7 md:p-9 text-center" style={{borderColor:'#D7DFEA'}}><CheckCircle2 size={36} className="mx-auto mb-3" style={{color:'#0E7A3B'}}/><h2 className="text-xl font-bold" style={{color:'#07152F'}}>Your business profile is ready.</h2><p className="text-sm mt-2 leading-6" style={{color:'#475569'}}>Your setup is saved. Verification is separate and is not automatic.</p><div className="text-left rounded-xl p-4 mt-5" style={{background:'#F8FAFC',border:'1px solid #E2E8F0'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>To request verification</p><ol className="text-xs leading-6 mt-2 pl-5 list-decimal" style={{color:'#475569'}}><li>Open <strong>Account Settings</strong>.</li><li>Open <strong>Verification & Trust</strong>.</li><li>Make sure your business profile is complete.</li><li>Submit the verification request with the business information and authorized-representative details you want reviewed.</li><li>Wait for the administrator review and decision.</li></ol></div><button onClick={()=>setPage('account')} className="mt-5 text-white text-sm font-semibold px-5 py-2.5 rounded-xl" style={{background:'#0E7C93'}}>Open Account Settings</button></div></div>;}
 
   const field=(label,key,placeholder,required=false)=><label className="block"><span className="text-xs font-semibold" style={{color:'#07152F'}}>{label}{required?' *':''}</span><input value={form[key]||''} onChange={e=>update(key,e.target.value)} placeholder={placeholder} className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none focus:ring-2" style={{borderColor:'#E5E7EB'}}/></label>;
-  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#07152F'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#526078'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#036377':'#64748B'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold" style={{color:'#07152F'}}>About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#526078'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#07152F'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#526078'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#526078'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#526078'}}>Your required profile is complete. Finishing now saves the business profile. Verification is a separate step: open Account Settings → Verification & Trust, review your completion, then request a verification review.</p><div className="rounded-xl p-4 mt-4" style={{background:'#F8FAFC',border:'1px solid #E2E8F0'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Optional after setup</p><p className="text-xs leading-5 mt-1" style={{color:'#475569'}}>Your website and additional business details can be expanded later. Services/products, contact details and other professional information can also be added from your workspace.</p></div></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>{if(step===1){setPage('dashboard')}else{const prev=Math.max(1,step-1);setStep(prev);setTimeout(()=>persistBusinessDraft(prev),0)}}} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
+  return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>{editMode ? 'Business profile settings' : 'Business onboarding'}</p><h1 className="cm-display font-bold text-3xl mt-2" style={{color:'#07152F'}}>{editMode ? 'Edit your business profile.' : 'Create a business presence people trust.'}</h1><p className="text-sm mt-2 max-w-xl" style={{color:'#526078'}}>Complete the required information first. Optional details can be added later.</p>{!editMode && <div className="mt-4 flex items-center gap-3"><div className="h-2 flex-1 rounded-full" style={{background:'#F3F4F6'}}><div className="h-2 rounded-full"  style={{width:`${completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}%`,background:'linear-gradient(90deg,#00D9FF 0%,#0E7C93 100%)'}} /></div><span className="text-xs font-bold" style={{color:'#036377'}}>{completionPercent(businessCompletionChecklist({...form,avatar_url:logoPreview}))}% complete</span></div>}</div><div className="flex gap-2 mb-6">{['Identity','Details','Review'].map((x,i)=><div key={x} className="flex-1"><div className="h-1.5 rounded-full" style={{background:i+1<=step?'#00D9FF':'#E5E7EB'}}/><p className="text-xs mt-2 font-semibold" style={{color:i+1<=step?'#036377':'#64748B'}}>{i+1}. {x}</p></div>)}</div><div className="bg-white border rounded-2xl p-6 md:p-8" style={{borderColor:'#E5E7EB',boxShadow:'0 10px 30px rgba(17,24,39,0.06)'}}>{step===1&&<div className="grid md:grid-cols-2 gap-5">{field('Business name','business_name','e.g. Rehobot Digitals',true)}{field('Username','username','@yourbusiness',true)}<ImageUploadTile label="Business logo *" shape="circle" previewUrl={logoPreview} onFile={uploadLogo} uploading={uploadingLogo}/><ImageUploadTile label="Business banner" shape="banner" previewUrl={bannerPreview} onFile={uploadBanner} uploading={false}/>{field('City / location','city','Addis Ababa',true)}{field('Language','language','English, Amharic…',true)}</div>}{step===2&&<div className="grid md:grid-cols-2 gap-5">{field('Industry','industry','Digital marketing, retail, technology…',true)}{field('Official website','website','https://yourbusiness.com')}<label className="md:col-span-2 block"><span className="text-xs font-semibold" style={{color:'#07152F'}}>About your business *</span><textarea value={form.bio||''} onChange={e=>update('bio',e.target.value)} rows={5} placeholder="Explain what your business does and who you help." className="mt-1.5 w-full border rounded-xl px-3.5 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></label><p className="md:col-span-2 text-xs" style={{color:'#526078'}}>Optional later: website, services, contact details and additional business information.</p></div>}{step===3&&<div><div className="rounded-xl p-5" style={{background:'linear-gradient(135deg,#ECFEFF 0%,#F8FAFC 100%)'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Profile complete</p><div className="flex items-center gap-4 mt-3"><Avatar name={form.business_name||'Business'} size={56} ring src={logoPreview}/><div><h2 className="text-xl font-bold" style={{color:'#07152F'}}>{form.business_name||'Your business name'}</h2><p className="text-sm" style={{color:'#526078'}}>@{form.username.replace(/^@/,'')||'username'} · {form.city||'Location'}</p></div></div><p className="text-sm mt-4" style={{color:'#526078'}}>{form.bio||'Add a short description.'}</p></div><p className="text-xs mt-4" style={{color:'#526078'}}>Your required profile is complete. Finishing now saves the business profile. Verification is a separate step: open Account Settings → Verification & Trust, review your completion, then request a verification review.</p><div className="rounded-xl p-4 mt-4" style={{background:'#F8FAFC',border:'1px solid #E2E8F0'}}><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Optional after setup</p><p className="text-xs leading-5 mt-1" style={{color:'#475569'}}>Your website and additional business details can be expanded later. Services/products, contact details and other professional information can also be added from your workspace.</p></div></div>}<p className="text-sm mt-5" style={{color:'#B42318'}}>{error}</p><div className="flex justify-between mt-6"><button onClick={()=>{if(step===1){setPage('dashboard')}else{const prev=Math.max(1,step-1);setStep(prev);setTimeout(()=>persistBusinessDraft(prev),0)}}} className="px-4 py-2.5 text-sm font-semibold rounded-xl border" style={{borderColor:'#E5E7EB'}}>Back</button>{step<3?<button onClick={next} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl" style={{background:'#0E7C93'}}>Continue</button>:<button onClick={save} disabled={saving} className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50" style={{background:'#0E7C93'}}>{saving?(uploadingLogo?'Uploading logo…':(editMode?'Saving…':'Saving…')):(editMode?'Save changes':'Finish setup')}</button>}</div></div></div>;
 };
 
 const Spotlight = () => (
@@ -2339,6 +2338,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
   const [step, setStep] = useState(0);
 
   // Basic info
+  const [email, setEmail] = useState('');
   const [pageName, setPageName] = useState('');
   const [username, setUsername] = useState('');
   const [location, setLocation] = useState('');
@@ -2839,6 +2839,15 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
 
 /* ---------------------------------- app ---------------------------------- */
 
+const NfcDisplaySettings = ({ session, activeRole }) => {
+  const [settings,setSettings]=useState({name:true,photo:true,bio:true,role:true,location:true,website:true,socials:true,services:true,portfolio:true});
+  const [busy,setBusy]=useState(false); const [message,setMessage]=useState('');
+  useEffect(()=>{ if(!session?.user?.id)return; const table=activeRole==='business'?'business_profiles':'creator_profiles'; supabase.from(table).select('nfc_display_settings').eq('auth_user_id',session.user.id).maybeSingle().then(({data})=>{if(data?.nfc_display_settings&&typeof data.nfc_display_settings==='object')setSettings(v=>({...v,...data.nfc_display_settings}))}); },[session?.user?.id,activeRole]);
+  const save=async()=>{setBusy(true);setMessage('');const {error}=await supabase.rpc('update_my_nfc_display_settings',{p_kind:activeRole,p_settings:settings});setBusy(false);setMessage(error?safeUserError(error,'Could not save NFC display settings.'):'NFC display settings saved.');};
+  const labels=[['name','Name'],['photo','Profile photo'],['bio','Bio'],['role',activeRole==='business'?'Industry':'Role / niche'],['location','Location'],['website','Website / social links'],['socials','Social accounts'],['services','Services'],['portfolio','Portfolio']];
+  return <section className="bg-white border rounded-2xl p-6 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3 mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>NFC public information</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Choose what people see when they tap your physical Commissioner NFC card. This does not change your normal public profile.</p></div><Zap size={18} style={{color:'#E6007A'}}/></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{labels.map(([key,label])=><label key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer" style={{borderColor:'#E5E7EB'}}><input type="checkbox" checked={!!settings[key]} onChange={e=>setSettings(v=>({...v,[key]:e.target.checked}))}/><span className="text-xs font-semibold" style={{color:'#334155'}}>{label}</span></label>)}</div><div className="flex items-center gap-3 mt-4"><button type="button" onClick={save} disabled={busy} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Saving…':'Save NFC settings'}</button>{message&&<span className="text-xs" style={{color:message.includes('saved')?'#0E7A3B':'#B42318'}}>{message}</span>}</div></section>;
+};
+
 const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness, setActiveRole, refreshMyProfiles, onEditProfile }) => {
   const [newPassword, setNewPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
@@ -2880,7 +2889,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
 
   return (
     <div className="cm-account-page max-w-xl mx-auto px-5 md:px-8 py-12">
-      <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#007E99' }}>Account</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{ color: '#07152F' }}>Account settings</h1><p className="text-sm mt-2" style={{ color: '#475569' }}>Manage your profile, verification, password, sessions and account controls.</p></div>
+      <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8FEAFF' }}>Account</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{ color: '#FFFFFF' }}>Account settings</h1><p className="text-sm mt-2" style={{ color: '#B9C7D8' }}>Manage your profile, verification, password, sessions and account controls.</p></div>
 
       <div className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
         <p className="text-xs font-semibold mb-1" style={{ color: '#334155' }}>Account email</p>
@@ -2914,6 +2923,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
         <button onClick={()=>document.getElementById('account-trust-center')?.scrollIntoView({behavior:'smooth',block:'start'})} className="text-sm font-bold px-4 py-2.5 rounded-xl text-white" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}>Open verification & trust</button>
       </div>
       <div id="account-trust-center" className="mb-6"><TrustCenter session={session} activeRole={activeRole}/></div>
+      <NfcDisplaySettings session={session} activeRole={activeRole}/>
 
       <form onSubmit={handlePasswordChange} className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
         <p className="text-sm font-semibold mb-4" style={{ color: '#334155' }}>Change password</p>
@@ -2962,9 +2972,11 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
   );
 };
 
-const CreatorClaimForm = ({ token }) => {
+const CreatorClaimForm = ({ token, session }) => {
+  const claimDraftKey = `commissioner_nfc_claim_${token}`;
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [email, setEmail] = useState('');
   const [pageName, setPageName] = useState('');
   const [primaryNiche, setPrimaryNiche] = useState('');
   const [username, setUsername] = useState('');
@@ -2987,7 +2999,9 @@ const CreatorClaimForm = ({ token }) => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.rpc('get_claim_profile', { p_token: token }).then(({ data, error }) => {
+    try { const raw=localStorage.getItem(claimDraftKey); if(raw){ const d=JSON.parse(raw); setEmail(d.email||''); setPageName(d.pageName||''); setUsername(d.username||''); setCity(d.city||''); setLanguage(d.language||''); setBio(d.bio||''); setSocials(d.socials||{}); setPortfolioLink(d.portfolioLink||''); setAvailability(d.availability||'Available now'); setPreferences(d.preferences||''); }} catch {}
+    if (session?.user?.email) setEmail(session.user.email);
+    (session ? supabase.rpc('get_claim_profile', { p_token: token }) : supabase.rpc('get_claim_any', { p_token: token }).then(({data,error}) => ({ data: data ? [data] : null, error }))).then(({ data, error }) => {
       if (error || !data || data.length === 0) { setNotFound(true); setLoading(false); return; }
       const row = data[0];
       setPageName(row.page_name || '');
@@ -3018,6 +3032,12 @@ const CreatorClaimForm = ({ token }) => {
   };
 
   const handleSubmit = async () => {
+    if (!session) {
+      try { localStorage.setItem(claimDraftKey, JSON.stringify({email,pageName,username,city,language,bio,socials,portfolioLink,availability,preferences})); } catch {}
+      const returnTo = `/?claim=${encodeURIComponent(token)}`;
+      window.location.href = `/?auth=1&returnTo=${encodeURIComponent(returnTo)}`;
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
@@ -3040,6 +3060,8 @@ const CreatorClaimForm = ({ token }) => {
       });
       if (error) throw error;
       if (!data) { setNotFound(true); return; }
+      try { localStorage.removeItem(claimDraftKey); } catch {}
+      try { localStorage.removeItem(claimDraftKey); } catch {}
       setSaved(true);
     } catch (err) {
       setSaveError(safeUserError(err, 'Something went wrong saving your profile.'));
@@ -3068,7 +3090,7 @@ const CreatorClaimForm = ({ token }) => {
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
         <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
         <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>Profile saved</p>
-        <p className="text-xs" style={{ color: '#334155' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
+        <p className="text-xs" style={{ color: '#334155' }}>Your NFC card is now linked to your Commissioner account. The same card will open your public information page on future taps.</p>
       </div>
     );
   }
@@ -3081,6 +3103,7 @@ const CreatorClaimForm = ({ token }) => {
       </div>
 
       <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
+        <div className="rounded-xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}><p className="text-xs font-bold" style={{color:'#172033'}}>Card recipient</p><p className="text-[11px] mt-1" style={{color:'#526078'}}>Start setup immediately. Your email is used to associate the completed card with your Commissioner account.</p><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" className="mt-3 w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} required /></div>
         <div className="grid grid-cols-2 gap-4">
           <ImageUploadTile label="Profile photo" shape="circle" previewUrl={avatarPreview} onFile={handleAvatarFile} uploading={uploadingAvatar} />
           <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={handleBannerFile} uploading={uploadingBanner} />
@@ -3135,9 +3158,11 @@ const CreatorClaimForm = ({ token }) => {
   );
 };
 
-const BusinessClaimForm = ({ token }) => {
+const BusinessClaimForm = ({ token, session }) => {
+  const claimDraftKey = `commissioner_nfc_claim_${token}`;
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [email, setEmail] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [industry, setIndustry] = useState('');
   const [username, setUsername] = useState('');
@@ -3159,7 +3184,9 @@ const BusinessClaimForm = ({ token }) => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.rpc('get_claim_business', { p_token: token }).then(({ data, error }) => {
+    try { const raw=localStorage.getItem(claimDraftKey); if(raw){ const d=JSON.parse(raw); setEmail(d.email||''); setBusinessName(d.businessName||''); setUsername(d.username||''); setCity(d.city||''); setLanguage(d.language||''); setBio(d.bio||''); setWebsite(d.website||''); setLookingFor(d.lookingFor||[]); setBudgetRange(d.budgetRange||''); setPreferences(d.preferences||''); }} catch {}
+    if (session?.user?.email) setEmail(session.user.email);
+    (session ? supabase.rpc('get_claim_business', { p_token: token }) : supabase.rpc('get_claim_any', { p_token: token }).then(({data,error}) => ({ data: data ? [data] : null, error }))).then(({ data, error }) => {
       if (error || !data || data.length === 0) { setNotFound(true); setLoading(false); return; }
       const row = data[0];
       setBusinessName(row.business_name || '');
@@ -3191,6 +3218,12 @@ const BusinessClaimForm = ({ token }) => {
   };
 
   const handleSubmit = async () => {
+    if (!session) {
+      try { localStorage.setItem(claimDraftKey, JSON.stringify({email,businessName,username,city,language,bio,website,lookingFor,budgetRange,preferences})); } catch {}
+      const returnTo = `/?claim=${encodeURIComponent(token)}`;
+      window.location.href = `/?auth=1&returnTo=${encodeURIComponent(returnTo)}`;
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
@@ -3239,7 +3272,7 @@ const BusinessClaimForm = ({ token }) => {
       <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center">
         <CheckCircle2 size={32} className="mx-auto mb-3" style={{ color: '#0E7A3B' }} />
         <p className="text-sm font-semibold mb-1" style={{ color: '#334155' }}>Page saved</p>
-        <p className="text-xs" style={{ color: '#334155' }}>It's pending approval — bookmark this link if you'd like to come back and make changes before then.</p>
+        <p className="text-xs" style={{ color: '#334155' }}>Your NFC card is now linked to your Commissioner account. The same card will open your public information page on future taps.</p>
       </div>
     );
   }
@@ -3252,6 +3285,7 @@ const BusinessClaimForm = ({ token }) => {
       </div>
 
       <div className="bg-white border rounded-2xl p-6 md:p-8 flex flex-col gap-5" style={{ borderColor: '#E5E7EB' }}>
+        <div className="rounded-xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}><p className="text-xs font-bold" style={{color:'#172033'}}>Card recipient</p><p className="text-[11px] mt-1" style={{color:'#526078'}}>Start setup immediately. Your email is used to associate the completed card with your Commissioner account.</p><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" className="mt-3 w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} required /></div>
         <div className="grid grid-cols-2 gap-4">
           <ImageUploadTile label="Logo" shape="circle" previewUrl={avatarPreview} onFile={handleAvatarFile} uploading={uploadingAvatar} />
           <ImageUploadTile label="Cover / banner image" shape="banner" previewUrl={bannerPreview} onFile={handleBannerFile} uploading={uploadingBanner} />
@@ -3345,12 +3379,14 @@ const CreatorProducts = ({ profile }) => {
   return <div className="mb-8"><div className="flex items-center gap-2 mb-3"><ShoppingBag size={17} style={{color:'#036377'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Products & services</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{products.map(p=><div key={p.id} className="border rounded-2xl overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}>{p.image_url&&<img src={p.image_url} alt="" className="w-full h-36 object-cover"/>}<div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>{p.name}</p><p className="text-xs mt-1" style={{color:'#334155'}}>{p.description}</p></div><span className="text-xs font-bold whitespace-nowrap" style={{color:'#334155'}}>{p.price != null ? `${Number(p.price).toLocaleString()} ${p.currency}` : 'Contact'}</span></div>{p.purchase_url&&<a href={p.purchase_url} target="_blank" rel="noreferrer" onClick={()=>supabase.rpc('track_profile_event',{p_creator_profile_id:profile.id,p_event_type:'product_view'}).catch(()=>{})} className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>{p.type==='service'?'Book / enquire':'Buy / order'} <ArrowUpRight size={13}/></a>}</div></div>)}</div></div>;
 };
 
-const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPage }) => {
+const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPage, nfcMode = false }) => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reviewRefresh, setReviewRefresh] = useState(0);
   const socials = profile.platforms && typeof profile.platforms === 'object' ? profile.platforms : {};
   const socialEntries = Object.entries(socials).filter(([, value]) => value && (value.handle || value.url));
   const services = profile.services && typeof profile.services === 'object' ? profile.services : {};
+  const nfc = profile.nfc_display_settings && typeof profile.nfc_display_settings === 'object' ? profile.nfc_display_settings : {};
+  const showNfc = (key, fallback=true) => !nfcMode || nfc[key] !== false;
   const serviceEntries = Object.entries(services).filter(([, value]) => value);
   return (
     <div className="min-h-screen" style={{ background: '#07152F' }}>
@@ -3365,7 +3401,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
           <div className="px-5 md:px-8 pb-8">
             <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
               <div className="relative shrink-0 w-fit">
-                <Avatar name={profile.page_name || profile.username || 'Creator'} size={96} ring src={profile.avatar_url} />
+                {showNfc('photo') && <Avatar name={profile.page_name || profile.username || 'Creator'} size={96} ring src={profile.avatar_url} />}
                 {profile.verified && (
                   <span
                     className="absolute -right-1 -bottom-1 w-7 h-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm"
@@ -3382,7 +3418,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.page_name || profile.username || 'Creator'}</h1>
                 </div>
-                <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+                <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
                 <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
               </div>
               {!canEdit && profile.auth_user_id && (
@@ -3392,15 +3428,15 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               )}
             </div>
             <div className="flex flex-wrap gap-2 mb-6">
-              {profile.primary_niche && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FDE7F1', color: '#99154F' }}>{profile.primary_niche}</span>}
+              {showNfc('role') && profile.primary_niche && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FDE7F1', color: '#99154F' }}>{profile.primary_niche}</span>}
               {profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
               {profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
             </div>
-            {profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
+            {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
             <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>
             <CreatorProducts profile={profile} />
             <WorkWithMe profile={profile} />
-            {socialEntries.length > 0 && (
+            {showNfc('socials') && socialEntries.length > 0 && (
               <div className="mb-7">
                 <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Social platforms</p>
                 <div className="flex flex-wrap gap-2">
@@ -3417,7 +3453,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 </div>
               </div>
             )}
-            {serviceEntries.length > 0 && (
+            {showNfc('services') && serviceEntries.length > 0 && (
               <div className="mb-7">
                 <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Collaboration services</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -3425,8 +3461,8 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 </div>
               </div>
             )}
-            {Array.isArray(profile.portfolio_media) && profile.portfolio_media.length > 0 && <div className="mb-7"><p className="text-sm font-semibold mb-3" style={{color:'#07152F'}}>Portfolio</p><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{profile.portfolio_media.map((item,i)=><div key={`${item.url||'portfolio'}-${i}`} className="rounded-xl overflow-hidden border bg-white" style={{borderColor:'#E5E7EB'}}>{item.type==='video'?<video src={item.url} controls className="w-full h-40 object-cover"/>:<img src={item.url} alt={item.name||'Portfolio work'} className="w-full h-40 object-cover"/>}</div>)}</div></div>}
-            {profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF', color:'#036377' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15}/></a>}
+            {showNfc('portfolio') && Array.isArray(profile.portfolio_media) && profile.portfolio_media.length > 0 && <div className="mb-7"><p className="text-sm font-semibold mb-3" style={{color:'#07152F'}}>Portfolio</p><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{profile.portfolio_media.map((item,i)=><div key={`${item.url||'portfolio'}-${i}`} className="rounded-xl overflow-hidden border bg-white" style={{borderColor:'#E5E7EB'}}>{item.type==='video'?<video src={item.url} controls className="w-full h-40 object-cover"/>:<img src={item.url} alt={item.name||'Portfolio work'} className="w-full h-40 object-cover"/>}</div>)}</div></div>}
+            {showNfc('portfolio') && profile.portfolio_link && <a href={profile.portfolio_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF', color:'#036377' }}><Globe size={15} /> View portfolio <ArrowUpRight size={15}/></a>}
             {canEdit && (
               <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
                 <button onClick={onEdit} className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl text-white" style={{ background: '#E6007A' }}>
@@ -3449,7 +3485,9 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
   );
 };
 
-const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) => {
+const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcMode = false }) => {
+  const nfc = profile.nfc_display_settings && typeof profile.nfc_display_settings === 'object' ? profile.nfc_display_settings : {};
+  const showNfc = (key) => !nfcMode || nfc[key] !== false;
   const [reportOpen, setReportOpen] = useState(false);
   const [reviewRefresh, setReviewRefresh] = useState(0);
   return (
@@ -3462,7 +3500,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) =>
         <div className="px-5 md:px-8 pb-8">
           <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
             <div className="relative shrink-0 w-fit">
-              <Avatar name={profile.business_name || profile.username || 'Business'} size={96} ring src={profile.avatar_url} />
+              {showNfc('photo') && <Avatar name={profile.business_name || profile.username || 'Business'} size={96} ring src={profile.avatar_url} />}
               {profile.verified && (
                 <span
                   className="absolute -right-1 -bottom-1 w-7 h-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm"
@@ -3477,7 +3515,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) =>
             </div>
             <div className="pb-1">
               <div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.business_name || profile.username || 'Business'}</h1></div>
-              <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{profile.city ? ` · ${profile.city}` : ''}</p>
+              <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
               <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
             </div>
             {profile.auth_user_id && (
@@ -3486,11 +3524,11 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) =>
               </button>
             )}
           </div>
-          {profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
-          {profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
+          {showNfc('role') && profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
+          {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
           <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>
           <div className="flex flex-wrap gap-3">
-            {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+            {showNfc('website') && profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
           {canEdit && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
@@ -3514,14 +3552,14 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit }) =>
   );
 };
 
-const OfficialBusinessPage = ({ id, session, setPage }) => {
+const OfficialBusinessPage = ({ id, session, setPage, nfcMode = false }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const owner = Boolean(session?.user?.id && profile?.auth_user_id === session.user.id);
   useEffect(() => {
     setLoading(true);
-    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, approved, onboarded').eq('id', id).maybeSingle().then(({ data }) => {
+    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, onboarded, nfc_display_settings').eq('id', id).maybeSingle().then(({ data }) => {
       setProfile(data || null); setLoading(false);
     });
   }, [id]);
@@ -3529,12 +3567,12 @@ const OfficialBusinessPage = ({ id, session, setPage }) => {
   if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Business profile not found</p></div>;
   if (!profile.onboarded && !owner) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
   if (editMode && owner) return <div><div className="max-w-2xl mx-auto px-5 md:px-8 pt-6"><button onClick={() => setEditMode(false)} className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg border" style={{ borderColor:'#E5E7EB', color:'#334155' }}><ChevronLeft size={15}/> Back to profile</button></div><BusinessOnboarding session={session} setPage={setPage} editMode={true} /></div>;
-  return <PublicBusinessProfile profile={profile} session={session} canEdit={owner} onEdit={() => setEditMode(true)} />;
+  return <PublicBusinessProfile profile={profile} session={session} canEdit={owner} onEdit={() => setEditMode(true)} nfcMode={nfcMode} />;
 };
 
 // Official creator pages use a stable profile ID. The NFC card points here, so the
 // physical tag never needs to be rewritten when the creator edits their profile.
-const OfficialCreatorPage = ({ id, session, setPage }) => {
+const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [owner, setOwner] = useState(false);
@@ -3544,7 +3582,7 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
     setLoading(true);
     const { data, error } = await supabase
       .from('creator_profiles')
-      .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, approved, onboarded')
+      .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
       .eq('id', id)
       .maybeSingle();
     if (!error && data) {
@@ -3584,6 +3622,7 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
         canEdit={owner}
         session={session}
         setPage={setPage}
+        nfcMode={nfcMode}
         onEdit={() => {
           if (!session?.user?.id) {
             const returnTo = `/creator/${encodeURIComponent(id)}`;
@@ -3597,8 +3636,8 @@ const OfficialCreatorPage = ({ id, session, setPage }) => {
   );
 };
 
-// NFC links are permanent: before a profile is claimed they open the claim form;
-// once approved, the exact same NFC URL opens the public profile.
+// NFC links are permanent: before a profile is claimed they open setup;
+// once onboarded, the same NFC URL opens the public profile. Verification is separate.
 const ClaimGate = ({ token, session, setPage }) => {
   const [state, setState] = useState({ kind: null, profile: null, error: '' });
 
@@ -3634,18 +3673,10 @@ const ClaimGate = ({ token, session, setPage }) => {
   if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} setPage={setPage} />;
   if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
-  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>We couldn’t open this card</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but its details couldn’t be loaded right now. Please try again in a moment.</p></div>;
-  if (!session) return (
-    <div className="max-w-lg mx-auto px-5 md:px-8 py-24">
-      <div className="bg-white border rounded-2xl p-7 text-center" style={{borderColor:'#E5E7EB'}}>
-        <ShieldCheck size={30} className="mx-auto mb-4" style={{color:'#7C3AED'}}/>
-        <h1 className="cm-display font-bold text-2xl" style={{color:'#172033'}}>Claim your Commissioner card</h1>
-        <p className="text-sm mt-2 leading-6" style={{color:'#526078'}}>Sign in or create your Commissioner account first. Your account will be linked to this gifted NFC profile so only you can edit it.</p>
-        <button onClick={()=>{ const returnTo=`/?claim=${encodeURIComponent(token)}`; window.location.href=`/?auth=1&returnTo=${encodeURIComponent(returnTo)}`; }} className="mt-6 text-white text-sm font-semibold px-5 py-3 rounded-xl" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED,#00A8C4)'}}>Sign in to claim</button>
-      </div>
-    </div>
-  );
-  return state.kind === 'business' ? <BusinessClaimForm token={token} /> : <CreatorClaimForm token={token} />;
+  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest NFC ownership hardening migration, then try again.</p></div>;
+  return state.kind === 'business'
+    ? <BusinessClaimForm token={token} session={session} />
+    : <CreatorClaimForm token={token} session={session} />;
 };
 
 
@@ -3688,7 +3719,7 @@ const VerificationDetails = ({ type, id, compact=false }) => {
 const Businesses = ({ onConnect, session, setPage, appliedIds, onApply, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('primary');
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
-  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,approved,onboarded,plan,created_at').eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
+  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,onboarded,plan,created_at').eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#334155' }}>Explore businesses</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Browse businesses and the campaigns they have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
@@ -3721,8 +3752,8 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
       try{
         const {data: listings}=await supabase.from('marketplace_listings').select('*').eq('active',true).order('created_at',{ascending:false}).limit(100);
         const [{data: creators},{data: businesses}]=await Promise.all([
-          supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,city,primary_niche,verified,approved,onboarded').eq('onboarded',true).limit(80),
-          supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,industry,verified,approved,onboarded').eq('onboarded',true).limit(80)
+          supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,city,primary_niche,verified,onboarded').eq('onboarded',true).limit(80),
+          supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,industry,verified,onboarded').eq('onboarded',true).limit(80)
         ]);
         const byId={}; (creators||[]).forEach(x=>byId[`creator:${x.id}`]={...x,type:'creator'}); (businesses||[]).forEach(x=>byId[`business:${x.id}`]={...x,type:'business'});
         const rows=(listings||[]).map(x=>({...x,owner:byId[`${x.owner_type}:${x.owner_id}`]})).filter(x=>x.owner);
@@ -3798,8 +3829,8 @@ const parseProfileInput = (platform, raw) => {
 
 const TrustCenter = ({ session, activeRole }) => {
   const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
-  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
-  const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',registration_reference:'',trade_license_reference:'',tin_reference:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
+  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [verificationSettings,setVerificationSettings]=useState({youtube_subscriber_threshold:1000}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
+  const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
     if(!session?.user?.id)return;
     const preferred = activeRole === 'business' ? 'business' : 'creator';
@@ -3815,7 +3846,7 @@ const TrustCenter = ({ session, activeRole }) => {
           setClaim(Array.isArray(v)?(v[0]||null):(v||null));
           const {data:rawClaim}=await supabase.from('creator_verification_claims').select('status,platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
           if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setCreatorDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
-          const {data:e}=await supabase.rpc('evaluate_creator_50k_eligibility',{p_creator_profile_id:c.id});
+          const {data:e}=await supabase.rpc('evaluate_creator_youtube_eligibility',{p_creator_profile_id:c.id});
           if(e && !e.error) setEligibility(e);
           return;
         }
@@ -3825,7 +3856,7 @@ const TrustCenter = ({ session, activeRole }) => {
           setType('business'); setProfile(b);
           const {data:v}=await supabase.rpc('get_business_verification_summary',{p_business_profile_id:b.id});
           setClaim(Array.isArray(v)?(v[0]||null):(v||null));
-          const {data:rawClaim}=await supabase.from('business_verification_claims').select('status,legal_business_name,trade_name,registration_reference,trade_license_reference,tin_reference,business_activity,representative_name,official_contact,official_website').eq('business_profile_id',b.id).maybeSingle();
+          const {data:rawClaim}=await supabase.from('business_verification_claims').select('status,legal_business_name,trade_name,business_activity,representative_name,official_contact,official_website').eq('business_profile_id',b.id).maybeSingle();
           if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setBusinessDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
           setEligibility(null); return;
         }
@@ -3833,9 +3864,9 @@ const TrustCenter = ({ session, activeRole }) => {
     }
     setProfile(null); setClaim(null); setEligibility(null); setType(preferred);
   };
-  useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
+  useEffect(()=>{setType(activeRole || 'creator');load(); supabase.from('verification_settings').select('youtube_subscriber_threshold').eq('id',true).maybeSingle().then(({data})=>{if(data?.youtube_subscriber_threshold)setVerificationSettings(data)})},[session?.user?.id, activeRole]);
   const guide=PLATFORM_GUIDE[creatorDetails.platform]||null;
-  const followerBar=Number(eligibility?.threshold||FOLLOWER_THRESHOLD_FALLBACK);
+  const followerBar=Number(verificationSettings.youtube_subscriber_threshold||1000);
   const verifyCode=profile?.id?`CMS-${String(profile.id).replace(/-/g,'').slice(0,6).toUpperCase()}`:'';
   const oauthReady=!!creatorDetails.platform&&oauthConnections.some(c=>String(c.provider||'').toLowerCase()===creatorDetails.platform.toLowerCase()&&c.status==='connected');
   const autofillFrom=(raw)=>{const found=parseProfileInput(creatorDetails.platform,raw); if(found.id||found.username)setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));};
@@ -3882,7 +3913,7 @@ const TrustCenter = ({ session, activeRole }) => {
     <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div>
     <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-      {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>{eligibility?.threshold?`${Number(eligibility.threshold).toLocaleString()}+ eligibility`:'Follower eligibility'}</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{eligibility?.threshold?Number(eligibility.threshold).toLocaleString():'A minimum number of'} followers/subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.audience_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.audience_count).toLocaleString()} audience · threshold {Number(eligibility.threshold||FOLLOWER_THRESHOLD_FALLBACK).toLocaleString()}</p>}</div>}
+      {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>{eligibility?.threshold?`${Number(eligibility.threshold).toLocaleString()}+ YouTube subscribers`:'YouTube eligibility'}</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{eligibility?.threshold?Number(eligibility.threshold).toLocaleString():'1,000'} YouTube subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.subscriber_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.subscriber_count).toLocaleString()} audience · threshold {Number(eligibility.threshold||FOLLOWER_THRESHOLD_FALLBACK).toLocaleString()}</p>}</div>}
       <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>Social ownership</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Supported OAuth connections are recorded as account metadata only. Credentials and tokens never belong in the client app.</p>{oauthConnections.length?<div className="mt-3 space-y-2">{oauthConnections.map(c=><div key={c.provider} className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold capitalize" style={{color:'#334155'}}>{c.provider}{c.username?` · @${c.username.replace(/^@/,'')}`:''}</span><span style={{color:c.status==='connected'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>:<p className="text-xs mt-3" style={{color:'#526078'}}>No supported OAuth account is connected. Manual/code/bio verification is available when a provider is unavailable.</p>}</div>
     </div>
     <div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}>
@@ -3906,9 +3937,9 @@ const TrustCenter = ({ session, activeRole }) => {
         <p className="text-xs font-bold" style={{color:'#07152F'}}>Your ownership code: <span className="font-mono px-2 py-0.5 rounded" style={{background:'#F1F5F9'}}>{verifyCode}</span></p>
         <p className="text-[11px] leading-5 mt-1" style={{color:'#526078'}}>Add this code to your {creatorDetails.platform||'social'} bio or channel description, then request review. Leave it there until a reviewer has checked it — you can remove it afterwards.</p>
       </div>}
-      {creatorDetails.audience_count!==''&&Number(creatorDetails.audience_count)<followerBar&&<p className="text-[11px] mt-3" style={{color:'#9A4A0C'}}>Verification currently needs at least {followerBar.toLocaleString()} followers/subscribers. You can still submit, but it will be declined until you reach that.</p>}
+      {creatorDetails.audience_count!==''&&Number(creatorDetails.audience_count)<followerBar&&<p className="text-[11px] mt-3" style={{color:'#9A4A0C'}}>Verification currently needs at least {followerBar.toLocaleString()} YouTube subscribers. You can still submit, but eligibility does not guarantee verification.</p>}
       </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',registration_reference:'Commercial registration reference',trade_license_reference:'Trade license reference (if applicable)',tin_reference:'TIN reference (if applicable)',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
+        {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
       </div>}
       <textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} placeholder={type==='creator'?'Add context for identity, ownership, audience or engagement evidence.':'Add context for the business information and representative evidence. Private documents should remain in the protected evidence store.'} className="w-full border rounded-xl px-3 py-3 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/>
       <div className="mt-3 rounded-xl border p-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
@@ -3927,7 +3958,7 @@ const TrustCenter = ({ session, activeRole }) => {
 const B2BNetwork = ({ session, initialBusiness=null }) => {
   const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [messageTarget,setMessageTarget]=useState(null); const [busyTarget,setBusyTarget]=useState(null);
   const [launchStats,setLaunchStats]=useState(null); const [featureGates,setFeatureGates]=useState(null); const [isAdmin,setIsAdmin]=useState(false);
-  const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,approved,onboarded').eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,approved,onboarded').eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
+  const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,onboarded').eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,onboarded').eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
   useEffect(()=>{load()},[session?.user?.id]);
   useEffect(()=>{fetchLaunchStats().then(setLaunchStats); supabase.rpc('commissioner_feature_gates').then(({data})=>setFeatureGates(data||null))},[]);
   useEffect(()=>{if(!session){setIsAdmin(false);return;}supabase.rpc('is_admin').then(({data})=>setIsAdmin(!!data))},[session?.user?.id]);
@@ -3974,7 +4005,7 @@ const VerificationAdminQueue = () => {
   };
   const evidenceReady=(r)=>r._type==='creator'
     ? Number(r.audience_count||0)>=followerThreshold && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
-    : !!r.legal_business_name && !!r.representative_name && (!!r.registration_reference || !!r.trade_license_reference);
+    : !!r.legal_business_name && !!r.representative_name;
   const openEvidence=async(row)=>{
     const path=row.evidence_storage_path;
     if(!path){setMessage('No private evidence file is attached to this request.');return;}
@@ -4016,8 +4047,8 @@ const VerificationAdminQueue = () => {
             <div><b>Source:</b> {r.verification_source||'—'}</div>
           </>:<>
             <div><b>Legal name:</b> {r.legal_business_name||'—'}</div><div><b>Trade name:</b> {r.trade_name||'—'}</div>
-            <div><b>Registration:</b> {r.registration_reference||'—'}</div><div><b>Trade license:</b> {r.trade_license_reference||'—'}</div>
-            <div><b>TIN reference:</b> {r.tin_reference||'—'}</div><div><b>Activity:</b> {r.business_activity||'—'}</div>
+            <div><b>Business activity:</b> {r.business_activity||'—'}</div>
+            
             <div><b>Representative:</b> {r.representative_name||'—'}</div><div><b>Official contact:</b> {r.official_contact||'—'}</div>
             <div><b>Website:</b> {r.official_website||'—'}</div>
           </>}
@@ -4083,9 +4114,7 @@ const AdminNfcManager = () => {
   };
 
   const destination = (card) => {
-    if (card.creator_id) return `${window.location.origin}/creator/${card.creator_id}`;
-    if (card.business_id) return `${window.location.origin}/business/${card.business_id}`;
-    return '';
+    return `${window.location.origin}/nfc/${card.id}`;
   };
 
   const nameFor = (card) => {
@@ -4144,7 +4173,7 @@ const AdminPromotions = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
-  const [form, setForm] = useState({ title:'', description:'', placement:'explore', start_at:'', end_at:'', target_url:'' });
+  const [form, setForm] = useState({ title:'', description:'', placement:'explore', start_at:'', end_at:'', target_url:'', creative_url:'', cta_label:'Learn more', audience:'{}' });
 
   const load = async () => {
     setLoading(true);
@@ -4162,11 +4191,12 @@ const AdminPromotions = () => {
       p_title: form.title, p_description: form.description, p_placement: form.placement,
       p_start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
       p_end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
-      p_target_url: form.target_url || null
+      p_target_url: form.target_url || null, p_creative_url: form.creative_url || null,
+      p_cta_label: form.cta_label || 'Learn more', p_audience: (()=>{try{return JSON.parse(form.audience||'{}')}catch{return {}}})()
     });
     setBusy('');
     if (error) { setMessage(safeUserError(error, 'Could not create the promotion.')); return; }
-    setForm({title:'',description:'',placement:'explore',start_at:'',end_at:'',target_url:''});
+    setForm({title:'',description:'',placement:'explore',start_at:'',end_at:'',target_url:'',creative_url:'',cta_label:'Learn more',audience:'{}'});
     setMessage('Promotion created.');
     load();
   };
@@ -4182,7 +4212,7 @@ const AdminPromotions = () => {
   return <section className="cm-admin-panel-card">
     <div className="mb-5">
       <p className="text-sm font-bold" style={{color:'#07152F'}}>Promotions</p>
-      <p className="text-xs mt-1" style={{color:'#526078'}}>Admin-controlled promoted content. Promotions are kept separate from organic discovery.</p>
+      <p className="text-xs mt-1" style={{color:'#526078'}}>Admin-controlled promoted content. Promotions are separate from organic discovery and require the production promotion migration.</p>
     </div>
     <form onSubmit={create} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
       <input required placeholder="Promotion title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
@@ -4190,13 +4220,13 @@ const AdminPromotions = () => {
         <option value="home">Homepage</option><option value="explore">Explore</option><option value="marketplace">Marketplace</option><option value="campaigns">Campaigns</option>
       </select>
       <textarea placeholder="Description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm md:col-span-2" rows="2" />
-      <input type="url" placeholder="Promoted content URL (optional)" value={form.target_url} onChange={e=>setForm({...form,target_url:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm md:col-span-2" />
+      <input type="url" placeholder="Destination URL" value={form.target_url} onChange={e=>setForm({...form,target_url:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" /><input type="url" placeholder="Creative image/video URL (optional)" value={form.creative_url} onChange={e=>setForm({...form,creative_url:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" /><input placeholder="CTA label" value={form.cta_label} onChange={e=>setForm({...form,cta_label:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" /><textarea placeholder="Audience JSON (optional)" value={form.audience} onChange={e=>setForm({...form,audience:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm md:col-span-2" rows="2" />
       <input type="datetime-local" value={form.start_at} onChange={e=>setForm({...form,start_at:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
       <input type="datetime-local" value={form.end_at} onChange={e=>setForm({...form,end_at:e.target.value})} className="border rounded-xl px-3 py-2.5 text-sm" />
       <button disabled={busy==='create'} className="md:col-span-2 text-white font-semibold rounded-xl px-4 py-2.5 disabled:opacity-50" style={{background:'#E6007A'}}>{busy==='create'?'Creating…':'Create promotion'}</button>
     </form>
     {message && <p className="text-xs mb-4 px-3 py-2 rounded-lg" style={{background:'#F8FAFC',color:'#334155'}}>{message}</p>}
-    {loading ? <p className="text-sm" style={{color:'#526078'}}>Loading promotions…</p> : !rows.length ? <div className="cm-admin-empty">No promotions yet.</div> : <div className="space-y-3">{rows.map(r=><div key={r.id} className="cm-admin-feedback-row"><div className="flex-1"><div className="flex items-center gap-2"><b className="text-sm" style={{color:'#172033'}}>{r.title}</b><span className={`cm-admin-status ${r.active?'reviewed':'archived'}`}>{r.active?'active':'inactive'}</span></div><p className="text-xs mt-1" style={{color:'#526078'}}>{r.placement}{r.start_at?` · starts ${new Date(r.start_at).toLocaleString()}`:''}{r.end_at?` · ends ${new Date(r.end_at).toLocaleString()}`:''}</p></div><button disabled={busy===r.id} onClick={()=>toggle(r)} className="cm-admin-small-btn">{busy===r.id?'Saving…':r.active?'Deactivate':'Activate'}</button></div>)}</div>}
+    {loading ? <p className="text-sm" style={{color:'#526078'}}>Loading promotions…</p> : !rows.length ? <div className="cm-admin-empty">No promotions yet.</div> : <div className="space-y-3">{rows.map(r=><div key={r.id} className="cm-admin-feedback-row"><div className="flex-1"><div className="flex items-center gap-2"><b className="text-sm" style={{color:'#172033'}}>{r.title}</b><span className={`cm-admin-status ${r.active?'reviewed':'archived'}`}>{r.active?'active':'inactive'}</span></div><p className="text-xs mt-1" style={{color:'#526078'}}>{r.placement}{r.status?` · ${r.status}`:''}{r.start_at?` · starts ${new Date(r.start_at).toLocaleString()}`:''}{r.end_at?` · ends ${new Date(r.end_at).toLocaleString()}`:''} · {Number(r.impressions||0).toLocaleString()} impressions · {Number(r.clicks||0).toLocaleString()} clicks</p></div><button disabled={busy===r.id} onClick={()=>toggle(r)} className="cm-admin-small-btn">{busy===r.id?'Saving…':r.active?'Deactivate':'Activate'}</button></div>)}</div>}
   </section>;
 };
 
@@ -4288,7 +4318,7 @@ const AdminPanel = ({ session }) => {
     }
     setSavingFollowerThreshold(true);
     setFollowerThresholdMessage('');
-    const { error } = await supabase.rpc('admin_set_follower_threshold', { p_threshold: f });
+    const { error } = await supabase.rpc('admin_set_youtube_threshold', { p_threshold: f });
     setSavingFollowerThreshold(false);
     if (error) {
       setFollowerThresholdMessage(error.message?.includes('does not exist')
@@ -4337,7 +4367,7 @@ const AdminPanel = ({ session }) => {
 
       setSetupStatus(data?.ready ? 'ready' : 'missing');
       if (!data?.ready) {
-        setSetupError('Admin setup is incomplete. Run COMMISSIONER-MASTER-MIGRATION.sql in the Supabase SQL Editor, then refresh this page.');
+        setSetupError('The Supabase admin migration is incomplete. Apply the latest supabase-schema.sql, then refresh this page.');
       }
     };
 
@@ -4371,7 +4401,7 @@ const AdminPanel = ({ session }) => {
 
   const handleCreate = async () => {
     if (setupStatus !== 'ready') {
-      setCreateError('Admin setup is not ready. Run COMMISSIONER-MASTER-MIGRATION.sql in the Supabase SQL Editor, then refresh the page.');
+      setCreateError('Admin setup is not ready. Apply the latest Supabase migration shown above, then refresh the page.');
       return;
     }
     // A gift card may intentionally start blank. The recipient fills the
@@ -4402,7 +4432,7 @@ const AdminPanel = ({ session }) => {
       setSetupStatus(missing ? 'missing' : setupStatus);
       setCreateError(
         missing
-          ? 'The gift-profile function is missing. Run COMMISSIONER-MASTER-MIGRATION.sql in the Supabase SQL Editor, then refresh the page.'
+          ? 'The Supabase admin_create_claim function is missing. Apply the latest Supabase migration shown in the Admin setup panel, then refresh the page.'
           : safeUserError(error, 'Could not create the requested profile.')
       );
       return;
@@ -4742,12 +4772,12 @@ const AdminPanel = ({ session }) => {
         {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
       </div>
       <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-bold" style={{ color: '#07152F' }}>Creator follower eligibility</p>
-        <p className="text-xs mt-1 mb-4" style={{ color: '#334155' }}>Minimum followers/subscribers a creator needs before a verification request can be approved. Takes effect immediately, no redeploy. Lowered from 50,000 to 15,000 on 2026-09-29.</p>
+        <p className="text-sm font-bold" style={{ color: '#07152F' }}>YouTube verification threshold</p>
+        <p className="text-xs mt-1 mb-4" style={{ color: '#334155' }}>Minimum YouTube subscribers required before a creator verification request is eligible for review. Current product requirement: 1,000 subscribers. This is an eligibility trigger, not automatic verification.</p>
         <div className="flex flex-wrap items-end gap-3">
           <label className="block">
-            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Followers/subscribers needed</span>
-            <input type="number" min="0" value={followerThresholdDraft} onChange={e => setFollowerThresholdDraft(e.target.value)} className="mt-1 w-40 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
+            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>YouTube subscribers needed</span>
+            <input type="number" min="0" value={followerThresholdDraft || '1000'} onChange={e => setFollowerThresholdDraft(e.target.value)} className="mt-1 w-40 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
           </label>
           <button type="button" onClick={saveFollowerThreshold} disabled={savingFollowerThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingFollowerThreshold ? 'Saving…' : 'Save threshold'}</button>
         </div>
@@ -5250,6 +5280,15 @@ const MaintenanceScreen = ({ message, pageLabel }) => (
   </div>
 );
 
+const NfcCardPage = ({ cardId, session, setPage }) => {
+  const [state,setState]=useState({loading:true,error:'',kind:null,profile:null,claimToken:null});
+  useEffect(()=>{let cancelled=false;(async()=>{const {data,error}=await supabase.rpc('get_nfc_card_public',{p_card_id:cardId});if(cancelled)return;if(error){setState({loading:false,error:safeUserError(error,'This NFC card could not be opened.'),kind:null,profile:null,claimToken:null});return;}if(!data?.kind){setState({loading:false,error:'This NFC card is not assigned or is unavailable.',kind:null,profile:null,claimToken:null});return;}setState({loading:false,error:'',kind:data.kind,profile:data,claimToken:data.claim_token||null});})();return()=>{cancelled=true}},[cardId]);
+  if(state.loading)return <div className="max-w-xl mx-auto px-5 py-24 text-center text-sm" style={{color:'#526078'}}>Loading NFC profile…</div>;
+  if(state.error)return <div className="max-w-xl mx-auto px-5 py-24 text-center"><Zap size={30} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#172033'}}>NFC card unavailable</h1><p className="text-sm mt-2" style={{color:'#526078'}}>{state.error}</p></div>;
+  if(state.profile?.status==='claimable' && state.claimToken)return state.kind==='business'?<BusinessClaimForm token={state.claimToken} session={session}/>:<CreatorClaimForm token={state.claimToken} session={session}/>;
+  return state.kind==='business'?<OfficialBusinessPage id={state.profile.id} session={session} setPage={setPage} nfcMode={true}/>:<OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} nfcMode={true}/>;
+};
+
 export default function Commissioner() {
   // Lets /join/creator and /join/business work as real, bookmarkable,
   // shareable URLs that drop a visitor straight into that onboarding flow
@@ -5408,13 +5447,12 @@ export default function Commissioner() {
   const [claimToken] = useState(() => new URLSearchParams(window.location.search).get('claim'));
   const [authRedirect] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get('auth') === '1' ? (params.get('returnTo') || '/') : null;
-    if (fromUrl) localStorage.setItem('commissioner_auth_return_to', fromUrl);
-    return fromUrl || localStorage.getItem('commissioner_auth_return_to');
+    return params.get('auth') === '1' ? (params.get('returnTo') || '/') : null;
   });
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const officialType = pathParts[0] || '';
   const officialId = pathParts[1] || '';
+  const nfcCardId = officialType === 'nfc' ? officialId : '';
   // Role safety rule for the setup screen, in priority order:
   //   1. Editing an existing profile ALWAYS follows the active workspace, so
   //      a business user can never be dropped into creator setup.
@@ -5445,25 +5483,11 @@ export default function Commissioner() {
     return () => window.removeEventListener('commissioner:open-messages', openMessages);
   }, [session?.user?.id]);
   useEffect(() => { fetchLaunchStats().then(setLaunchStats); }, []);
-  // Client-side route changes for /creator/:id and /business/:id so opening a
-  // profile no longer reboots the whole app (and re-downloads everything).
-  const [, setRouteTick] = useState(0);
-  const navigateTo = (path) => {
-    window.history.pushState({}, '', path);
-    setRouteTick(t => t + 1);
-    window.scrollTo(0, 0);
-  };
-  useEffect(() => {
-    const onRoute = () => setRouteTick(t => t + 1);
-    window.addEventListener('popstate', onRoute);
-    return () => window.removeEventListener('popstate', onRoute);
-  }, []);
   useEffect(() => {
     if (!session) { setIsAdmin(false); return; }
     supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data));
   }, [session?.user?.id]);
   const [siteControls, setSiteControls] = useState({site_closed:false,site_message:'',disabled_pages:[]});
-  const [controlsTick, setControlsTick] = useState(0);
   useEffect(() => {
     let cancelled=false;
     supabase.from('commissioner_site_controls').select('site_closed,site_message,disabled_pages').eq('id',true).maybeSingle().then(({data})=>{
@@ -5471,13 +5495,7 @@ export default function Commissioner() {
       setSiteControls({site_closed:!!data.site_closed,site_message:data.site_message||'',disabled_pages:Array.isArray(data.disabled_pages)?data.disabled_pages:[]});
     });
     return ()=>{cancelled=true;};
-  }, [controlsTick]);
-  useEffect(() => {
-    // Re-check admin site controls when the tab becomes visible again instead of on every navigation.
-    const onVisible = () => { if (document.visibilityState === 'visible') setControlsTick(t => t + 1); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
+  }, [page]);
   const pageLabels = {home:'Homepage',explore:'Explore',creators:'Explore creators',businesses:'Explore businesses',campaigns:'Campaigns',marketplace:'Marketplace',network:'B2B network',trust:'Trust & verification',messages:'Messages',spotlight:'Spotlight',pricing:'Plans',dashboard:'Dashboard',account:'Account settings',onboarding:'Profile setup'};
   const availabilityBlocked = !isAdmin && (siteControls.site_closed || siteControls.disabled_pages.includes(page));
   const networkLaunched = !!launchStats?.unlocked || isAdmin;
@@ -5539,8 +5557,8 @@ export default function Commissioner() {
         return;
       }
       if (sess && authRedirect) {
-        localStorage.removeItem('commissioner_auth_return_to');
-        window.location.href = authRedirect;
+        window.history.replaceState({}, '', authRedirect);
+        window.location.reload();
         return;
       }
       if (sess) setPage(p => (p === 'auth' ? 'dashboard' : p));
@@ -5560,6 +5578,15 @@ export default function Commissioner() {
     );
   }
 
+  if (nfcCardId) {
+    return (
+      <div className="cm-root min-h-screen bg-white">
+        <FontLoader />
+        <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5"><BackButton onClick={() => { window.history.length > 1 ? window.history.back() : (window.location.href = '/'); }} /></div>
+        <NfcCardPage cardId={nfcCardId} session={session} setPage={setPage} />
+      </div>
+    );
+  }
   if (officialType === 'creator' && officialId) {
     return (
       <div className="cm-root min-h-screen bg-white">
@@ -5584,7 +5611,7 @@ export default function Commissioner() {
   }
   if (claimToken) {
     return (
-      <div className="cm-root min-h-screen" style={{ background: '#F4F7FD' }}>
+      <div className="cm-root min-h-screen" style={{ background: '#07152F' }}>
         <FontLoader />
         <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
           <BackButton onClick={() => { window.location.href = '/'; }} />
@@ -5595,7 +5622,7 @@ export default function Commissioner() {
   }
 
   return (
-    <div className="cm-root min-h-screen" style={{ background: '#F4F7FD' }}>
+    <div className="cm-root min-h-screen" style={{ background: '#07152F' }}>
       <FontLoader />
       <NavBar page={page} setPage={p => { setPage(p); setMenuOpen(false); }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} session={session} hasCreator={hasCreator} hasBusiness={hasBusiness} activeRole={activeRole} setActiveRole={setActiveRole} onProfilesChanged={refreshMyProfiles} openOnboarding={openOnboarding} />
       <main className="cm-page-canvas">
@@ -5609,15 +5636,15 @@ export default function Commissioner() {
       {availabilityBlocked ? <MaintenanceScreen message={siteControls.site_message} pageLabel={siteControls.site_closed ? null : pageLabels[page]} /> : <>
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
       {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
-      {page === 'explore' && <ExploreHub session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ navigateTo(`/creator/${encodeURIComponent(c.id)}`); }} onBusinessConnect={async (b,action) => { if (action === 'view') { navigateTo(`/business/${encodeURIComponent(b.id)}`); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
-      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { navigateTo(`/business/${encodeURIComponent(b.id)}`); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'explore' && <ExploreHub session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} onBusinessConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
       {page === 'marketplace' && <Marketplace session={session} activeRole={activeRole} onMessage={async (owner, listingId) => {
         if (!session) { setPage('auth'); return; }
         const id = owner?.auth_user_id || owner?.authUserId;
         if (!id || id === session.user.id) return;
         if (listingId && String(listingId).match(/^[0-9a-f-]{36}$/i)) {
           const { data, error } = await supabase.rpc('start_marketplace_inquiry', { p_listing_id: listingId });
-          if (error) { setToast(safeUserError(error, 'Could not start the conversation. Please try again.')); setTimeout(()=>setToast(''),5000); return; }
+          if (error) { setToast(safeUserError(error, 'Could not start the marketplace conversation. Please run the latest marketplace messaging SQL migration.')); setTimeout(()=>setToast(''),5000); return; }
           setMessageConversationId(data); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages'); return;
         }
         setMessageConversationId(null); setMessageRecipientId(id); setMarketplaceContact(true); setPage('messages');
