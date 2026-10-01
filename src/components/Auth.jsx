@@ -76,9 +76,34 @@ export default function Auth({ onAuthenticated }) {
   const [cooldown, setCooldown] = useState(0);
   const [resendSent, setResendSent] = useState(false);
 
+  const handleGoogle = async () => {
+    clearMessages();
+    setLoading(true);
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error: googleError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (googleError) {
+      setLoading(false);
+      setError(googleError.message || 'Google sign-in could not be started. Check that Google is enabled in Supabase Authentication → Providers.');
+      return;
+    }
+    // The browser will leave this page for Google. Keep the button disabled
+    // while the OAuth redirect is being prepared.
+  };
+
   useEffect(() => {
     sessionStorage.removeItem('commissioner_intended_role');
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session && onAuthenticated) {
+        onAuthenticated(data.session, intendedRole ? role : undefined);
+      }
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (nextSession && onAuthenticated) {
@@ -95,12 +120,6 @@ export default function Auth({ onAuthenticated }) {
   }, [cooldown]);
 
   const clearMessages = () => { setError(''); setNotice(''); };
-  const authCallbackUrl = () => {
-    const returnTo = new URLSearchParams(window.location.search).get('returnTo');
-    return returnTo
-      ? `${window.location.origin}/auth/callback?returnTo=${encodeURIComponent(returnTo)}`
-      : `${window.location.origin}/auth/callback`;
-  };
 
   const sendConfirmation = async (targetEmail) => {
     if (loading || cooldown) return;
@@ -151,7 +170,7 @@ export default function Auth({ onAuthenticated }) {
         password,
         options: {
           data: { role },
-          emailRedirectTo: authCallbackUrl(),
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
     );
@@ -270,26 +289,6 @@ export default function Auth({ onAuthenticated }) {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    clearMessages();
-    setLoading(true);
-    try {
-      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
-      if (returnTo) sessionStorage.setItem('commissioner_oauth_return_to', returnTo);
-      const { error: oauthError } = await withTimeout(
-        supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: authCallbackUrl(),
-          },
-        })
-      );
-      if (oauthError) setError(oauthError.message || 'Google sign-in could not be started.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSignOut = async () => { await supabase.auth.signOut(); };
   const handleSignOutAll = async () => { await supabase.auth.signOut({ scope: 'global' }); };
 
@@ -378,12 +377,6 @@ export default function Auth({ onAuthenticated }) {
         <p>{signup ? 'Build your professional Commissioner identity.' : 'Sign in to continue to your workspace.'}</p>
       </div>
 
-      <button type="button" className="cm-auth-google" onClick={handleGoogleSignIn} disabled={loading}>
-        <span className="cm-google-mark" aria-hidden="true">G</span>
-        <span>{loading ? 'Connecting…' : 'Continue with Google'}</span>
-      </button>
-      <div className="cm-auth-divider"><span>or continue with email</span></div>
-
       <div className="cm-auth-tabs" role="tablist">
         <button type="button" className={!signup ? 'is-active' : ''} onClick={() => { setMode('signin'); clearMessages(); }}>
           Sign in
@@ -405,6 +398,19 @@ export default function Auth({ onAuthenticated }) {
           </button>
         </div>
       )}
+
+      <button
+        type="button"
+        className="cm-auth-google"
+        onClick={handleGoogle}
+        disabled={loading}
+        aria-label="Continue with Google"
+      >
+        <span className="cm-google-mark" aria-hidden="true">G</span>
+        <span>{loading ? 'Connecting to Google…' : 'Continue with Google'}</span>
+      </button>
+
+      <div className="cm-auth-divider" aria-hidden="true"><span>or</span></div>
 
       <form onSubmit={signup ? handleSignUp : handleSignIn} className="cm-auth-form">
         <Field icon={Mail} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" required />
