@@ -87,14 +87,18 @@ function safeUserError(error, fallback = 'Something went wrong. Please try again
   const internal = [
     'schema cache', 'does not exist', 'function public.', 'relation public.',
     'pg_', 'postgrest', 'postgres', 'permission denied for schema',
-    'duplicate key value', 'violates row-level security', 'stack trace'
+    'duplicate key value', 'violates', 'stack trace', 'column ', 'constraint',
+    'syntax error', 'null value', 'jwt', 'could not find', 'routine_schema',
+    'failed to fetch', 'typeerror'
   ];
   if (internal.some(term => message.includes(term))) {
     return 'This feature is temporarily unavailable. The required server configuration is missing or needs attention.';
   }
   if (message.includes('authentication required')) return 'Please sign in and try again.';
   if (message.includes('not authorized') || message.includes('admin access required')) return 'You do not have permission to perform this action.';
-  return error?.message || fallback;
+  // Only pass through short, plain-language messages; anything long is likely technical.
+  const raw = String(error?.message || '');
+  return raw && raw.length <= 160 ? raw : fallback;
 }
 
 // Fetches published creator profiles from Supabase and adapts them to the
@@ -5309,6 +5313,9 @@ export default function Commissioner() {
   // component listener is attached.
   const initialRecoveryRoute = window.location.pathname.replace(/\/+$/, '') === '/auth/callback' &&
     /(^|&)type=recovery(&|$)/.test(window.location.hash.replace(/^#/, ''));
+  // Google OAuth and email-verification links both return here. Anything that
+  // is not a password recovery is handled by handleAuthCallback below.
+  const initialAuthCallback = !initialRecoveryRoute && window.location.pathname.replace(/\/+$/, '') === '/auth/callback';
   const [page, setPage] = useState(initialRecoveryRoute ? 'reset-password' : (initialJoinRole ? 'onboarding' : (initialAdminRoute ? 'admin' : 'home')));
   const [editingProfile, setEditingProfile] = useState(false);
   // Which setup flow the onboarding screen should show. This is set
@@ -5512,10 +5519,68 @@ export default function Commissioner() {
   const onApply = (campaign) => { setAppliedIds(a => a.includes(campaign.id) ? a : [...a, campaign.id]); };
 
   useEffect(() => {
+    // Finish a Google / email-verification return: show a friendly message if
+    // the person cancelled or it failed, otherwise route a brand-new account to
+    // onboarding and an onboarded account to the dashboard.
+    const handleAuthCallback = async (sess) => {
+      const q = new URLSearchParams(window.location.search);
+      const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const urlError = q.get('error') || h.get('error') || q.get('error_code') || h.get('error_code');
+      const cancelled = urlError === 'access_denied';
+      if (urlError) console.warn('[auth callback] provider error:', q.get('error_description') || h.get('error_description') || urlError);
+      window.history.replaceState({ cmPage: 'home' }, '', '/');
+      const notify = (msg) => { setToast(msg); setTimeout(() => setToast(''), 5000); };
+      if (!sess) {
+        notify(cancelled
+          ? 'Sign-in was cancelled. You can try again whenever you are ready.'
+          : 'We could not complete sign-in. Please try again or use your email and password.');
+        setPage('auth');
+        return;
+      }
+      const uid = sess.user.id;
+      const oauthRole = sessionStorage.getItem('commissioner_oauth_role');
+      sessionStorage.removeItem('commissioner_oauth_role');
+      try {
+        const [c, b] = await Promise.all([
+          supabase.from('creator_profiles').select('id').eq('auth_user_id', uid).eq('onboarded', true).limit(1),
+          supabase.from('business_profiles').select('id').eq('auth_user_id', uid).eq('onboarded', true).limit(1),
+        ]);
+        if (c.error || b.error) {
+          // Could not read profiles: never treat a possibly-registered person as
+          // new (that would send them into onboarding). Open the dashboard.
+          console.warn('[auth callback] profile lookup failed', c.error || b.error);
+          setPage('dashboard');
+          return;
+        }
+        const hasC = !!c.data?.length, hasB = !!b.data?.length;
+        if (hasC || hasB) {
+          let saved = null;
+          try { saved = localStorage.getItem(`commissioner_active_role_${uid}`); } catch (e) { /* storage unavailable */ }
+          const role = (saved === 'creator' && hasC) || (saved === 'business' && hasB) ? saved : (hasC ? 'creator' : 'business');
+          try { localStorage.setItem(`commissioner_active_role_${uid}`, role); } catch (e) { /* storage unavailable */ }
+          setActiveRole(role);
+          setPage('dashboard');
+          return;
+        }
+        const role = oauthRole === 'business' ? 'business' : 'creator';
+        try { localStorage.setItem(`commissioner_active_role_${uid}`, role); } catch (e) { /* storage unavailable */ }
+        await supabase.rpc(role === 'creator' ? 'add_creator_profile' : 'add_business_profile');
+        refreshMyProfiles();
+        setActiveRole(role);
+        openOnboarding(role);
+      } catch (err) {
+        console.error('Auth callback routing failed', err);
+        setPage('dashboard');
+      }
+    };
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       if (initialRecoveryRoute) {
         setPage('reset-password');
+        return;
+      }
+      if (initialAuthCallback) {
+        handleAuthCallback(data.session);
         return;
       }
       if (initialJoinRole) {

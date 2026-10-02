@@ -28,6 +28,20 @@ const isUnconfirmedEmailMessage = (message = '') => {
   return s.includes('not confirmed') || s.includes('confirm your email') || s.includes('email not verified');
 };
 
+// Never show raw provider/database text to people. Technical detail goes to
+// the console for developers only.
+const friendlyAuthError = (message = '', fallback = 'Something went wrong. Please try again.') => {
+  const s = String(message).toLowerCase();
+  if (message) console.warn('[auth]', message);
+  if (isRateLimitMessage(s)) return 'Too many attempts. Please wait a minute and try again.';
+  if (isUnconfirmedEmailMessage(s)) return 'Please verify your email first. Check your inbox for the confirmation link.';
+  if (s.includes('invalid login') || s.includes('invalid credentials')) return 'That email or password is not correct.';
+  if (s.includes('already registered') || s.includes('already exists')) return 'An account with this email already exists. Sign in or use Forgot password.';
+  if (s.includes('network') || s.includes('fetch') || s.includes('taking longer')) return 'We could not reach Commissioner. Check your connection and try again.';
+  if (s.includes('provider') && s.includes('enabled')) return 'Google sign-in is temporarily unavailable. Please use email for now.';
+  return fallback;
+};
+
 const scorePassword = (password) => {
   let score = 0;
   if (password.length >= 8) score++;
@@ -95,6 +109,12 @@ export default function Auth({ onAuthenticated }) {
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) setGoogleLoading(false); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
+
   const clearMessages = () => { setError(''); setNotice(''); };
 
   const sendConfirmation = async (targetEmail) => {
@@ -115,7 +135,7 @@ export default function Auth({ onAuthenticated }) {
         setCooldown(RESEND_COOLDOWN_SECONDS);
         setError('Please wait a moment before requesting another email.');
       } else {
-        setError(resendError.message);
+        setError(friendlyAuthError(resendError.message, 'We could not resend the email. Please try again.'));
       }
       return;
     }
@@ -155,13 +175,8 @@ export default function Auth({ onAuthenticated }) {
     if (signUpError) {
       const msg = signUpError.message || 'We could not create your account.';
       const lower = msg.toLowerCase();
-      if (lower.includes('redirect') || lower.includes('url')) {
-        setError(`Supabase blocked the email redirect. Add ${window.location.origin}/auth/callback to Authentication → URL Configuration → Redirect URLs.`);
-      } else if (lower.includes('smtp') || lower.includes('confirmation')) {
-        setError('The account reached Supabase, but email delivery is not configured correctly. Check Authentication → SMTP / email settings.');
-      } else {
-        setError(msg);
-      }
+      console.warn('[auth] signUp failed:', msg);
+      setError(friendlyAuthError(msg, 'We could not create your account right now. Please try again shortly.'));
       return;
     }
 
@@ -201,7 +216,7 @@ export default function Auth({ onAuthenticated }) {
       setMode('check-email');
       return;
     }
-    setError(isRateLimitMessage(msg) ? 'Too many attempts. Please wait a minute and try again.' : msg);
+    setError(friendlyAuthError(msg, 'We could not sign you in. Please check your details and try again.'));
   };
 
   const handleReset = async (event) => {
@@ -223,13 +238,10 @@ export default function Auth({ onAuthenticated }) {
     if (resetError) {
       const msg = resetError.message || 'We could not send the reset email.';
       const lower = msg.toLowerCase();
-      if (lower.includes('redirect') || lower.includes('url')) {
-        setError(`Add ${redirectTo} to Supabase Authentication → URL Configuration → Redirect URLs.`);
-      } else if (isRateLimitMessage(msg)) {
-        setError('Please wait a moment before requesting another email.');
-      } else {
-        setError(msg);
-      }
+      console.warn('[auth] reset failed:', msg);
+      setError(isRateLimitMessage(msg)
+        ? 'Please wait a moment before requesting another email.'
+        : friendlyAuthError(msg, 'We could not send the reset email. Please try again shortly.'));
       return;
     }
 
@@ -253,7 +265,7 @@ export default function Auth({ onAuthenticated }) {
           setCooldown(RESEND_COOLDOWN_SECONDS);
           setError('Please wait a moment before requesting another email.');
         } else {
-          setError(resetError.message);
+          setError(friendlyAuthError(resetError.message, 'We could not send the reset email. Please try again shortly.'));
         }
         return;
       }
@@ -266,20 +278,28 @@ export default function Auth({ onAuthenticated }) {
   };
 
   const handleGoogleSignIn = async () => {
+    if (loading || googleLoading) return;
     clearMessages();
     setGoogleLoading(true);
+    // Remember which profile type the person chose so the callback can open
+    // the right onboarding after Google returns (sessionStorage survives the
+    // redirect; the intended-role key is cleared when this screen mounts).
+    try {
+      const chosen = mode === 'signup' ? role : (intendedRole || '');
+      if (chosen) sessionStorage.setItem('commissioner_oauth_role', chosen);
+    } catch (e) { /* storage unavailable */ }
     const { error: googleError } = await withTimeout(
       supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { access_type: 'offline', prompt: 'select_account' },
+          queryParams: { prompt: 'select_account' },
         },
       })
     );
     if (googleError) {
       setGoogleLoading(false);
-      setError(googleError.message || 'Google sign-in is temporarily unavailable. Please try again.');
+      setError(friendlyAuthError(googleError.message, 'Google sign-in is temporarily unavailable. Please try again or use email.'));
     }
   };
 
