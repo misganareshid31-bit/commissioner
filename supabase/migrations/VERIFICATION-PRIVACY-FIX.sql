@@ -1,0 +1,42 @@
+-- ============================================================
+-- Security fix: close a raw-table exposure on verification claims.
+--
+-- The app's public creator/business cards already read verification
+-- status through get_creator_verification_summary() /
+-- get_business_verification_summary() — SECURITY DEFINER functions
+-- that only ever return status flags, never admin_note or evidence_note.
+-- That part was already done right.
+--
+-- But two RLS policies from COMMISSIONER-TRUST-MARKETPLACE-B2B.sql
+-- ALSO still grant direct row-level SELECT on the raw tables to
+-- anyone at all (including logged-out visitors) for any row with
+-- status = 'verified':
+--
+--   "Public can view creator verification summary"
+--   "Public can view business verification summary"
+--
+-- Row Level Security filters ROWS, not COLUMNS — so this raw access
+-- exposes every column on that row, including admin_note and
+-- evidence_note, to anyone who queries the Supabase REST API
+-- directly (the anon key is not secret; it's visible in the site's
+-- own JavaScript, so "logged out visitor" and "anyone with curl"
+-- are the same access level here). The app's UI never actually uses
+-- this path — it uses the safe RPCs above — so removing it doesn't
+-- change anything the app does. It only removes a way around it.
+--
+-- Run this once in the Supabase SQL editor.
+-- ============================================================
+
+drop policy if exists "Public can view creator verification summary" on public.creator_verification_claims;
+drop policy if exists "Public can view business verification summary" on public.business_verification_claims;
+
+-- After this, the only ways to read a verification_claims row are:
+--   1. The owning creator/business, for their own row
+--      ("Creator/Business manages own verification claim")
+--   2. The admin account
+--      ("Admin manages creator/business verification claims")
+--   3. Anyone, but ONLY the safe status columns, via
+--      get_creator_verification_summary() / get_business_verification_summary()
+--      (these run as SECURITY DEFINER and are unaffected by the
+--      policy removal above — the public creator/business cards
+--      keep working exactly as before)

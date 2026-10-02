@@ -1,25 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-// These come from environment variables — never hardcode real values here.
-// Vite: prefix with VITE_ and read via import.meta.env
-// Next.js: prefix with NEXT_PUBLIC_ and read via process.env
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-// Supabase publishable keys are the preferred public browser key.
-// Keep the legacy anon variable as a backwards-compatible fallback.
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. Check your .env.local file for VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.'
-  );
+export const supabaseConfigured = Boolean(supabaseUrl && supabaseKey);
+
+if (!supabaseConfigured) {
+  // Logged for developers only; the UI shows a friendly notice (see main.jsx).
+  console.error('Commissioner: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true, // needed for OAuth redirect + email verification links
-  },
-});
+// A placeholder URL keeps imports safe so the app can render a friendly
+// "temporarily unavailable" screen instead of a blank page.
+export const supabase = createClient(
+  supabaseUrl || 'https://not-configured.invalid',
+  supabaseKey || 'not-configured',
+  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+);

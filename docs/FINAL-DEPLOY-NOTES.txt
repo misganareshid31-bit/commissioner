@@ -1,0 +1,35 @@
+COMMISSIONER FINAL MESSAGING FIX
+
+1. Deploy this project to Vercel.
+2. In Supabase SQL Editor run COMMISSIONER-FINAL-MESSAGING-ONE-SHOT.sql once.
+3. Refresh the app.
+
+Important fixes in this final version:
+- Marketplace owner queries include auth_user_id, so Message can identify the actual account.
+- Marketplace Message creates/reuses a conversation and records listing context.
+- Normal messaging start_conversation no longer has the 50/50 launch gate or profile-completion gate.
+- Sending, loading, unread/read, and realtime message functions are included.
+- Marketplace media_type/media_url fields are included.
+
+
+FINAL HARDENING PATCH — 2026-09-27
+==================================
+After the existing 2026-09-26 migrations, apply:
+  20260927_FINAL_VERIFICATION_HARDENING.sql
+
+This adds:
+- private verification evidence storage + RLS
+- creator/business evidence attachment
+- strict creator 50K + ownership verification gate
+- business registration/licensing + representative verification gate
+- admin verification readiness RPC
+- verification audit entries
+- Trust Center private evidence upload
+- admin evidence review + private evidence access
+
+Before production:
+  npm ci
+  npm run build
+
+Configure social OAuth only through provider-approved applications and
+server-side secrets. Never place provider client secrets in the React bundle.
