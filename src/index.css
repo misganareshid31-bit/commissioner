@@ -2099,3 +2099,16 @@ html, body {
   color: #000000 !important;
   -webkit-text-fill-color: #000000 !important;
 }
+
+
+/* FINAL FIX: the hero slogan must remain pure white on the dark feature panel. */
+.cm-root .cm-official-description-panel p.text-2xl,
+.cm-root .cm-official-description-panel p.text-2xl.text-white,
+.cm-root .cm-official-description-panel p.text-2xl.text-white.mt-1 {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root .cm-official-description-panel p {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}

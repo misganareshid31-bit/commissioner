@@ -3541,7 +3541,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
           {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
           <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>
           <div className="flex flex-wrap gap-3">
-            {showNfc('website') && profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+            {showNfc('website') && profile.website && <a href={/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
           {canEdit && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
