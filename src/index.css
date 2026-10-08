@@ -2004,3 +2004,111 @@ html, body {
   outline: 3px solid rgba(0,217,255,.42) !important;
   outline-offset: 2px !important;
 }
+
+/* === FINAL USER-REQUESTED VISIBILITY FIX — 2026-10-08 ===
+/* The production header is light, so account identity must use dark ink. */
+.cm-root header.bg-white\/90 .cm-account-name,
+.cm-root header.bg-white\/90 .cm-account-meta,
+.cm-root header.bg-white\/90 [data-tour="nav-account"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root header.bg-white\/90 .cm-account-meta {
+  color: #007E99 !important;
+  -webkit-text-fill-color: #007E99 !important;
+}
+.cm-root header.bg-white\/90 [data-tour="nav-account"] svg {
+  color: #334155 !important;
+}
+
+/* Homepage hero sits on the light production canvas: dark readable copy. */
+.cm-root .cm-home-hero h1 {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root .cm-home-hero h1 span:first-child {
+  color: #B80061 !important;
+  -webkit-text-fill-color: #B80061 !important;
+}
+.cm-root .cm-home-hero h1 span:nth-child(2) {
+  color: #007E99 !important;
+  -webkit-text-fill-color: #007E99 !important;
+}
+.cm-root .cm-home-hero > .grid > div:first-child > p {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+}
+
+/* Explore headings, result counts, and Creator/Campaign tabs use dark ink
+   on the light discovery canvas. */
+.cm-root .cm-page-canvas .cm-display,
+.cm-root .cm-page-canvas .cm-display + p {
+  text-shadow: none !important;
+}
+.cm-root .cm-page-canvas .text-sm {
+  text-shadow: none !important;
+}
+.cm-root .cm-page-canvas .border-b-2 button,
+.cm-root .cm-page-canvas button[role="tab"] {
+  color: #07152F !important;
+  -webkit-text-fill-color: #07152F !important;
+}
+.cm-root .cm-page-canvas button[role="tab"] p {
+  color: #526078 !important;
+  -webkit-text-fill-color: #526078 !important;
+}
+
+/* The dark feature-description box is the intentional exception: all of its
+   explanatory writing stays white/light for maximum contrast. */
+.cm-root .cm-feature-guide,
+.cm-root .cm-feature-guide h1,
+.cm-root .cm-feature-guide h2,
+.cm-root .cm-feature-guide h3,
+.cm-root .cm-feature-guide h4,
+.cm-root .cm-feature-guide p,
+.cm-root .cm-feature-guide span,
+.cm-root .cm-feature-guide li,
+.cm-root .cm-feature-guide strong,
+.cm-root .cm-feature-guide label {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root .cm-feature-guide p,
+.cm-root .cm-feature-guide li {
+  color: #D9E4F2 !important;
+  -webkit-text-fill-color: #D9E4F2 !important;
+}
+
+
+/* Exact contrast contract for the official Commissioner preview:
+   - dark navy/gradient description panel: white text
+   - white Creator and Business cards: dark text */
+.cm-root .cm-home-hero .cm-official-dark-panel > .flex p,
+.cm-root .cm-home-hero .cm-official-dark-panel > .flex span,
+.cm-root .cm-home-hero .cm-official-description-panel,
+.cm-root .cm-home-hero .cm-official-description-panel * {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div {
+  background: #FFFFFF !important;
+}
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div p,
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div span,
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div strong {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+
+/* FINAL FIX: the hero slogan must remain pure white on the dark feature panel. */
+.cm-root .cm-official-description-panel p.text-2xl,
+.cm-root .cm-official-description-panel p.text-2xl.text-white,
+.cm-root .cm-official-description-panel p.text-2xl.text-white.mt-1 {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root .cm-official-description-panel p {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
