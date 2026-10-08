@@ -2080,11 +2080,22 @@ html, body {
 }
 
 
-/* HARD OVERRIDE: every word in the dark official Commissioner preview is white. */
-.cm-root .cm-home-hero .cm-official-dark-panel,
-.cm-root .cm-home-hero .cm-official-dark-panel *,
+/* Exact contrast contract for the official Commissioner preview:
+   - dark navy/gradient description panel: white text
+   - white Creator and Business cards: dark text */
+.cm-root .cm-home-hero .cm-official-dark-panel > .flex p,
+.cm-root .cm-home-hero .cm-official-dark-panel > .flex span,
 .cm-root .cm-home-hero .cm-official-description-panel,
 .cm-root .cm-home-hero .cm-official-description-panel * {
   color: #FFFFFF !important;
   -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div {
+  background: #FFFFFF !important;
+}
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div p,
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div span,
+.cm-root .cm-home-hero .cm-official-dark-panel > .grid > div strong {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
