@@ -1557,3 +1557,450 @@ html, body {
 .cm-root header [aria-label="Notifications"],
 .cm-root header [data-tour="nav-account"] { color: #FFFFFF !important; }
 .cm-root header [data-tour="nav-account"] { background: transparent !important; }
+
+/* ========================================================================
+   COMMISSIONER V1 — COLOR SYSTEM V2 / FINAL VISIBILITY PASS
+   Purpose: replace conflicting historical color overrides with one predictable
+   surface-to-text contract. This layer is intentionally last in the cascade.
+   ======================================================================== */
+:root {
+  --cm-bg: #07152F;
+  --cm-bg-soft: #0D1B35;
+  --cm-surface: #FFFFFF;
+  --cm-surface-soft: #F8FAFC;
+  --cm-surface-muted: #F1F5F9;
+  --cm-ink: #07152F;
+  --cm-ink-2: #172033;
+  --cm-body: #475569;
+  --cm-muted: #64748B;
+  --cm-border: #D7DFEA;
+  --cm-border-soft: #E5E7EB;
+  --cm-brand: #E6007A;
+  --cm-brand-hover: #C9006B;
+  --cm-cyan: #00D9FF;
+  --cm-cyan-dark: #036377;
+  --cm-success: #0E7A3B;
+  --cm-warning: #9A4A0C;
+  --cm-danger: #B42318;
+  --cm-info: #036377;
+}
+
+/* Surface contract: light surfaces always use dark ink. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95 {
+  color: var(--cm-ink) !important;
+}
+.cm-root .bg-white h1,
+.cm-root .bg-white h2,
+.cm-root .bg-white h3,
+.cm-root .bg-white h4,
+.cm-root .bg-white h5,
+.cm-root .bg-white h6,
+.cm-root .bg-white p,
+.cm-root .bg-white label,
+.cm-root .bg-white li,
+.cm-root .bg-white td,
+.cm-root .bg-white th,
+.cm-root .bg-white strong,
+.cm-root .bg-white b,
+.cm-root .bg-white span:not(.text-white) {
+  color: var(--cm-ink-2) !important;
+}
+
+/* Explicitly darken Tailwind gray text on light cards. */
+.cm-root .bg-white .text-gray-300,
+.cm-root .bg-white .text-gray-400,
+.cm-root .bg-white .text-gray-500,
+.cm-root .bg-white .text-gray-600,
+.cm-root .bg-white .text-gray-700,
+.cm-root .bg-white .text-gray-800,
+.cm-root .bg-white .text-slate-400,
+.cm-root .bg-white .text-slate-500,
+.cm-root .bg-white .text-slate-600,
+.cm-root .bg-white .text-slate-700 {
+  color: var(--cm-body) !important;
+}
+
+/* Links on light surfaces are dark/brand, never invisible white. */
+.cm-root .bg-white a:not([class*="bg-"]),
+.cm-root .bg-white a.text-white {
+  color: var(--cm-cyan-dark) !important;
+}
+.cm-root .bg-white a:hover:not([class*="bg-"]) { color: #024D5C !important; }
+
+/* Secondary/outline controls on light surfaces. Primary filled controls retain
+   their own brand background and white text. */
+.cm-root .bg-white button.border,
+.cm-root .bg-white button:not([class*="bg-"]):not([style*="background"]),
+.cm-root .bg-white a.border {
+  color: var(--cm-ink-2) !important;
+  -webkit-text-fill-color: var(--cm-ink-2) !important;
+  background: var(--cm-surface) !important;
+  border-color: var(--cm-border) !important;
+}
+.cm-root .bg-white button.border:hover,
+.cm-root .bg-white button:not([class*="bg-"]):not([style*="background"]):hover,
+.cm-root .bg-white a.border:hover {
+  background: var(--cm-surface-soft) !important;
+  border-color: #B9C7D8 !important;
+}
+
+/* Inputs/selects are always bright controls with dark ink. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  background: #FFFFFF !important;
+  color: var(--cm-ink-2) !important;
+  -webkit-text-fill-color: var(--cm-ink-2) !important;
+  border-color: var(--cm-border) !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder,
+.cm-root select::placeholder {
+  color: var(--cm-muted) !important;
+  -webkit-text-fill-color: var(--cm-muted) !important;
+  opacity: 1 !important;
+}
+.cm-root input:focus,
+.cm-root textarea:focus,
+.cm-root select:focus {
+  outline: none !important;
+  border-color: var(--cm-cyan-dark) !important;
+  box-shadow: 0 0 0 3px rgba(0,217,255,.16) !important;
+}
+
+/* Dark surfaces use white/light copy. */
+.cm-root .cm-feature-guide,
+.cm-root .cm-auth-card,
+.cm-root .cm-maintenance-screen {
+  color: #FFFFFF !important;
+}
+.cm-root .cm-feature-guide h1,
+.cm-root .cm-feature-guide h2,
+.cm-root .cm-feature-guide h3,
+.cm-root .cm-feature-guide p,
+.cm-root .cm-feature-guide li,
+.cm-root .cm-feature-guide span,
+.cm-root .cm-feature-guide strong {
+  color: #FFFFFF !important;
+}
+.cm-root .cm-feature-guide p,
+.cm-root .cm-feature-guide li { color: #D9E4F2 !important; }
+
+/* Auth is a deliberate dark exception. */
+.cm-root .cm-auth-card input,
+.cm-root .cm-auth-card textarea,
+.cm-root .cm-auth-card select {
+  background: rgba(255,255,255,.05) !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  border-color: #294663 !important;
+}
+.cm-root .cm-auth-card input::placeholder,
+.cm-root .cm-auth-card textarea::placeholder { color: #91A5BE !important; -webkit-text-fill-color: #91A5BE !important; }
+.cm-root .cm-auth-card input:focus,
+.cm-root .cm-auth-card textarea:focus,
+.cm-root .cm-auth-card select:focus { border-color: var(--cm-cyan) !important; box-shadow: 0 0 0 3px rgba(0,217,255,.18) !important; }
+
+/* Home hero: dark canvas + white copy; light cards inside remain dark. */
+.cm-root .cm-home-hero h1,
+.cm-root .cm-home-hero > .grid > div:first-child > p { color: #FFFFFF !important; }
+.cm-root .cm-home-hero > .grid > div:first-child > p { color: #D9E4F2 !important; }
+.cm-root .cm-home-hero .bg-white h1,
+.cm-root .cm-home-hero .bg-white h2,
+.cm-root .cm-home-hero .bg-white h3,
+.cm-root .cm-home-hero .bg-white p,
+.cm-root .cm-home-hero .bg-white span:not(.text-white) { color: var(--cm-ink-2) !important; }
+
+/* Public profile shells are light by design. */
+.cm-root.min-h-screen.bg-white,
+.cm-root.min-h-screen.bg-white .cm-page-canvas { background: #FFFFFF !important; color: var(--cm-ink-2) !important; }
+
+/* Marketplace and B2B are intentionally light pages. */
+.cm-root .cm-marketplace-page,
+.cm-root .cm-b2b-page { color: var(--cm-ink-2) !important; }
+.cm-root .cm-marketplace-page .bg-white,
+.cm-root .cm-b2b-page .bg-white { color: var(--cm-ink-2) !important; }
+.cm-root .cm-marketplace-page h1,
+.cm-root .cm-marketplace-page h2,
+.cm-root .cm-marketplace-page h3,
+.cm-root .cm-marketplace-page p,
+.cm-root .cm-b2b-page h1,
+.cm-root .cm-b2b-page h2,
+.cm-root .cm-b2b-page h3,
+.cm-root .cm-b2b-page p { color: var(--cm-ink-2) !important; }
+.cm-root .cm-marketplace-page input,
+.cm-root .cm-b2b-page input,
+.cm-root .cm-b2b-page textarea { background:#FFFFFF !important; color:var(--cm-ink-2) !important; -webkit-text-fill-color:var(--cm-ink-2) !important; }
+
+/* Account settings and Trust Center: navy shell, white cards. */
+.cm-root .cm-account-page { color: #F7FAFF !important; }
+.cm-root .cm-account-page > .bg-white,
+.cm-root .cm-account-page #account-trust-center .bg-white { background:#FFFFFF !important; color:var(--cm-ink) !important; }
+.cm-root .cm-account-page > .bg-white h1,
+.cm-root .cm-account-page > .bg-white h2,
+.cm-root .cm-account-page > .bg-white h3,
+.cm-root .cm-account-page > .bg-white p,
+.cm-root .cm-account-page > .bg-white label,
+.cm-root .cm-account-page #account-trust-center .bg-white h1,
+.cm-root .cm-account-page #account-trust-center .bg-white h2,
+.cm-root .cm-account-page #account-trust-center .bg-white h3,
+.cm-root .cm-account-page #account-trust-center .bg-white p,
+.cm-root .cm-account-page #account-trust-center .bg-white label { color:var(--cm-ink-2) !important; }
+
+/* Admin is a light control center. */
+.cm-root .cm-admin-shell { color:var(--cm-ink-2) !important; }
+.cm-root .cm-admin-shell .cm-admin-panel-card,
+.cm-root .cm-admin-shell .cm-admin-tab-content { background:#FFFFFF !important; color:var(--cm-ink-2) !important; }
+.cm-root .cm-admin-shell h1,
+.cm-root .cm-admin-shell h2,
+.cm-root .cm-admin-shell h3,
+.cm-root .cm-admin-shell p,
+.cm-root .cm-admin-shell label { text-shadow:none !important; }
+
+/* Semantic status colors are consistent throughout the product. */
+.cm-root .cm-status-success { color:var(--cm-success) !important; }
+.cm-root .cm-status-warning { color:var(--cm-warning) !important; }
+.cm-root .cm-status-danger { color:var(--cm-danger) !important; }
+.cm-root .cm-status-info { color:var(--cm-info) !important; }
+
+/* Header identity is always visible and high contrast. */
+.cm-root header .cm-account-name { color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important; }
+.cm-root header .cm-account-meta { color:#8FEAFF !important; -webkit-text-fill-color:#8FEAFF !important; }
+.cm-root header .cm-menu-button,
+.cm-root header [aria-label="Notifications"],
+.cm-root header [data-tour="nav-account"] { color:#FFFFFF !important; }
+
+/* Feature description is the single dark explanatory panel used across pages. */
+.cm-root .cm-feature-guide {
+  background:#07152F !important;
+  color:#FFFFFF !important;
+  border:1px solid #294663 !important;
+}
+
+/* Avoid accidental invisible text from utility classes on the dark canvas. */
+.cm-root .cm-page-canvas > *:not(.bg-white) .text-black,
+.cm-root .cm-page-canvas > *:not(.bg-white) .text-gray-900,
+.cm-root .cm-page-canvas > *:not(.bg-white) .text-gray-800 { color:#FFFFFF !important; }
+
+/* Respect reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .cm-root *, .cm-root *::before, .cm-root *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ========================================================================
+   COMMISSIONER V1 — FINAL COLOR CONTRACT V3
+   This is the final visibility layer. It fixes remaining light/dark surface
+   conflicts without changing Commissioner branding or product behavior.
+   ======================================================================== */
+
+/* LIGHT SURFACES: text, links, icons and controls stay readable. */
+.cm-root .bg-white,
+.cm-root .bg-white\/90,
+.cm-root .bg-white\/95,
+.cm-root .bg-white\/97 {
+  color: var(--cm-ink-2) !important;
+}
+.cm-root .bg-white h1,
+.cm-root .bg-white h2,
+.cm-root .bg-white h3,
+.cm-root .bg-white h4,
+.cm-root .bg-white h5,
+.cm-root .bg-white h6,
+.cm-root .bg-white p,
+.cm-root .bg-white label,
+.cm-root .bg-white li,
+.cm-root .bg-white dt,
+.cm-root .bg-white dd,
+.cm-root .bg-white td,
+.cm-root .bg-white th,
+.cm-root .bg-white strong,
+.cm-root .bg-white small {
+  color: var(--cm-ink-2) !important;
+}
+.cm-root .bg-white .text-gray-300,
+.cm-root .bg-white .text-gray-400,
+.cm-root .bg-white .text-gray-500,
+.cm-root .bg-white .text-gray-600,
+.cm-root .bg-white .text-gray-700,
+.cm-root .bg-white .text-slate-400,
+.cm-root .bg-white .text-slate-500,
+.cm-root .bg-white .text-slate-600,
+.cm-root .bg-white .text-slate-700,
+.cm-root .bg-white [style*="#9CA3AF"],
+.cm-root .bg-white [style*="#9ca3af"] {
+  color: var(--cm-body) !important;
+}
+
+/* A text-white utility on a light card is only safe when the element itself
+   is a filled control. Textual elements are corrected automatically. */
+.cm-root .bg-white h1.text-white,
+.cm-root .bg-white h2.text-white,
+.cm-root .bg-white h3.text-white,
+.cm-root .bg-white h4.text-white,
+.cm-root .bg-white h5.text-white,
+.cm-root .bg-white h6.text-white,
+.cm-root .bg-white p.text-white,
+.cm-root .bg-white span.text-white,
+.cm-root .bg-white label.text-white,
+.cm-root .bg-white li.text-white {
+  color: var(--cm-ink-2) !important;
+  -webkit-text-fill-color: var(--cm-ink-2) !important;
+}
+
+.cm-root .bg-white a:not(.text-white),
+.cm-root .bg-white a.text-white {
+  color: var(--cm-cyan-dark) !important;
+  -webkit-text-fill-color: var(--cm-cyan-dark) !important;
+}
+.cm-root .bg-white a:hover:not([class*="bg-"]) {
+  color: #024D5C !important;
+}
+
+/* LIGHT INPUTS: never allow white-on-white typing or placeholders. */
+.cm-root .bg-white input:not(.cm-auth-input),
+.cm-root .bg-white textarea:not(.cm-auth-input),
+.cm-root .bg-white select:not(.cm-auth-input) {
+  background: #FFFFFF !important;
+  color: var(--cm-ink-2) !important;
+  -webkit-text-fill-color: var(--cm-ink-2) !important;
+  border-color: var(--cm-border) !important;
+}
+.cm-root .bg-white input::placeholder,
+.cm-root .bg-white textarea::placeholder,
+.cm-root .bg-white select::placeholder {
+  color: var(--cm-muted) !important;
+  -webkit-text-fill-color: var(--cm-muted) !important;
+  opacity: 1 !important;
+}
+
+/* LIGHT PAGE HEADERS: marketplace/B2B/profile/verification content stays dark. */
+.cm-root .cm-marketplace-page > .mb-7,
+.cm-root .cm-b2b-page > .mb-7,
+.cm-root .cm-account-page,
+.cm-root .cm-page-canvas .cm-admin-shell {
+  color: var(--cm-ink-2) !important;
+}
+.cm-root .cm-marketplace-page > .mb-7 h1,
+.cm-root .cm-marketplace-page > .mb-7 p,
+.cm-root .cm-b2b-page > .mb-7 h1,
+.cm-root .cm-b2b-page > .mb-7 p {
+  text-shadow: none !important;
+}
+
+/* PUBLIC PROFILE / CLAIM SURFACES are intentionally light. */
+.cm-root.min-h-screen.bg-white,
+.cm-root.min-h-screen.bg-white .cm-page-canvas,
+.cm-root.min-h-screen.bg-white .cm-page-canvas > * {
+  color: var(--cm-ink-2);
+}
+.cm-root.min-h-screen.bg-white .cm-page-canvas .bg-white {
+  background: #FFFFFF !important;
+  color: var(--cm-ink-2) !important;
+}
+
+/* DARK FEATURE PANELS: white copy only. */
+.cm-root .cm-feature-guide,
+.cm-root .cm-feature-guide * {
+  color: #FFFFFF !important;
+}
+.cm-root .cm-feature-guide p,
+.cm-root .cm-feature-guide li,
+.cm-root .cm-feature-guide .text-gray-300,
+.cm-root .cm-feature-guide .text-gray-400,
+.cm-root .cm-feature-guide .text-gray-500 {
+  color: #D9E4F2 !important;
+}
+
+/* AUTH CARD: deliberate dark exception to the global light-input contract. */
+.cm-root .cm-auth-card,
+.cm-root .cm-auth-card h1,
+.cm-root .cm-auth-card h2,
+.cm-root .cm-auth-card h3,
+.cm-root .cm-auth-card p,
+.cm-root .cm-auth-card label,
+.cm-root .cm-auth-card span {
+  color: #FFFFFF !important;
+}
+.cm-root .cm-auth-card input,
+.cm-root .cm-auth-card textarea,
+.cm-root .cm-auth-card select {
+  background: rgba(255,255,255,.05) !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  border-color: #294663 !important;
+}
+.cm-root .cm-auth-card input::placeholder,
+.cm-root .cm-auth-card textarea::placeholder {
+  color: #91A5BE !important;
+  -webkit-text-fill-color: #91A5BE !important;
+}
+
+/* ACCOUNT SETTINGS / TRUST CENTER: navy shell, white cards, dark card copy. */
+.cm-root .cm-account-page > .bg-white,
+.cm-root .cm-account-page #account-trust-center .bg-white,
+.cm-root .cm-account-page .bg-white {
+  background: #FFFFFF !important;
+  color: var(--cm-ink-2) !important;
+}
+.cm-root .cm-account-page .bg-white h1,
+.cm-root .cm-account-page .bg-white h2,
+.cm-root .cm-account-page .bg-white h3,
+.cm-root .cm-account-page .bg-white p,
+.cm-root .cm-account-page .bg-white label,
+.cm-root .cm-account-page .bg-white li,
+.cm-root .cm-account-page .bg-white strong {
+  color: var(--cm-ink-2) !important;
+}
+
+/* ADMIN CONTROL CENTER: light panels and explicit semantic statuses. */
+.cm-root .cm-admin-shell .cm-admin-panel-card,
+.cm-root .cm-admin-shell .cm-admin-tab-content,
+.cm-root .cm-admin-shell .cm-admin-filter {
+  color: var(--cm-ink-2) !important;
+}
+.cm-root .cm-admin-shell .cm-admin-status[data-status="success"] { color: var(--cm-success) !important; }
+.cm-root .cm-admin-shell .cm-admin-status[data-status="warning"] { color: var(--cm-warning) !important; }
+.cm-root .cm-admin-shell .cm-admin-status[data-status="danger"] { color: var(--cm-danger) !important; }
+
+/* HEADER IDENTITY: the account name is always readable on the dark header. */
+.cm-root header .cm-account-name {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root header .cm-account-meta {
+  color: #8FEAFF !important;
+  -webkit-text-fill-color: #8FEAFF !important;
+}
+
+/* Brand controls: white text is reserved for actual filled brand controls. */
+.cm-root button[style*="#E6007A"],
+.cm-root button[style*="#e6007a"],
+.cm-root a[style*="#E6007A"],
+.cm-root a[style*="#e6007a"] {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* Never let disabled controls become invisible. */
+.cm-root button:disabled,
+.cm-root a[aria-disabled="true"] {
+  opacity: .62;
+}
+.cm-root button:disabled,
+.cm-root button:disabled span,
+.cm-root button:disabled svg {
+  color: inherit;
+}
+
+/* FINAL FOCUS VISIBILITY */
+.cm-root :focus-visible {
+  outline: 3px solid rgba(0,217,255,.42) !important;
+  outline-offset: 2px !important;
+}
