@@ -935,8 +935,8 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>
-            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#FFFFFF' }}>Where <span style={{ color: '#FF4FA6' }}>creators</span> and <span style={{ color: '#4FE3FF' }}>businesses</span> connect professionally.</h1>
-            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#D9E4F2' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
+            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#07152F' }}>Where <span style={{ color: '#B80061' }}>creators</span> and <span style={{ color: '#007E99' }}>businesses</span> connect professionally.</h1>
+            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#334155' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <button onClick={() => setPage('explore')} style={{ background: '#E6007A' }} className="text-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-100">Explore creators <ArrowRight size={16}/></button>
               <button onClick={() => setPage('explore')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 bg-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2">Explore businesses <Building2 size={16}/></button>
@@ -1081,7 +1081,7 @@ const ExploreTabs = ({ active, onChange, primaryLabel }) => (
         onClick={() => onChange(tab.id)}
         className="px-4 py-3 text-sm font-bold border-b-2 -mb-px transition-colors"
         style={{
-          color: active === tab.id ? '#FFFFFF' : '#9FB0C4',
+          color: active === tab.id ? '#07152F' : '#526078',
           borderColor: active === tab.id ? '#E6007A' : 'transparent'
         }}
       >
