@@ -10,7 +10,7 @@ import {
   UserCheck, Building2, Sparkles, ArrowRight, Flame, Camera, Globe,
   Phone, Upload, ChevronLeft, Check, Video, Link2, Languages,
   LogOut, Settings, ImagePlus, AtSign, ShoppingBag, Lock, Mail, HelpCircle, Heart, Flag, UserX, Music2,
-  LayoutDashboard, Network, ShieldCheck, CreditCard, Store, UserPlus, Repeat, Pencil, Megaphone
+  LayoutDashboard, Network, ShieldCheck, CreditCard, Store, UserPlus, Repeat, Pencil, Megaphone, Download
 } from 'lucide-react';
 
 // Admin status is now determined server-side by the public.is_admin() RPC
@@ -659,6 +659,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Account</p>
               {session ? (
                 <div className="flex flex-col gap-1">
+                  <button onClick={() => { setPage('nfc-settings'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center gap-2" style={{color:page==='nfc-settings'?'#C00062':'#334155',background:page==='nfc-settings'?'#FDE7F1':'transparent'}}><Zap size={16}/> NFC information settings <ChevronRight size={15} className="ml-auto"/></button>
                   <button
                     onClick={() => setAddingProfile(v => !v)}
                     className="w-full mb-3 rounded-2xl border-2 p-3.5 text-left flex items-center gap-3 transition-all"
@@ -2852,17 +2853,36 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
 
 /* ---------------------------------- app ---------------------------------- */
 
-const NfcDisplaySettings = ({ session, activeRole }) => {
-  const [settings,setSettings]=useState({name:true,photo:true,bio:true,role:true,location:true,website:true,socials:true,services:true,portfolio:true});
-  const [busy,setBusy]=useState(false); const [message,setMessage]=useState(''); const [profileId,setProfileId]=useState(''); const [profileName,setProfileName]=useState('');
-  useEffect(()=>{ if(!session?.user?.id){setProfileId('');return;} const table=activeRole==='business'?'business_profiles':'creator_profiles'; const cols=activeRole==='business'?'id,business_name,username,nfc_display_settings':'id,page_name,username,nfc_display_settings'; supabase.from(table).select(cols).eq('auth_user_id',session.user.id).maybeSingle().then(({data,error})=>{if(error){setMessage(safeUserError(error,'Could not load your NFC profile link.'));return;} setProfileId(data?.id||'');setProfileName(data?.business_name||data?.page_name||data?.username||'');if(data?.nfc_display_settings&&typeof data.nfc_display_settings==='object')setSettings(v=>({...v,...data.nfc_display_settings}));}); },[session?.user?.id,activeRole]);
+const NfcDisplaySettings = ({ session, activeRole, fullPage = false }) => {
+  const [settings,setSettings]=useState({name:true,photo:true,bio:true,role:true,location:true,language:true,availability:true,website:true,socials:true,services:true,portfolio:true});
+  const [busy,setBusy]=useState(false); const [message,setMessage]=useState(''); const [profileId,setProfileId]=useState(''); const [profileName,setProfileName]=useState(''); const [bannerUrl,setBannerUrl]=useState('');
+  useEffect(()=>{ if(!session?.user?.id){setProfileId('');setProfileName('');setBannerUrl('');return;} const table=activeRole==='business'?'business_profiles':'creator_profiles'; const cols=activeRole==='business'?'id,business_name,username,banner_url,nfc_display_settings':'id,page_name,username,banner_url,nfc_display_settings'; supabase.from(table).select(cols).eq('auth_user_id',session.user.id).maybeSingle().then(({data,error})=>{if(error){setMessage(safeUserError(error,'Could not load your NFC profile link.'));return;} setProfileId(data?.id||'');setProfileName(data?.business_name||data?.page_name||data?.username||'');setBannerUrl(data?.banner_url||'');if(data?.nfc_display_settings&&typeof data.nfc_display_settings==='object')setSettings(v=>({...v,...data.nfc_display_settings}));}); },[session?.user?.id,activeRole]);
   const profileUrl=profileId?`${window.location.origin}/${activeRole==='business'?'business':'creator'}/${encodeURIComponent(profileId)}`:'';
   const copyLink=async()=>{if(!profileUrl){setMessage('Finish creating your profile first, then your NFC link will appear here.');return;}try{await navigator.clipboard.writeText(profileUrl);setMessage('Profile link copied. Write this URL to your NFC tag.');}catch{setMessage(`Copy this URL manually: ${profileUrl}`);}};
-  const save=async()=>{setBusy(true);setMessage('');const {error}=await supabase.rpc('update_my_nfc_display_settings',{p_kind:activeRole,p_settings:settings});setBusy(false);setMessage(error?safeUserError(error,'Could not save NFC display settings. Apply the NFC display-settings migration if this feature is not installed.'):'NFC display settings saved.');};
-  const labels=[['name','Name'],['photo','Profile photo'],['bio','Bio'],['role',activeRole==='business'?'Industry':'Role / niche'],['location','Location'],['website','Website / social links'],['socials','Social accounts'],['services','Services'],['portfolio','Portfolio']];
-  return <section className="bg-white border rounded-2xl p-6 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3 mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>NFC card setup</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Available to every signed-in Creator and Business account. No admin approval is needed to prepare your card. Choose the public details, save, then write your profile link to the NFC tag using an NFC-capable phone or writer.</p></div><Zap size={18} style={{color:'#E6007A'}}/></div>
-    <div className="rounded-xl border p-4 mb-4" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Your card destination{profileName?` · ${profileName}`:''}</p>{profileUrl?<p className="text-xs break-all mt-2" style={{color:'#334155'}}>{profileUrl}</p>:<p className="text-xs mt-2" style={{color:'#64748B'}}>Complete your {activeRole} profile to generate its link.</p>}<div className="flex flex-wrap gap-2 mt-3"><button type="button" onClick={copyLink} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white" style={{background:'#07152F'}}>Copy NFC link</button>{profileUrl&&<a href={profileUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold px-4 py-2.5 rounded-lg border" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}>Open profile website</a>}</div><ol className="mt-3 space-y-1 text-[11px] leading-5" style={{color:'#526078'}}><li>1. Copy your link above.</li><li>2. Open an NFC writing app or your phone's NFC tag writer and write the URL as a web link/URI record.</li><li>3. Save the tag, tap it with another phone, and confirm it opens your public profile.</li><li>4. If NFC writing is unavailable, the same link works as a normal website link.</li></ol></div>
-    <p className="text-xs font-semibold mb-2" style={{color:'#334155'}}>Choose what appears on the NFC profile</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{labels.map(([key,label])=><label key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer" style={{borderColor:'#E5E7EB'}}><input type="checkbox" checked={!!settings[key]} onChange={e=>setSettings(v=>({...v,[key]:e.target.checked}))}/><span className="text-xs font-semibold" style={{color:'#334155'}}>{label}</span></label>)}</div><div className="flex items-center gap-3 mt-4"><button type="button" onClick={save} disabled={busy} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Saving…':'Save NFC settings'}</button>{message&&<span className="text-xs break-all" style={{color:message.includes('saved')||message.includes('copied')?'#0E7A3B':'#B42318'}}>{message}</span>}</div></section>;
+  const save=async()=>{setBusy(true);setMessage('');const {error}=await supabase.rpc('update_my_nfc_display_settings',{p_kind:activeRole,p_settings:settings});setBusy(false);setMessage(error?safeUserError(error,'Could not save NFC display settings. Apply the NFC display-settings migration if this feature is not installed.'):'NFC display settings saved. Your public NFC page will use these choices.');};
+  const labels=[['name','Name'],['photo','Profile photo'],['bio','Bio'],['role',activeRole==='business'?'Industry':'Role / niche'],['location','Location'],...(activeRole==='creator'?[['language','Language'],['availability','Availability']]:[]),['website','Website'],['socials','Social accounts'],['services','Services'],['portfolio','Portfolio']];
+  const content=<>
+    <div className="border-b px-4 py-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div><p className="text-sm font-bold" style={{color:'#07152F'}}>NFC information settings</p><p className="text-xs mt-1" style={{color:'#526078'}}>Choose exactly which public details appear when someone taps your card.</p></div><Zap size={19} style={{color:'#E6007A'}}/></div>
+    <div className="p-4">
+      <div className="rounded-xl overflow-hidden border mb-3" style={{borderColor:'#E5E7EB'}}>
+        <div className="h-28 sm:h-36 relative" style={{background:bannerUrl?`url(${bannerUrl}) center/cover`:'linear-gradient(110deg,#07152F,#17365D)'}}><div className="absolute inset-0 flex items-end p-3" style={{background:'linear-gradient(180deg,transparent,rgba(7,21,47,.76))'}}><div><p className="text-[10px] uppercase tracking-widest font-bold" style={{color:'#FFFFFF'}}>Commissioner · NFC profile</p><p className="text-lg font-bold" style={{color:'#FFFFFF'}}>{profileName||'Your account profile'}</p></div></div></div>
+        <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-2 bg-white"><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>Configured by the account holder</span><span className="text-[11px]" style={{color:'#64748B'}}>Top banner uses your profile banner</span></div>
+      </div>
+      <p className="text-xs font-semibold mb-2" style={{color:'#334155'}}>Card destination</p>
+      <div className="rounded-lg border p-3" style={{borderColor:'#E5E7EB',background:'#F8FAFC'}}>
+        {profileUrl?<p className="text-xs break-all" style={{color:'#334155'}}>{profileUrl}</p>:<p className="text-xs" style={{color:'#64748B'}}>Complete your {activeRole} profile to generate its link.</p>}
+        <div className="flex flex-wrap gap-2 mt-2"><button type="button" onClick={copyLink} className="text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#07152F'}}>Copy NFC link</button>{profileUrl&&<a href={profileUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold px-3 py-2 rounded-lg border" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}>Go to Website</a>}</div>
+      </div>
+      <div className="mt-3">
+        <p className="text-xs font-semibold mb-1" style={{color:'#334155'}}>Show on the NFC page</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2" style={{columnGap:0,rowGap:0}}>{labels.map(([key,label],i)=><label key={key} className="flex items-center gap-2 px-2 py-2 cursor-pointer border-b" style={{borderColor:'#E5E7EB'}}><input type="checkbox" checked={!!settings[key]} onChange={e=>setSettings(v=>({...v,[key]:e.target.checked}))}/><span className="text-xs" style={{color:'#334155'}}>{label}</span></label>)}</div>
+      </div>
+      <div className="flex items-center flex-wrap gap-2 mt-3"><button type="button" onClick={save} disabled={busy} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Saving…':'Save NFC settings'}</button>{message&&<span className="text-xs break-all" style={{color:message.includes('saved')||message.includes('copied')?'#0E7A3B':'#B42318'}}>{message}</span>}</div>
+      <div className="mt-3 rounded-lg px-3 py-2" style={{background:'#F8FAFC'}}><p className="text-[11px] leading-5" style={{color:'#526078'}}>To program a physical card: copy the link, open an NFC writing app on a supported device, write it as a URL/URI record, save, and test the card. Safari on iPhone 7 cannot write NFC tags directly from this website; use a compatible NFC writing app/device or a USB NFC writer.</p></div>
+    </div>
+  </>;
+  if(fullPage) return <main className="max-w-5xl mx-auto px-4 md:px-8 py-4 md:py-6"><div className="rounded-2xl overflow-hidden border bg-white" style={{borderColor:'#E5E7EB'}}>{content}</div></main>;
+  return <section className="bg-white border rounded-2xl overflow-hidden mb-6" style={{borderColor:'#E5E7EB'}}>{content}</section>;
 };
 
 const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness, setActiveRole, refreshMyProfiles, onEditProfile }) => {
@@ -3396,6 +3416,50 @@ const CreatorProducts = ({ profile }) => {
   return <div className="mb-8"><div className="flex items-center gap-2 mb-3"><ShoppingBag size={17} style={{color:'#036377'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Products & services</p></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{products.map(p=><div key={p.id} className="border rounded-2xl overflow-hidden bg-white" style={{borderColor:'#E5E7EB'}}>{p.image_url&&<img src={p.image_url} alt="" className="w-full h-36 object-cover"/>}<div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>{p.name}</p><p className="text-xs mt-1" style={{color:'#334155'}}>{p.description}</p></div><span className="text-xs font-bold whitespace-nowrap" style={{color:'#334155'}}>{p.price != null ? `${Number(p.price).toLocaleString()} ${p.currency}` : 'Contact'}</span></div>{p.purchase_url&&<a href={p.purchase_url} target="_blank" rel="noreferrer" onClick={()=>supabase.rpc('track_profile_event',{p_creator_profile_id:profile.id,p_event_type:'product_view'}).catch(()=>{})} className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>{p.type==='service'?'Book / enquire':'Buy / order'} <ArrowUpRight size={13}/></a>}</div></div>)}</div></div>;
 };
 
+const downloadNfcContact = (profile, kind) => {
+  const nfc = profile.nfc_display_settings && typeof profile.nfc_display_settings === 'object' ? profile.nfc_display_settings : {};
+  const fullName = nfc.name === false ? (kind === 'business' ? 'Business contact' : 'Creator contact') : (kind === 'business' ? (profile.business_name || profile.username || 'Business') : (profile.page_name || profile.username || 'Creator'));
+  const role = nfc.role === false ? '' : (kind === 'business' ? (profile.industry || 'Business') : (profile.primary_niche || 'Creator'));
+  const publicUrl = `${window.location.origin}/${kind}/${encodeURIComponent(profile.id)}`;
+  const clean = value => String(value || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+  const lines = ['BEGIN:VCARD','VERSION:3.0',`FN:${clean(fullName)}`,`ORG:${clean(role)}`,`URL:${publicUrl}`];
+  if (nfc.location !== false && profile.city) lines.push(`ADR;TYPE=WORK:;;${clean(profile.city)};;;;`);
+  if (kind === 'business' && nfc.website !== false && profile.website) lines.push(`item1.URL:${/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`}`, 'item1.X-ABLabel:Website');
+  if (kind === 'creator' && nfc.portfolio !== false && profile.portfolio_link) lines.push(`item1.URL:${profile.portfolio_link}`, 'item1.X-ABLabel:Portfolio');
+  lines.push('NOTE:Saved from a public Commissioner NFC profile','END:VCARD');
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/vcard;charset=utf-8' });
+  const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${fullName.replace(/[^a-z0-9-_]+/gi,'-') || 'commissioner-contact'}.vcf`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+};
+
+const downloadNfcProfileInfo = (profile, kind) => {
+  const nfc = profile.nfc_display_settings && typeof profile.nfc_display_settings === 'object' ? profile.nfc_display_settings : {};
+  const lines = ['Commissioner NFC Profile', ''];
+  const name = kind === 'business' ? (profile.business_name || profile.username || 'Business') : (profile.page_name || profile.username || 'Creator');
+  if (nfc.name !== false) lines.push(`Name: ${name}`);
+  const role = kind === 'business' ? profile.industry : profile.primary_niche;
+  if (nfc.role !== false && role) lines.push(`${kind === 'business' ? 'Industry' : 'Role / niche'}: ${role}`);
+  if (nfc.bio !== false && profile.bio) lines.push('', 'About:', profile.bio);
+  if (nfc.location !== false && profile.city) lines.push(`Location: ${profile.city}`);
+  if (kind === 'creator' && nfc.language !== false && profile.language) lines.push(`Language: ${profile.language}`);
+  if (kind === 'creator' && nfc.availability !== false && profile.availability) lines.push(`Availability: ${profile.availability}`);
+  lines.push('', `Commissioner profile: ${window.location.origin}/${kind}/${encodeURIComponent(profile.id)}`);
+  if (kind === 'business' && nfc.website !== false && profile.website) lines.push(`Website: ${/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`}`);
+  if (kind === 'creator' && nfc.portfolio !== false && profile.portfolio_link) lines.push(`Portfolio: ${profile.portfolio_link}`);
+  if (kind === 'creator' && nfc.socials !== false && profile.platforms && typeof profile.platforms === 'object') {
+    const socials = Object.entries(profile.platforms).filter(([,v]) => v && (v.url || v.handle));
+    if (socials.length) { lines.push('', 'Social accounts:'); socials.forEach(([key,v]) => lines.push(`${key}: ${v.url || v.handle}`)); }
+  }
+  if (kind === 'creator' && nfc.services !== false && profile.services && typeof profile.services === 'object') {
+    const services = Object.entries(profile.services).filter(([,v]) => v);
+    if (services.length) { lines.push('', 'Services:'); services.forEach(([key,v]) => lines.push(`${key.replaceAll('_',' ')}: ${v}`)); }
+  }
+  if (kind === 'creator' && nfc.portfolio !== false && Array.isArray(profile.portfolio_media) && profile.portfolio_media.length) {
+    lines.push('', 'Portfolio items:'); profile.portfolio_media.forEach((item,i) => { if (item?.url) lines.push(`${item.name || `Item ${i+1}`}: ${item.url}`); });
+  }
+  const blob = new Blob([lines.join('\n')], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${name.replace(/[^a-z0-9-_]+/gi,'-') || 'commissioner-profile'}-info.txt`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+};
+
 const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPage, nfcMode = false }) => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reviewRefresh, setReviewRefresh] = useState(0);
@@ -3415,6 +3479,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               <span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner profile
             </div>
           </div>
+          {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/creator/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>Go to Website <ArrowUpRight size={14}/></a></div>}
           <div className="px-5 md:px-8 pb-8">
             <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
               <div className="relative shrink-0 w-fit">
@@ -3433,9 +3498,9 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               </div>
               <div className="pb-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.page_name || profile.username || 'Creator'}</h1>
+                  {showNfc('name') && <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.page_name || profile.username || 'Creator'}</h1>}
                 </div>
-                <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
+                <p className="text-sm" style={{ color: '#334155' }}>{showNfc('name') && profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
                 <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
               </div>
               {!canEdit && profile.auth_user_id && (
@@ -3446,8 +3511,8 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
             </div>
             <div className="flex flex-wrap gap-2 mb-6">
               {showNfc('role') && profile.primary_niche && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#FDE7F1', color: '#99154F' }}>{profile.primary_niche}</span>}
-              {profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
-              {profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
+              {showNfc('language') && profile.language && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E0FBFF', color: '#036377' }}>{profile.language}</span>}
+              {showNfc('availability') && profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
             </div>
             {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
             <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>
@@ -3514,6 +3579,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
         <div className="h-36 md:h-48 relative" style={{ background: profile.banner_url ? `url(${profile.banner_url}) center/cover` : 'linear-gradient(120deg,#FFFFFF,#FFFFFF)' }}>
           <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#334155' }}><span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner business profile</div>
         </div>
+        {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/business/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>Go to Website <ArrowUpRight size={14}/></a></div>}
         <div className="px-5 md:px-8 pb-8">
           <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
             <div className="relative shrink-0 w-fit">
@@ -3531,8 +3597,8 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
               )}
             </div>
             <div className="pb-1">
-              <div className="flex items-center gap-2 flex-wrap"><h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.business_name || profile.username || 'Business'}</h1></div>
-              <p className="text-sm" style={{ color: '#334155' }}>{profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
+              <div className="flex items-center gap-2 flex-wrap">{showNfc('name') && <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.business_name || profile.username || 'Business'}</h1>}</div>
+              <p className="text-sm" style={{ color: '#334155' }}>{showNfc('name') && profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
               <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
             </div>
             {profile.auth_user_id && (
@@ -5698,6 +5764,7 @@ export default function Commissioner() {
         ? <BusinessOnboarding session={session} setPage={(p) => { setEditingProfile(false); setPage(p); }} editMode={editingProfile} />
         : <Onboarding session={session} setPage={setPage} editMode={editingProfile} onSaved={() => { setEditingProfile(false); setPage('account'); }} />)}
       {page === 'account' && (session ? <AccountSettings session={session} setPage={setPage} activeRole={activeRole} hasCreator={hasCreator} hasBusiness={hasBusiness} setActiveRole={setActiveRole} refreshMyProfiles={refreshMyProfiles} onEditProfile={() => openOnboarding(activeRole, { edit: true })} /> : <Auth onAuthenticated={() => setPage('account')} />)}
+      {page === 'nfc-settings' && (session ? <NfcDisplaySettings session={session} activeRole={activeRole} fullPage /> : <Auth onAuthenticated={() => setPage('nfc-settings')} />)}
       {page === 'admin' && <AdminPanel session={session} />}
       {page === 'auth' && (
         <div className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16">
