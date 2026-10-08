@@ -1485,3 +1485,75 @@ html, body {
 
 /* Commissioner auth provider control */
 .cm-auth-google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #D7DFEA;background:#FFFFFF;color:#07152F;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .15s ease}.cm-auth-google:hover{background:#F8FAFC;border-color:#B9C7D8}.cm-auth-google:disabled{opacity:.6;cursor:not-allowed}.cm-auth-google-mark{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:#FFFFFF;border:1px solid #E5E7EB;color:#4285F4}.cm-auth-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:#94A3B8;font-size:11px;font-weight:600}.cm-auth-divider::before,.cm-auth-divider::after{content:"";height:1px;flex:1;background:#E5E7EB}.cm-auth-divider span{white-space:nowrap}
+
+/* === V1 final contrast + responsive polish === */
+.cm-root .cm-feature-guide {
+  background: #07152F !important;
+  border-color: #294663 !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,.16);
+}
+.cm-root .cm-feature-guide * { box-sizing: border-box; }
+
+/* The page canvas is dark in V1: direct text on it is always light. */
+.cm-page-canvas > section:not(.bg-white) h1,
+.cm-page-canvas > section:not(.bg-white) h2,
+.cm-page-canvas > section:not(.bg-white) h3,
+.cm-page-canvas > section:not(.bg-white) p,
+.cm-page-canvas > div > h1,
+.cm-page-canvas > div > h2,
+.cm-page-canvas > div > p { }
+
+/* Inputs are bright surfaces, therefore their text must be dark. */
+.cm-root input,
+.cm-root textarea,
+.cm-root select {
+  background: #FFFFFF !important;
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+  caret-color: #172033 !important;
+}
+.cm-root input::placeholder,
+.cm-root textarea::placeholder {
+  color: #64748B !important;
+  -webkit-text-fill-color: #64748B !important;
+}
+
+/* Never let global dark-canvas rules turn white-card typography white/low contrast. */
+.cm-root .bg-white,
+.cm-root .bg-white * { }
+.cm-root .cm-home-hero h1 { color: #FFFFFF !important; }
+.cm-root .cm-home-hero > .grid > div:first-child > p { color: #D9E4F2 !important; }
+.cm-root .cm-home-hero .bg-white h1,
+.cm-root .cm-home-hero .bg-white h2,
+.cm-root .cm-home-hero .bg-white h3,
+.cm-root .cm-home-hero .bg-white p { }
+
+/* Header identity: name is never hidden on desktop or phone. */
+.cm-root header .cm-account-name { color: #FFFFFF !important; }
+.cm-root header .cm-account-meta { color: #8FEAFF !important; }
+@media (max-width: 640px) {
+  .cm-root header .cm-account-name {
+    display: block !important;
+    max-width: 92px !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+  }
+  .cm-root header .cm-account-meta { display: none !important; }
+  .cm-root header .cm-menu-button { width: 42px !important; height: 42px !important; }
+  .cm-root header .max-w-7xl { padding-left: 12px !important; padding-right: 12px !important; }
+  .cm-root .cm-feature-guide { padding: 16px !important; border-radius: 18px !important; }
+}
+
+/* Prevent dense grids from overflowing narrow phones. */
+@media (max-width: 768px) {
+  .cm-root .grid { min-width: 0; }
+  .cm-root .cm-home-hero { padding-left: 16px !important; padding-right: 16px !important; }
+  .cm-root .cm-home-hero .absolute { position: static !important; margin-top: 12px; }
+  .cm-root .cm-home-hero h1 { font-size: clamp(2.25rem, 13vw, 3.8rem) !important; }
+  .cm-root .cm-home-hero .bg-white { border-radius: 20px !important; }
+}
+.cm-root header > .max-w-7xl > button:first-child span { color: #FFFFFF !important; }
+.cm-root header .cm-menu-button,
+.cm-root header [aria-label="Notifications"],
+.cm-root header [data-tour="nav-account"] { color: #FFFFFF !important; }
+.cm-root header [data-tour="nav-account"] { background: transparent !important; }

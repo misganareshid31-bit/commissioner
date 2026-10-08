@@ -170,10 +170,6 @@ async function fetchLiveBusinesses(limit = 48) {
 // changed by an admin without a redeploy.
 const LAUNCH_THRESHOLD = 50;
 
-// Current creator verification requirement. The authoritative value is
-// public.verification_settings.youtube_subscriber_threshold; this fallback
-// keeps the UI deterministic before the migration has been applied.
-const FOLLOWER_THRESHOLD_FALLBACK = 1000;
 
 // Single source of truth for launch-gate stats, called from every page
 // that needs them. Reads the live counts and the live threshold in one
@@ -192,12 +188,6 @@ async function fetchLaunchStats() {
       threshold: creatorThreshold,
       creatorThreshold,
       businessThreshold,
-      // Creator follower-count eligibility bar for verification (separate
-      // from the network launch thresholds above). Lives in
-      // public.platform_settings, editable via admin_set_follower_threshold().
-      // Falls back to 15000 if 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql
-      // hasn't been applied to this database yet.
-      followerThreshold: data.follower_threshold ?? FOLLOWER_THRESHOLD_FALLBACK,
       unlocked: creatorCount >= creatorThreshold && businessCount >= businessThreshold,
     };
   }
@@ -218,7 +208,6 @@ async function fetchLaunchStats() {
     threshold: LAUNCH_THRESHOLD,
     creatorThreshold: LAUNCH_THRESHOLD,
     businessThreshold: LAUNCH_THRESHOLD,
-    followerThreshold: FOLLOWER_THRESHOLD_FALLBACK,
     unlocked: creatorCount >= LAUNCH_THRESHOLD && businessCount >= LAUNCH_THRESHOLD,
   };
 }
@@ -265,43 +254,16 @@ const LaunchProgressBar = ({ label, count, threshold, color }) => (
   </div>
 );
 
-// Public-facing explanation of the 50/50 verification milestone. Live
-// creator/business counts remain an admin-only operational metric.
-const VerificationMilestoneCard = ({ compact = false }) => (
-  <div className="bg-white border rounded-2xl p-5 md:p-6" style={{ borderColor: '#E5E7EB' }}>
-    <div className="flex items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: '#EEF2F7' }}>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#07152F' }}>
-        <img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-7 h-7 object-contain" />
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2"><p className="text-sm font-bold" style={{ color: '#07152F' }}>Commissioner account</p><span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background:'#E0FBFF', color:'#036377' }}>Pinned</span></div>
-        <p className="text-[11px]" style={{ color: '#64748B' }}>Official platform account • verification information</p>
-      </div>
-    </div>
-    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#E6007A' }}>The 50 / 50 verification milestone</p>
-    <h3 className="cm-display font-bold text-xl md:text-2xl mt-1" style={{ color: '#07152F' }}>Build the verified network together.</h3>
-    <p className="text-sm leading-6 mt-2" style={{ color: '#475569' }}>
-      Commissioner opens full professional networking when the platform reaches <strong>50 verified creators and 50 verified businesses</strong>. This is a verification milestone, not a public popularity counter.
-    </p>
-    <div className="grid md:grid-cols-3 gap-3 mt-5">
-      {[
-        ['01','Complete your profile','Finish the required identity, professional and account information.'],
-        ['02','Request verification','Creators provide linked-account and audience evidence; businesses provide business information and authorized-representative information.'],
-        ['03','Admin review','Commissioner reviews the specific evidence. Approved accounts receive the verification badge and can contribute to the 50/50 milestone.']
-      ].map(([n,t,d]) => <div key={n} className="rounded-xl p-4" style={{ background: n==='02' ? '#FDE7F1' : '#F8FAFC' }}><span className="cm-mono text-[10px] font-bold" style={{ color: n==='02' ? '#E6007A' : '#036377' }}>{n}</span><p className="text-xs font-bold mt-2" style={{ color:'#07152F' }}>{t}</p><p className="text-[11px] leading-5 mt-1" style={{ color:'#64748B' }}>{d}</p></div>)}
-    </div>
-    {!compact && <p className="text-[11px] mt-4" style={{ color:'#64748B' }}>Verification confirms specific claims. It is not a blanket guarantee of conduct, quality or the outcome of a deal.</p>}
-  </div>
-);
+// V1 intentionally has no public 50/50 verification milestone.
+// Verification is available to completed profiles immediately; network feature
+// gates remain separate operational controls.
+const VerificationMilestoneCard = () => null;
 
-// Inline notice shown in place of a locked action (Connect, starting a new
-// conversation, etc.) while the platform is still below the 50/50 threshold.
 const LaunchGateNotice = ({ stats }) => (
   <div className="bg-white border rounded-2xl p-6 text-center" style={{ borderColor: '#E5E7EB' }}>
     <Lock size={22} className="mx-auto mb-3" style={{ color: '#9CA3AF' }} />
-    <p className="text-sm font-semibold" style={{ color: '#07152F' }}>Networking unlocks at {stats?.threshold ?? LAUNCH_THRESHOLD} verified creators & businesses</p>
-    <p className="text-xs mt-1 mb-4" style={{ color: '#526078' }}>Profiles, verification, and the marketplace are open now — connecting and messaging open platform-wide once we hit the threshold.</p>
-    <div className="mt-4"><VerificationMilestoneCard compact /></div>
+    <p className="text-sm font-semibold" style={{ color: '#07152F' }}>This network feature is not open yet</p>
+    <p className="text-xs mt-1" style={{ color: '#526078' }}>Your profile and verification remain available. This specific networking feature will open when its platform launch requirements are met.</p>
   </div>
 );
 
@@ -478,11 +440,10 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   // primary navigation.
   const links = session
     ? [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'explore', label: 'Explore', icon: Globe },
         { id: 'marketplace', label: 'Marketplace', icon: Store },
         { id: 'network', label: 'B2B network', icon: Network },
-        { id: 'messages', label: 'Messages', icon: MessageSquare },
+        { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
         { id: 'pricing', label: 'Plans', icon: CreditCard },
       ]
     : [
@@ -551,31 +512,32 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               )}
             </div>
           )}
-          {session && (
-            <button
-              aria-label="Messages"
-              onClick={() => { setPage('messages'); setNotifOpen(false); setAccountMenuOpen(false); }}
-              className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-              style={{ color: page === 'messages' ? roleAccentInk : '#334155', background: page === 'messages' ? roleAccentSoft : 'transparent' }}
-            >
-              <MessageSquare size={18} />
-            </button>
-          )}
           {session ? (
             <div className="relative">
               <button
                 data-tour="nav-account"
                 onClick={() => { setAccountMenuOpen(o => !o); setNotifOpen(false); }}
                 className="flex items-center gap-2 text-sm font-semibold px-2.5 py-1.5 rounded-lg"
-                style={{ color: '#334155', background: accountMenuOpen ? '#F8FAFC' : 'transparent' }}
+                style={{ color: '#FFFFFF', background: accountMenuOpen ? '#132542' : 'transparent' }}
               >
                 <Avatar name={activeDisplayName} size={32} ring src={activeProfile?.avatar_url} />
                 <span className="flex flex-col items-start leading-tight max-w-[150px]">
-                  <span className="text-xs font-bold truncate w-full">{activeDisplayName}</span>
-                  <span className="text-[10px] font-semibold" style={{ color: roleAccentInk }}>{isBusiness ? 'Business' : 'Creator'}{activeUsername ? ` · ${activeUsername}` : ''}</span>
+                  <span className="cm-account-name text-xs font-bold truncate w-full">{activeDisplayName}</span>
+                  <span className="cm-account-meta text-[10px] font-semibold" style={{ color: roleAccentInk }}>{isBusiness ? 'Business' : 'Creator'}{activeUsername ? ` · ${activeUsername}` : ''}</span>
                 </span>
                 <ChevronDown size={14} style={{ color: '#334155' }} />
               </button>
+              {hasBothProfiles && (
+                <button
+                  type="button"
+                  onClick={() => switchWorkspace(isBusiness ? 'creator' : 'business')}
+                  title={`Switch to ${isBusiness ? 'creator' : 'business'} account`}
+                  className="hidden sm:flex items-center gap-1.5 ml-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-extrabold uppercase tracking-wider"
+                  style={{ borderColor: roleAccent, color: roleAccentInk, background: roleAccentSoft }}
+                >
+                  <Repeat size={13}/> {isBusiness ? 'Creator' : 'Business'}
+                </button>
+              )}
               {accountMenuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border rounded-2xl py-2 z-50" style={{ borderColor: '#E5E7EB', boxShadow: '0 12px 36px rgba(17,24,39,0.12)' }}>
                   {/* The role switcher is explicit: the workspace you are in is
@@ -611,8 +573,6 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                     </div>
                   </div>
                   <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
-                  <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#334155' }}><LayoutDashboard size={16} style={{ color: '#334155' }} />Dashboard</button>
-                  <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#334155' }}><Settings size={16} style={{ color: '#334155' }} />Account settings</button>
                   {!hasBothProfiles && (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2.5" style={{ color: isBusiness ? '#C00062' : '#036377' }}>
                       <UserPlus size={16} />{addingProfile ? 'Setting up…' : `Add a ${isBusiness ? 'creator' : 'business'} profile`}
@@ -648,7 +608,7 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           )}
         </div>
 
-        <button className="lg:hidden cm-menu-button w-10 h-10 rounded-xl flex items-center justify-center" onClick={() => setMenuOpen(!menuOpen)}>
+        <button className="cm-menu-button w-10 h-10 rounded-xl flex items-center justify-center" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
@@ -658,10 +618,10 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           <button
             aria-label="Close navigation"
             onClick={() => setMenuOpen(false)}
-            className="lg:hidden fixed inset-0 z-40 bg-black/30"
+            className="fixed inset-0 z-40 bg-black/30"
           />
           <aside
-            className="lg:hidden fixed top-0 right-0 z-50 h-screen w-[min(88vw,360px)] bg-white shadow-2xl border-l flex flex-col"
+            className="fixed top-0 right-0 z-50 h-screen w-[min(92vw,380px)] bg-white shadow-2xl border-l flex flex-col"
             style={{ borderColor: '#E5E7EB' }}
           >
             <div className="h-16 px-5 flex items-center justify-between border-b shrink-0" style={{ borderColor: '#E5E7EB' }}>
@@ -744,8 +704,9 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                       })}
                     </div>
                   )}
-                  <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Dashboard</button>
-                  <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50">Account settings</button>
+                  <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 flex items-center gap-2"><LayoutDashboard size={16}/>Dashboard</button>
+                  <button onClick={() => { setPage('messages'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 flex items-center gap-2"><MessageSquare size={16}/>Messages</button>
+                  <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 flex items-center gap-2"><Settings size={16}/>Account settings</button>
                   {!hasBothProfiles && (
                     <button onClick={addOtherProfile} disabled={addingProfile} className="text-left px-3 py-3 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50" style={{ color: '#036377' }}>
                       {addingProfile ? 'Setting up…' : `Add a ${isBusiness ? 'creator' : 'business'} profile`}
@@ -768,6 +729,41 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
         </>
       )}
     </header>
+  );
+};
+
+const FEATURE_DESCRIPTIONS = {
+  explore: ['Explore', 'Find real creators and businesses, filter by what matters, open profiles, and discover active opportunities.', 'Choose a section, search or filter, open a profile to review the details, then use the available action to connect or collaborate.'],
+  marketplace: ['Marketplace', 'Browse professional products and services offered by Commissioner members.', 'Review a listing, open the owner profile, and start an inquiry when the listing is a fit.'],
+  campaigns: ['Campaigns', 'Discover business briefs and creator opportunities in one focused place.', 'Open a campaign, review the deliverables, budget and requirements, then apply when your profile is complete.'],
+  network: ['B2B Network', 'Build professional relationships with creators and businesses without mixing them with casual social feeds.', 'Search the network, review verified facts, write a clear connection message, and continue accepted conversations in Messages.'],
+  messages: ['Messages', 'Keep professional conversations, campaign discussions and marketplace inquiries in one place.', 'Select a conversation, review the thread, write your message, and use the thread actions when you need to report or manage it.'],
+  dashboard: ['Dashboard', 'Your private workspace for the active Creator or Business profile and its main actions.', 'Use the cards and actions on this page to manage your active workspace, open the relevant feature, and switch accounts from the header when needed.'],
+  account: ['Account Settings', 'Manage your login, profile, manual verification request, NFC display settings and account controls.', 'Finish your profile first, then open Verification & Trust to submit one request. While it is pending, you can edit that same request and see its current status.'],
+  pricing: ['Plans', 'Review Commissioner plans and decide which paid features are useful for your professional workflow.', 'Compare the plans, choose the one that fits your needs, and continue through the available upgrade flow.'],
+  spotlight: ['Spotlight', 'A focused place for featured professional content and discovery.', 'Browse available spotlight content and open the creator or business profile when you want more context.'],
+};
+
+const FeatureDescription = ({ page }) => {
+  const item = FEATURE_DESCRIPTIONS[page];
+  if (!item) return null;
+  return (
+    <section className="max-w-7xl mx-auto px-5 md:px-8 pt-4" aria-label={`${item[0]} guide`}>
+      <div className="cm-feature-guide rounded-2xl border p-5 md:p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{background:'#FFFFFF'}}><HelpCircle size={18} style={{color:'#07152F'}}/></div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-extrabold uppercase tracking-[.16em]" style={{color:'#8FEAFF'}}>What you can do</p>
+            <h2 className="cm-display text-base md:text-lg font-bold mt-1" style={{color:'#FFFFFF'}}>{item[0]}</h2>
+            <p className="text-xs md:text-sm leading-6 mt-1.5" style={{color:'#D9E4F2'}}>{item[1]}</p>
+            <div className="mt-3 pt-3 border-t" style={{borderColor:'#294663'}}>
+              <p className="text-[10px] font-extrabold uppercase tracking-[.14em]" style={{color:'#FF9DCA'}}>How to use it</p>
+              <p className="text-xs md:text-sm leading-6 mt-1" style={{color:'#FFFFFF'}}>{item[2]}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -939,8 +935,8 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>
-            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#07152F' }}>Where <span style={{ color: '#FF4FA6' }}>creators</span> and <span style={{ color: '#4FE3FF' }}>businesses</span> connect professionally.</h1>
-            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#C7D2E1' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
+            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#FFFFFF' }}>Where <span style={{ color: '#FF4FA6' }}>creators</span> and <span style={{ color: '#4FE3FF' }}>businesses</span> connect professionally.</h1>
+            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#D9E4F2' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <button onClick={() => setPage('explore')} style={{ background: '#E6007A' }} className="text-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-100">Explore creators <ArrowRight size={16}/></button>
               <button onClick={() => setPage('explore')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 bg-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2">Explore businesses <Building2 size={16}/></button>
@@ -954,8 +950,8 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
           <div className="relative">
             <div className="bg-white border rounded-[2rem] p-4 md:p-5 shadow-2xl" style={{ borderColor: '#E5E7EB' }}>
               <div className="rounded-[1.5rem] p-5 md:p-7" style={{ background:'#07152F' }}>
-                <div className="flex items-center gap-3 mb-6"><div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{background:'#FFFFFF'}}><img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain"/></div><div><div className="flex items-center gap-2"><p className="text-lg font-bold" style={{color:'#07152F'}}>Commissioner</p><span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>Pinned</span></div><p className="text-[10px]" style={{color:'#9FB0C4'}}>Official account • trust & verification</p></div></div>
-                <div className="rounded-2xl p-5 border" style={{background:'linear-gradient(135deg,rgba(230,0,122,.14),rgba(0,217,255,.10))',borderColor:'#294663'}}><p className="text-[10px] uppercase tracking-[.18em] font-bold" style={{color:'#4FE3FF'}}>50 / 50 milestone</p><p className="text-2xl font-bold text-white mt-1">50 verified creators + 50 verified businesses</p><p className="text-xs leading-5 mt-2" style={{color:'#C7D2E1'}}>Complete your profile, request verification, provide the relevant evidence, and wait for Commissioner’s admin review. Verified accounts help build the professional network.</p></div>
+                <div className="flex items-center gap-3 mb-6"><div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{background:'#FFFFFF'}}><img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain"/></div><div><div className="flex items-center gap-2"><p className="text-lg font-bold" style={{color:'#FFFFFF'}}>Commissioner</p><span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>Pinned</span></div><p className="text-[10px]" style={{color:'#9FB0C4'}}>Official account • trust & verification</p></div></div>
+                <div className="rounded-2xl p-5 border" style={{background:'linear-gradient(135deg,rgba(230,0,122,.14),rgba(0,217,255,.10))',borderColor:'#294663'}}><p className="text-[10px] uppercase tracking-[.18em] font-bold" style={{color:'#4FE3FF'}}>How Commissioner works</p><p className="text-2xl font-bold text-white mt-1">Build. Verify. Explore. Connect.</p><p className="text-xs leading-5 mt-2" style={{color:'#C7D2E1'}}>Finish one professional profile, request manual verification when you are ready, then use Explore, campaigns and professional networking to find the right opportunities.</p></div>
                 <div className="grid grid-cols-2 gap-3 mt-4"><div className="rounded-xl p-4" style={{background:'#FFFFFF'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Creators</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Identity + linked audience evidence</p></div><div className="rounded-xl p-4" style={{background:'#FFFFFF'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Businesses</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Business information + representative</p></div></div>
               </div>
             </div>
@@ -966,7 +962,7 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
 
       <section className="max-w-7xl mx-auto px-5 md:px-8 pb-16">
         <div className="grid md:grid-cols-3 gap-4">
-          {[['01','Build your professional identity','Create a dedicated Creator or Business page with your own name, image, services and professional details.',UserCheck,'#E6007A'],['02','Discover the right people','Find real creators and businesses by niche, industry, city and verification status.',Search,'#00A8C4'],['03','Connect with confidence','Message directly, build your network and keep trust signals attached to the profile.',Shield,'#7C3AED']].map(([n,t,d,Icon,c])=><div key={n} className="bg-white border rounded-2xl p-6 cm-card-hover" style={{ borderColor:'#E5E7EB' }}><div className="flex items-center justify-between mb-5"><span className="cm-mono text-xs font-bold" style={{color:c}}>{n}</span><Icon size={19} style={{color:c}}/></div><h3 className="cm-display font-bold text-lg mb-2" style={{color:'#334155'}}>{t}</h3><p className="text-sm leading-6" style={{color:'#9FB0C4'}}>{d}</p></div>)}
+          {[['01','Build your professional identity','Create a dedicated Creator or Business page with your own name, image, services and professional details.',UserCheck,'#E6007A'],['02','Discover the right people','Find real creators and businesses by niche, industry, city and verification status.',Search,'#00A8C4'],['03','Connect with confidence','Message directly, build your network and keep trust signals attached to the profile.',Shield,'#7C3AED']].map(([n,t,d,Icon,c])=><div key={n} className="bg-white border rounded-2xl p-6 cm-card-hover" style={{ borderColor:'#E5E7EB' }}><div className="flex items-center justify-between mb-5"><span className="cm-mono text-xs font-bold" style={{color:c}}>{n}</span><Icon size={19} style={{color:c}}/></div><h3 className="cm-display font-bold text-lg mb-2" style={{color:'#172033'}}>{t}</h3><p className="text-sm leading-6" style={{color:'#526078'}}>{d}</p></div>)}
         </div>
       </section>
 
@@ -981,7 +977,6 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
       </section>
 
       <CommissionerGettingStarted />
-      <section className="max-w-7xl mx-auto px-5 md:px-8 pb-16"><VerificationMilestoneCard /></section>
 
       <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20"><div className="rounded-[2rem] p-8 md:p-12 relative overflow-hidden" style={{background:'#FFFFFF'}}><div className="absolute -right-20 -top-20 w-56 h-56 rounded-full border-[30px] opacity-30" style={{borderColor:'#00D9FF'}}/><div className="relative max-w-2xl"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#00D9FF'}}>Join Commissioner</p><h2 className="cm-display font-bold text-3xl md:text-4xl mt-2 mb-4" style={{color:'#07152F'}}>Your professional network starts with one strong profile.</h2><p className="text-sm leading-6 mb-7" style={{color:'#526078'}}>Creators and businesses keep separate identities even when they use the same login. Switch between them whenever you need.</p><div className="flex flex-col sm:flex-row gap-3">{!session&&<><button onClick={()=>joinAs?.('creator')} className="text-white font-bold px-5 py-3 rounded-xl" style={{background:'#E6007A'}}>Join as creator</button><button onClick={()=>joinAs?.('business')} className="font-bold px-5 py-3 rounded-xl border-2" style={{borderColor:'#00D9FF',color:'#00D9FF'}}>Join as business</button></>}{session&&<button onClick={()=>setPage('dashboard')} className="text-white font-bold px-5 py-3 rounded-xl" style={{background:'#E6007A'}}>Open my dashboard</button>}<button onClick={()=>setPage('explore')} className="font-bold px-5 py-3 rounded-xl border" style={{borderColor:'#07152F',color:'#07152F'}}>Explore the network</button></div></div></div></section>
     </div>
@@ -1100,6 +1095,20 @@ const ExploreHub = ({ session, savedIds, toggleSave, onHire, onView, onBusinessC
   const [role, setRole] = useState(() => sessionStorage.getItem('commissioner_explore_role') || 'creators');
   useEffect(() => { sessionStorage.setItem('commissioner_explore_role', role); }, [role]);
   return <div>
+    <div className="max-w-7xl mx-auto px-5 md:px-8 pt-5">
+      <div className="grid md:grid-cols-2 gap-4 mb-4">
+        <button type="button" onClick={()=>setRole('creators')} className="text-left rounded-2xl border p-5 transition" style={{borderColor:role==='creators'?'#E6007A':'#294663',background:role==='creators'?'#FFF7FB':'#0D1B35'}}>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider" style={{color:role==='creators'?'#C00062':'#8FEAFF'}}>CREATORS</p>
+          <h2 className="cm-display font-bold text-lg mt-1" style={{color:role==='creators'?'#07152F':'#FFFFFF'}}>Find creators and services</h2>
+          <p className="text-xs leading-5 mt-1" style={{color:role==='creators'?'#526078':'#D9E4F2'}}>Search by niche, city, platform and verified facts, then open the profile you want to review.</p>
+        </button>
+        <button type="button" onClick={()=>setRole('businesses')} className="text-left rounded-2xl border p-5 transition" style={{borderColor:role==='businesses'?'#00D9FF':'#294663',background:role==='businesses'?'#F3FEFF':'#0D1B35'}}>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider" style={{color:role==='businesses'?'#007A91':'#8FEAFF'}}>BUSINESSES & CAMPAIGNS</p>
+          <h2 className="cm-display font-bold text-lg mt-1" style={{color:role==='businesses'?'#07152F':'#FFFFFF'}}>Find businesses and opportunities</h2>
+          <p className="text-xs leading-5 mt-1" style={{color:role==='businesses'?'#526078':'#D9E4F2'}}>Explore business profiles and switch to campaigns when you want to focus on active briefs.</p>
+        </button>
+      </div>
+    </div>
     <CommissionerGettingStarted />
     <div className="max-w-7xl mx-auto px-5 md:px-8 pt-1 pb-2">
       <div className="rounded-2xl border p-2 md:p-3 flex flex-col sm:flex-row gap-2" style={{borderColor:'#2A4665',background:'#07152F'}} role="tablist" aria-label="Explore creators and businesses">
@@ -3833,7 +3842,7 @@ const parseProfileInput = (platform, raw) => {
 
 const TrustCenter = ({ session, activeRole }) => {
   const [profile,setProfile]=useState(null); const [type,setType]=useState(activeRole || 'creator'); const [claim,setClaim]=useState(null); const [oauthConnections,setOauthConnections]=useState([]); const [eligibility,setEligibility]=useState(null); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState('');
-  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [verificationSettings,setVerificationSettings]=useState({youtube_subscriber_threshold:1000}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
+  const [creatorDetails,setCreatorDetails]=useState({platform:'',platform_account_id:'',claimed_username:'',audience_count:'',engagement_rate:'',ownership_method:'code'}); const [evidenceFile,setEvidenceFile]=useState(null); const [evidenceBusy,setEvidenceBusy]=useState(false);
   const [businessDetails,setBusinessDetails]=useState({legal_business_name:'',trade_name:'',business_activity:'',representative_name:'',official_contact:'',official_website:''});
   const load=async()=>{
     if(!session?.user?.id)return;
@@ -3850,8 +3859,6 @@ const TrustCenter = ({ session, activeRole }) => {
           setClaim(Array.isArray(v)?(v[0]||null):(v||null));
           const {data:rawClaim}=await supabase.from('creator_verification_claims').select('status,platform,platform_account_id,claimed_username,audience_count,engagement_rate,ownership_method').eq('creator_profile_id',c.id).maybeSingle();
           if(rawClaim){const {status:ownStatus,...fields}=rawClaim; setCreatorDetails(d=>({...d,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v ?? '']))})); setClaim(cl=>({...(cl||{}),status:ownStatus||'pending'}));}
-          const {data:e}=await supabase.rpc('evaluate_creator_youtube_eligibility',{p_creator_profile_id:c.id});
-          if(e && !e.error) setEligibility(e);
           return;
         }
       } else {
@@ -3868,9 +3875,8 @@ const TrustCenter = ({ session, activeRole }) => {
     }
     setProfile(null); setClaim(null); setEligibility(null); setType(preferred);
   };
-  useEffect(()=>{setType(activeRole || 'creator');load(); supabase.from('verification_settings').select('youtube_subscriber_threshold').eq('id',true).maybeSingle().then(({data})=>{if(data?.youtube_subscriber_threshold)setVerificationSettings(data)})},[session?.user?.id, activeRole]);
+  useEffect(()=>{setType(activeRole || 'creator');load()},[session?.user?.id, activeRole]);
   const guide=PLATFORM_GUIDE[creatorDetails.platform]||null;
-  const followerBar=Number(verificationSettings.youtube_subscriber_threshold||1000);
   const verifyCode=profile?.id?`CMS-${String(profile.id).replace(/-/g,'').slice(0,6).toUpperCase()}`:'';
   const oauthReady=!!creatorDetails.platform&&oauthConnections.some(c=>String(c.provider||'').toLowerCase()===creatorDetails.platform.toLowerCase()&&c.status==='connected');
   const autofillFrom=(raw)=>{const found=parseProfileInput(creatorDetails.platform,raw); if(found.id||found.username)setCreatorDetails(d=>({...d,...(found.id?{platform_account_id:found.id}:{}),...(found.username?{claimed_username:found.username}:{})}));};
@@ -3879,12 +3885,11 @@ const TrustCenter = ({ session, activeRole }) => {
     const checklist=type==='creator'?creatorCompletionChecklist(profile):businessCompletionChecklist(profile); const pct=completionPercent(checklist);
     if(pct<100){setMsg(`Complete your profile to 100% before requesting verification. Missing: ${checklist.filter(([,v])=>!hasProfileValue(v)).map(([l])=>l).join(', ')}.`);return;}
     if(type==='creator'){
-      const idVal=String(creatorDetails.platform_account_id||'').trim(); const userVal=String(creatorDetails.claimed_username||'').trim(); const aud=Number(creatorDetails.audience_count);
-      if(!creatorDetails.platform){setMsg('Choose the platform you are verifying.');return;}
+      const idVal=String(creatorDetails.platform_account_id||'').trim(); const userVal=String(creatorDetails.claimed_username||'').trim();
+      if(!creatorDetails.platform){setMsg('Choose the platform you want the admin reviewer to check.');return;}
       if(!idVal&&!userVal){setMsg('Enter your username or profile link (or your account ID) so the reviewer can find your account.');return;}
       if(guide?.idPattern&&idVal&&!guide.idPattern.test(idVal)){setMsg(guide.idError);return;}
-      if(!Number.isFinite(aud)||aud<=0){setMsg('Enter your current follower / subscriber count.');return;}
-      if(creatorDetails.ownership_method==='oauth'&&!oauthReady){setMsg(`Connect your ${creatorDetails.platform} account first, or choose "Code in your bio" as the ownership proof.`);return;}
+      if(creatorDetails.ownership_method==='oauth'&&!oauthReady){setMsg(`Connect your ${creatorDetails.platform} account first, or choose a manual ownership proof.`);return;}
     }
     setBusy(true);setMsg('');
     let claimId=null;
@@ -3906,7 +3911,7 @@ const TrustCenter = ({ session, activeRole }) => {
         const {error:attachError}=await supabase.rpc('attach_verification_evidence',{p_kind:type,p_claim_id:claimId,p_storage_path:path});
         if(attachError) throw attachError;
       }
-      setMsg('Verification request submitted. It is now in the admin review queue — you can leave this page; the status below updates when a reviewer decides.');
+      setMsg(claim?.status==='pending' || claim?.status==='needs_recheck' ? 'Your verification request was updated. It remains in the manual admin review queue.' : 'Verification request submitted. It is now in the manual admin review queue.');
       setEvidenceFile(null); await load();
     } catch(err) {
       setMsg(safeUserError(err,'Could not submit the verification request. No private evidence was made public.'));
@@ -3914,10 +3919,9 @@ const TrustCenter = ({ session, activeRole }) => {
   };
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Shield size={32} className="mx-auto mb-3" style={{color:'#036377'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>Trust & verification</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to request verification.</p></div>;
   return <div className="max-w-4xl mx-auto px-5 md:px-8 py-10">
-    <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p></div>
+    <div className="mb-8"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Trust center</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Verify what you claim</h1><p className="text-sm mt-2 max-w-2xl" style={{color:'#334155'}}>Commissioner does not give a blanket “safe” score. We verify specific facts so other people can make informed decisions.</p><div className="inline-flex mt-3 rounded-full px-3 py-1.5 text-[11px] font-bold" style={{background:'#E0FBFF',color:'#036377'}}>V1 manual review · no follower threshold · no payment required</div></div>
     <div className="bg-white border rounded-2xl p-6 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3 mb-5"><Avatar name={profile?.page_name||profile?.business_name||session.user.email} size={52} src={profile?.avatar_url}/><div><div className="flex items-center gap-2"><h2 className="cm-display font-bold" style={{color:'#07152F'}}>{profile?.page_name||profile?.business_name||'Your profile'}</h2>{profile?.verified&&<VerifiedIcon size={15}/>}</div><p className="text-xs" style={{color:'#526078'}}>{type==='creator'?'Creator':'Business'} · {profile?.city||'Location not set'}</p></div></div><VerificationDetails type={type} id={profile?.id}/></div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-      {type==='creator'&&<div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>{eligibility?.threshold?`${Number(eligibility.threshold).toLocaleString()}+ YouTube subscribers`:'YouTube eligibility'}</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>{eligibility?.threshold?Number(eligibility.threshold).toLocaleString():'1,000'} YouTube subscribers is an eligibility trigger, not automatic verification. Ownership and identity still have to be checked.</p><div className="mt-3 text-xs font-semibold" style={{color:eligibility?.eligible?'#0E7A3B':'#526078'}}>{eligibility?.eligible?'Eligible for review':'Not currently eligible'}</div>{eligibility?.subscriber_count!=null&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>{Number(eligibility.subscriber_count).toLocaleString()} audience · threshold {Number(eligibility.threshold||FOLLOWER_THRESHOLD_FALLBACK).toLocaleString()}</p>}</div>}
       <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-bold" style={{color:'#07152F'}}>Social ownership</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Supported OAuth connections are recorded as account metadata only. Credentials and tokens never belong in the client app.</p>{oauthConnections.length?<div className="mt-3 space-y-2">{oauthConnections.map(c=><div key={c.provider} className="flex items-center justify-between gap-3 text-xs"><span className="font-semibold capitalize" style={{color:'#334155'}}>{c.provider}{c.username?` · @${c.username.replace(/^@/,'')}`:''}</span><span style={{color:c.status==='connected'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>:<p className="text-xs mt-3" style={{color:'#526078'}}>No supported OAuth account is connected. Manual/code/bio verification is available when a provider is unavailable.</p>}</div>
     </div>
     <div className="bg-white border rounded-2xl p-6" style={{borderColor:'#E5E7EB'}}>
@@ -3929,7 +3933,6 @@ const TrustCenter = ({ session, activeRole }) => {
         <select value={creatorDetails.ownership_method} onChange={e=>setCreatorDetails(d=>({...d,ownership_method:e.target.value}))} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="code">Put a code in your bio (recommended)</option><option value="oauth" disabled={!oauthReady}>{oauthReady?'Connected account':'Connected account (not connected yet)'}</option><option value="manual">Manual review by an admin</option></select>
         <input value={creatorDetails.claimed_username} onChange={e=>setCreatorDetails(d=>({...d,claimed_username:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.userLabel||'Username or profile link'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
         <input value={creatorDetails.platform_account_id} onChange={e=>setCreatorDetails(d=>({...d,platform_account_id:e.target.value}))} onBlur={e=>autofillFrom(e.target.value)} placeholder={guide?.idLabel||'Account ID (optional)'} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
-        <input type="number" min="0" value={creatorDetails.audience_count} onChange={e=>setCreatorDetails(d=>({...d,audience_count:e.target.value}))} placeholder="Current followers / subscribers" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
         <input type="number" min="0" step="0.01" value={creatorDetails.engagement_rate} onChange={e=>setCreatorDetails(d=>({...d,engagement_rate:e.target.value}))} placeholder="Engagement rate % (optional)" className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />
       </div>
       <div className="mt-3 rounded-xl p-3.5 text-[11px] leading-5" style={{background:'#F0FBFF',color:'#036377'}}>
@@ -3941,7 +3944,7 @@ const TrustCenter = ({ session, activeRole }) => {
         <p className="text-xs font-bold" style={{color:'#07152F'}}>Your ownership code: <span className="font-mono px-2 py-0.5 rounded" style={{background:'#F1F5F9'}}>{verifyCode}</span></p>
         <p className="text-[11px] leading-5 mt-1" style={{color:'#526078'}}>Add this code to your {creatorDetails.platform||'social'} bio or channel description, then request review. Leave it there until a reviewer has checked it — you can remove it afterwards.</p>
       </div>}
-      {creatorDetails.audience_count!==''&&Number(creatorDetails.audience_count)<followerBar&&<p className="text-[11px] mt-3" style={{color:'#9A4A0C'}}>Verification currently needs at least {followerBar.toLocaleString()} YouTube subscribers. You can still submit, but eligibility does not guarantee verification.</p>}
+      
       </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         {Object.entries({legal_business_name:'Legal business name',trade_name:'Trade name',business_activity:'Business activity',representative_name:'Authorized representative',official_contact:'Official contact',official_website:'Official website'}).map(([key,label])=><input key={key} value={businessDetails[key]} onChange={e=>setBusinessDetails(d=>({...d,[key]:e.target.value}))} placeholder={label} className="border rounded-xl px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}} />)}
       </div>}
@@ -3954,7 +3957,12 @@ const TrustCenter = ({ session, activeRole }) => {
           {evidenceFile&&<p className="text-[11px] mt-2" style={{color:'#036377'}}>Selected: {evidenceFile.name}</p>}
         </div></div>
       </div>
-      <div className="flex items-center justify-between mt-4"><span className="text-xs" style={{color:claim?.status==='verified'?'#0E7A3B':'#526078'}}>{claim?.status?`Current review: ${String(claim.status).replace(/_/g,' ')}`:'No review submitted yet'}</span><button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':'Submitting…'):'Request review'}</button></div>{msg&&<p className="text-xs mt-3" style={{color:msg.includes('submitted')?'#0E7A3B':'#B42318'}}>{msg}</p>}
+      <div className="rounded-xl border p-4 mt-4" style={{borderColor:'#D7DFEA',background:'#F8FAFC'}}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div><p className="text-[10px] font-extrabold uppercase tracking-wider" style={{color:'#526078'}}>Request status</p><p className="text-sm font-bold mt-1" style={{color:claim?.status==='verified'?'#0E7A3B':claim?.status==='rejected'?'#B42318':'#172033'}}>{claim?.status?String(claim.status).replace(/_/g,' '):'Not submitted yet'}</p><p className="text-[11px] mt-1" style={{color:'#526078'}}>{claim?.status==='pending'||claim?.status==='needs_recheck'?'You have one active request. You can edit it while it is pending.':claim?.status?'This request has reached a final review state and cannot be submitted again.':'One verification request is allowed after profile completion.'}</p></div>
+          {(claim?.status==='pending'||claim?.status==='needs_recheck'||!claim?.status) && <button disabled={busy} onClick={submit} className="text-white text-sm font-semibold px-5 py-2.5 rounded-xl disabled:opacity-50 shrink-0" style={{background:'#E6007A'}}>{busy?(evidenceBusy?'Securing evidence…':(claim?.status?'Saving changes…':'Submitting…')):(claim?.status?'Save changes':'Request verification')}</button>}
+        </div>
+      </div>{msg&&<p className="text-xs mt-3" style={{color:msg.toLowerCase().includes('submitted')||msg.toLowerCase().includes('updated')?'#0E7A3B':'#B42318'}}>{msg}</p>}
     </div>
   </div>;
 };
@@ -3978,10 +3986,6 @@ const B2BNetwork = ({ session, initialBusiness=null }) => {
 
 const VerificationAdminQueue = () => {
   const [creators,setCreators]=useState([]); const [businesses,setBusinesses]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(''); const [message,setMessage]=useState(''); const [expanded,setExpanded]=useState(null); const [evidenceUrl,setEvidenceUrl]=useState({});
-  // Live follower-eligibility bar from public.platform_settings, editable by
-  // an admin (see the Network launch threshold card) — not a hardcoded 50000.
-  const [followerThreshold,setFollowerThreshold]=useState(FOLLOWER_THRESHOLD_FALLBACK);
-  useEffect(()=>{fetchLaunchStats().then(s=>setFollowerThreshold(s.followerThreshold||FOLLOWER_THRESHOLD_FALLBACK))},[]);
   const load=async()=>{setLoading(true);const [{data:c},{data:b}]=await Promise.all([
     supabase.from('creator_verification_claims').select('*,creator_profiles(id,page_name,username,platforms,audience,verified,approved,onboarded,plan)').order('created_at',{ascending:false}),
     supabase.from('business_verification_claims').select('*,business_profiles(id,business_name,username,industry,verified,approved,onboarded,plan)').order('created_at',{ascending:false})
@@ -4008,7 +4012,7 @@ const VerificationAdminQueue = () => {
     if(error) setMessage(safeUserError(error, `Could not ${action} this request.`)); else await load();
   };
   const evidenceReady=(r)=>r._type==='creator'
-    ? Number(r.audience_count||0)>=followerThreshold && !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
+    ? !!r.ownership_method && (!!r.platform_account_id || !!r.claimed_username)
     : !!r.legal_business_name && !!r.representative_name;
   const openEvidence=async(row)=>{
     const path=row.evidence_storage_path;
@@ -4040,7 +4044,7 @@ const VerificationAdminQueue = () => {
       </div>
       {expanded===`${r._type}:${r.id}`&&<div className="mt-4 rounded-xl border p-4" style={{borderColor:'#D7DFEA',background:'#F8FAFC'}}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-          <div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Evidence review</p><p className="text-[11px] mt-1" style={{color:'#526078'}}>Automatic checks support the review; confirm the underlying evidence before verifying.</p></div>
+          <div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#036377'}}>Evidence review</p><p className="text-[11px] mt-1" style={{color:'#526078'}}>Review the submitted facts and private evidence manually before verifying. There is no follower or payment threshold in V1.</p></div>
           <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:evidenceReady(r)?'#E9FBEF':'#FFF7ED',color:evidenceReady(r)?'#0E7A3B':'#9A4A0C'}}>{evidenceReady(r)?'Eligibility evidence present':'More evidence needed'}</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]" style={{color:'#334155'}}>
@@ -4306,33 +4310,6 @@ const AdminPanel = ({ session }) => {
     fetchLaunchStats().then(setLaunchStats);
   };
 
-  // Creator follower-eligibility bar (separate setting from the network
-  // launch threshold above). Same live-round-trip / no-redeploy pattern.
-  const [followerThresholdDraft, setFollowerThresholdDraft] = useState('');
-  useEffect(() => {
-    if (launchStats) setFollowerThresholdDraft(String(launchStats.followerThreshold ?? ''));
-  }, [launchStats?.followerThreshold]);
-  const [savingFollowerThreshold, setSavingFollowerThreshold] = useState(false);
-  const [followerThresholdMessage, setFollowerThresholdMessage] = useState('');
-  const saveFollowerThreshold = async () => {
-    const f = parseInt(followerThresholdDraft, 10);
-    if (!Number.isFinite(f) || f < 0) {
-      setFollowerThresholdMessage('Enter a whole number, 0 or higher.');
-      return;
-    }
-    setSavingFollowerThreshold(true);
-    setFollowerThresholdMessage('');
-    const { error } = await supabase.rpc('admin_set_youtube_threshold', { p_threshold: f });
-    setSavingFollowerThreshold(false);
-    if (error) {
-      setFollowerThresholdMessage(error.message?.includes('does not exist')
-        ? 'This database hasn\u2019t had 20260929_FOLLOWER_THRESHOLD_AND_CLAIM_TOKEN_FIX.sql applied yet.'
-        : safeUserError(error, 'Could not save the threshold.'));
-      return;
-    }
-    setFollowerThresholdMessage('Saved.');
-    fetchLaunchStats().then(setLaunchStats);
-  };
 
   const loadRows = async () => {
     setLoadingRows(true);
@@ -4774,18 +4751,6 @@ const AdminPanel = ({ session }) => {
           <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
         </div>
         {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
-      </div>
-      <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-bold" style={{ color: '#07152F' }}>YouTube verification threshold</p>
-        <p className="text-xs mt-1 mb-4" style={{ color: '#334155' }}>Minimum YouTube subscribers required before a creator verification request is eligible for review. Current product requirement: 1,000 subscribers. This is an eligibility trigger, not automatic verification.</p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block">
-            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>YouTube subscribers needed</span>
-            <input type="number" min="0" value={followerThresholdDraft || '1000'} onChange={e => setFollowerThresholdDraft(e.target.value)} className="mt-1 w-40 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
-          </label>
-          <button type="button" onClick={saveFollowerThreshold} disabled={savingFollowerThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingFollowerThreshold ? 'Saving…' : 'Save threshold'}</button>
-        </div>
-        {followerThresholdMessage && <p className="text-xs mt-3" style={{ color: followerThresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{followerThresholdMessage}</p>}
       </div>
       </>}
 
@@ -5697,6 +5662,7 @@ export default function Commissioner() {
           <BackButton onClick={goBack} />
         </div>
       )}
+      {page !== 'home' && !['admin','auth','onboarding','reset-password'].includes(page) && <FeatureDescription page={page} />}
       {page !== 'home' && !['admin','auth','onboarding','reset-password','account','explore'].includes(page) && <CommissionerGettingStarted compact />}
       {availabilityBlocked ? <MaintenanceScreen message={siteControls.site_message} pageLabel={siteControls.site_closed ? null : pageLabels[page]} /> : <>
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
