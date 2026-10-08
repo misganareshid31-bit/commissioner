@@ -935,8 +935,8 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
         <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-8 lg:gap-10 items-start relative">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-bold" style={{ background: '#FDE7F1', color: '#99154F' }}><Sparkles size={13}/> Commissioner professional network</div>
-            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#07152F' }}>Where <span style={{ color: '#B80061' }}>creators</span> and <span style={{ color: '#007E99' }}>businesses</span> connect professionally.</h1>
-            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#334155' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
+            <h1 className="cm-display font-bold leading-[1.02] mb-6" style={{ fontSize: 'clamp(2.7rem, 6vw, 5.4rem)', color: '#FFFFFF' }}>Where <span style={{ color: '#FF4FA6' }}>creators</span> and <span style={{ color: '#4FE3FF' }}>businesses</span> connect professionally.</h1>
+            <p className="text-lg md:text-xl leading-relaxed max-w-2xl mb-8" style={{ color: '#D9E4F2' }}>Discover real people and real businesses, build trusted professional relationships, and turn the right connection into your next collaboration.</p>
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <button onClick={() => setPage('explore')} style={{ background: '#E6007A' }} className="text-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-100">Explore creators <ArrowRight size={16}/></button>
               <button onClick={() => setPage('explore')} style={{ borderColor: '#00D9FF', color: '#036377' }} className="border-2 bg-white font-bold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2">Explore businesses <Building2 size={16}/></button>
@@ -949,9 +949,9 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
           </div>
           <div className="relative">
             <div className="bg-white border rounded-[2rem] p-4 md:p-5 shadow-2xl" style={{ borderColor: '#E5E7EB' }}>
-              <div className="rounded-[1.5rem] p-5 md:p-7 cm-official-dark-panel" style={{ background:'#07152F' }}>
-                <div className="flex items-center gap-3 mb-6"><div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{background:'#FFFFFF'}}><img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain"/></div><div><div className="flex items-center gap-2"><p className="text-lg font-bold" style={{color:'#FFFFFF'}}>Commissioner</p><span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full" style={{background:'#17324D',color:'#FFFFFF'}}>Pinned</span></div><p className="text-[10px]" style={{color:'#FFFFFF'}}>Official account • trust & verification</p></div></div>
-                <div className="rounded-2xl p-5 border cm-official-description-panel" style={{background:'linear-gradient(135deg,rgba(230,0,122,.14),rgba(0,217,255,.10))',borderColor:'#294663'}}><p className="text-[10px] uppercase tracking-[.18em] font-bold" style={{color:'#FFFFFF'}}>How Commissioner works</p><p className="text-2xl font-bold text-white mt-1">Build. Verify. Explore. Connect.</p><p className="text-xs leading-5 mt-2" style={{color:'#FFFFFF'}}>Finish one professional profile, request manual verification when you are ready, then use Explore, campaigns and professional networking to find the right opportunities.</p></div>
+              <div className="rounded-[1.5rem] p-5 md:p-7" style={{ background:'#07152F' }}>
+                <div className="flex items-center gap-3 mb-6"><div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{background:'#FFFFFF'}}><img src="/assets/commissioner-mark-transparent-sm.png" alt="Commissioner" className="w-8 h-8 object-contain"/></div><div><div className="flex items-center gap-2"><p className="text-lg font-bold" style={{color:'#FFFFFF'}}>Commissioner</p><span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>Pinned</span></div><p className="text-[10px]" style={{color:'#9FB0C4'}}>Official account • trust & verification</p></div></div>
+                <div className="rounded-2xl p-5 border" style={{background:'linear-gradient(135deg,rgba(230,0,122,.14),rgba(0,217,255,.10))',borderColor:'#294663'}}><p className="text-[10px] uppercase tracking-[.18em] font-bold" style={{color:'#4FE3FF'}}>How Commissioner works</p><p className="text-2xl font-bold text-white mt-1">Build. Verify. Explore. Connect.</p><p className="text-xs leading-5 mt-2" style={{color:'#C7D2E1'}}>Finish one professional profile, request manual verification when you are ready, then use Explore, campaigns and professional networking to find the right opportunities.</p></div>
                 <div className="grid grid-cols-2 gap-3 mt-4"><div className="rounded-xl p-4" style={{background:'#FFFFFF'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Creators</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Identity + linked audience evidence</p></div><div className="rounded-xl p-4" style={{background:'#FFFFFF'}}><p className="text-xs font-bold" style={{color:'#07152F'}}>Businesses</p><p className="text-[11px] mt-1" style={{color:'#64748B'}}>Business information + representative</p></div></div>
               </div>
             </div>
@@ -1081,7 +1081,7 @@ const ExploreTabs = ({ active, onChange, primaryLabel }) => (
         onClick={() => onChange(tab.id)}
         className="px-4 py-3 text-sm font-bold border-b-2 -mb-px transition-colors"
         style={{
-          color: active === tab.id ? '#07152F' : '#526078',
+          color: active === tab.id ? '#FFFFFF' : '#9FB0C4',
           borderColor: active === tab.id ? '#E6007A' : 'transparent'
         }}
       >
@@ -2861,6 +2861,45 @@ const NfcDisplaySettings = ({ session, activeRole }) => {
   return <section className="bg-white border rounded-2xl p-6 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3 mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>NFC public information</p><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Choose what people see when they tap your physical Commissioner NFC card. This does not change your normal public profile.</p></div><Zap size={18} style={{color:'#E6007A'}}/></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{labels.map(([key,label])=><label key={key} className="flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer" style={{borderColor:'#E5E7EB'}}><input type="checkbox" checked={!!settings[key]} onChange={e=>setSettings(v=>({...v,[key]:e.target.checked}))}/><span className="text-xs font-semibold" style={{color:'#334155'}}>{label}</span></label>)}</div><div className="flex items-center gap-3 mt-4"><button type="button" onClick={save} disabled={busy} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#E6007A'}}>{busy?'Saving…':'Save NFC settings'}</button>{message&&<span className="text-xs" style={{color:message.includes('saved')?'#0E7A3B':'#B42318'}}>{message}</span>}</div></section>;
 };
 
+const NfcAccountSetup = ({ session, activeRole }) => {
+  const [profileUrl, setProfileUrl] = useState('');
+  const [profileReady, setProfileReady] = useState(false);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true); setProfileUrl(''); setProfileReady(false); setMessage('');
+      if (!session?.user?.id) { setLoading(false); return; }
+      const table = activeRole === 'business' ? 'business_profiles' : 'creator_profiles';
+      const { data, error } = await supabase.from(table).select('id,onboarded').eq('auth_user_id', session.user.id).maybeSingle();
+      if (cancelled) return;
+      if (error) setMessage(safeUserError(error, 'Could not load your profile link.'));
+      else if (data?.id) {
+        const url = `${window.location.origin}/${activeRole}/${data.id}`;
+        setProfileUrl(url); setProfileReady(!!data.onboarded);
+      } else setMessage(`Set up your ${activeRole} profile first. Then return here to create your NFC link.`);
+      setLoading(false);
+    };
+    load(); return () => { cancelled = true; };
+  }, [session?.user?.id, activeRole]);
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(profileUrl); setMessage('NFC profile link copied. Write this URL to your NFC card.'); }
+    catch { setMessage('Copy was blocked by this browser. Select the URL below and copy it manually.'); }
+  };
+  return <section className="bg-white border rounded-2xl p-6 mb-6" style={{borderColor:'#E5E7EB'}}>
+    <div className="flex items-start justify-between gap-3 mb-3"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>NFC card setup</p><h2 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Set up your own NFC card</h2><p className="text-xs mt-1 leading-5" style={{color:'#526078'}}>Available to every signed-in creator and business account. No admin approval is required to prepare your link or use your profile.</p></div><Zap size={20} style={{color:'#E6007A'}}/></div>
+    <div className="rounded-xl p-4 mb-4" style={{background:'#F8FAFC'}}><p className="text-xs font-semibold" style={{color:'#07152F'}}>How it works</p><ol className="mt-2 space-y-1.5 text-xs leading-5" style={{color:'#526078'}}><li>1. Finish your Creator or Business profile.</li><li>2. Copy the official profile link below.</li><li>3. Write that link to your NFC tag using a compatible NFC writer.</li><li>4. Tap the card with a phone to open your profile. You can change the public details in NFC public information above.</li></ol></div>
+    {loading ? <p className="text-xs" style={{color:'#526078'}}>Loading your profile link…</p> : profileUrl ? <>
+      <label className="block text-xs font-semibold mb-2" style={{color:'#334155'}}>Your permanent NFC URL</label><input readOnly value={profileUrl} onFocus={e=>e.target.select()} className="w-full border rounded-lg px-3 py-3 text-xs mb-3" style={{borderColor:'#CBD5E1',color:'#172033',background:'#fff'}} />
+      {!profileReady && <p className="text-xs mb-3" style={{color:'#9A4A0C'}}>Your profile is not finished yet. Complete setup so people see a full public profile when they tap.</p>}
+      <div className="flex flex-wrap gap-2"><button type="button" onClick={copyLink} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white" style={{background:'#E6007A'}}>Copy NFC link</button><button type="button" onClick={()=>window.open(profileUrl,'_blank','noopener,noreferrer')} className="text-xs font-semibold px-4 py-2.5 rounded-lg border" style={{borderColor:'#CBD5E1',color:'#172033',background:'#fff'}}>Open profile website</button></div>
+    </> : null}
+    {message && <p className="text-xs mt-3" style={{color:message.includes('copied')?'#0E7A3B':'#9A4A0C'}}>{message}</p>}
+    <p className="text-[11px] mt-4 leading-5" style={{color:'#64748B'}}>On iPhone/Safari, use an external NFC writer or an NFC-capable Android phone to write the tag. Your card stores only the public profile URL, not private account data.</p>
+  </section>;
+};
+
 const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness, setActiveRole, refreshMyProfiles, onEditProfile }) => {
   const [newPassword, setNewPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
@@ -2936,6 +2975,7 @@ const AccountSettings = ({ session, setPage, activeRole, hasCreator, hasBusiness
         <button onClick={()=>document.getElementById('account-trust-center')?.scrollIntoView({behavior:'smooth',block:'start'})} className="text-sm font-bold px-4 py-2.5 rounded-xl text-white" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}>Open verification & trust</button>
       </div>
       <div id="account-trust-center" className="mb-6"><TrustCenter session={session} activeRole={activeRole}/></div>
+      <NfcAccountSetup session={session} activeRole={activeRole}/>
       <NfcDisplaySettings session={session} activeRole={activeRole}/>
 
       <form onSubmit={handlePasswordChange} className="bg-white border rounded-2xl p-6 mb-6" style={{ borderColor: '#E5E7EB' }}>
@@ -3541,7 +3581,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
           {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
           <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>
           <div className="flex flex-wrap gap-3">
-            {showNfc('website') && profile.website && <a href={/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+            {showNfc('website') && profile.website && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
           </div>
           {canEdit && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
