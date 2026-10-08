@@ -2078,3 +2078,13 @@ html, body {
   color: #D9E4F2 !important;
   -webkit-text-fill-color: #D9E4F2 !important;
 }
+
+
+/* HARD OVERRIDE: every word in the dark official Commissioner preview is white. */
+.cm-root .cm-home-hero .cm-official-dark-panel,
+.cm-root .cm-home-hero .cm-official-dark-panel *,
+.cm-root .cm-home-hero .cm-official-description-panel,
+.cm-root .cm-home-hero .cm-official-description-panel * {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
