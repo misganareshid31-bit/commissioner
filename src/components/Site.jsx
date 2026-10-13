@@ -854,7 +854,7 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
           <div className="flex items-center gap-1.5">
             <p className="font-semibold text-sm" style={{ color: '#334155' }}>{c.name}</p>
             {c.verified && <VerifiedIcon size={14} />}
-            {c.plan === 'elite' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#FFFFFF', color: '#00D9FF' }}>Elite</span>}
+            {(c.plan === 'premium' || c.plan === 'elite') && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#FFFFFF', color: '#00D9FF' }}>Premium</span>}
             {c.plan === 'pro' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#E0FBFF', color: '#036377' }}>Pro</span>}
           </div>
           <p className="cm-mono text-xs" style={{ color: '#334155' }}>{c.handle}</p>
@@ -1586,7 +1586,7 @@ const CreatorDashboard = ({ session, setPage }) => {
       </div>
       <span style={{ background: '#E0FBFF', color:'#036377' }} className="text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 w-fit">
         <Zap size={13} style={{ color: '#00D9FF' }} />
-        {profile?.plan === 'elite' ? 'Elite plan' : profile?.plan === 'pro' ? 'Pro plan' : 'Basic plan'}
+        {(profile?.plan === 'premium' || profile?.plan === 'elite') ? 'Premium plan' : profile?.plan === 'pro' ? 'Pro plan' : 'Basic plan'}
         {profile?.plan_expires_at && ` · until ${new Date(profile.plan_expires_at).toLocaleDateString()}`}
       </span>
     </div>
@@ -4578,6 +4578,31 @@ const AdminPanel = ({ session }) => {
     loadRows();
   };
 
+  const setVerified = async (row, value) => {
+    const name = row.displayName || 'this page';
+    const ok = window.confirm(value
+      ? `Verify ${name}?\n\nThis grants the verified badge directly, without a user request, and makes the page public.`
+      : `Remove verification from ${name}?`);
+    if (!ok) return;
+    setBusyId(row.id + 'verify');
+    setCreateError('');
+    const { error } = await supabase.rpc('admin_set_profile_verified', {
+      p_kind: row.kind === 'business' ? 'business' : 'creator',
+      p_profile_id: row.id,
+      p_verified: value
+    });
+    setBusyId(null);
+    if (error) {
+      console.error('Commissioner: admin verification change failed', error);
+      const missing = error.code === 'PGRST202' || /could not find the function/i.test(error.message || '');
+      setCreateError(missing
+        ? 'Direct verification needs the 20261013_ADMIN_DIRECT_VERIFICATION.sql migration. Run it in the Supabase SQL editor, then refresh.'
+        : safeUserError(error, `Could not update verification for ${name}.`));
+      return;
+    }
+    await loadRows();
+  };
+
   const setPlan = async (row, plan, expiresAt) => {
     setBusyId(row.id + 'plan');
     setCreateError('');
@@ -4702,14 +4727,17 @@ const AdminPanel = ({ session }) => {
               {r.approved ? 'Approved ✓' : 'Approve'}
             </button>
           )}
-          <span
-            className="text-[11px] font-semibold px-3 py-1.5 rounded-full border"
+          <button
+            onClick={() => setVerified(r, !r.verified)}
+            disabled={busyId === r.id + 'verify'}
+            title={r.verified ? 'Click to remove verification' : 'Grant verification without a user request'}
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50"
             style={r.verified
               ? { background: '#E0FBFF', color: '#036377', borderColor: '#00D9FF' }
-              : { background: '#F9FAFB', color: '#172033', borderColor: '#E5E7EB' }}
+              : { background: '#07152F', color: '#FFFFFF', borderColor: '#07152F' }}
           >
-            {r.verified ? 'Verified ✓' : 'Verification required'}
-          </span>
+            {busyId === r.id + 'verify' ? 'Saving…' : (r.verified ? 'Verified ✓ · Remove' : 'Verify now')}
+          </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap mt-2 pt-2 border-t" style={{ borderColor: '#F3F4F6' }}>
           <span className="text-[11px] font-semibold" style={{ color: '#172033' }}>Plan:</span>
@@ -4938,7 +4966,7 @@ const AdminPanel = ({ session }) => {
           </div>
         </div>
 
-        <p className="text-xs mb-4" style={{ color: '#475569' }}>New gift pages start unverified. Verification is granted only through the admin review queue after the profile is complete.</p>
+        <p className="text-xs mb-4" style={{ color: '#475569' }}>New gift pages start unverified. You can verify them directly from the gifted accounts list below with Verify now, or through the admin review queue.</p>
 
         <button onClick={handleCreate} disabled={creating || setupStatus !== 'ready'} style={{ background: '#E6007A' }} className="text-white text-sm font-semibold px-5 py-2.5 rounded-lg disabled:opacity-50">
           {creating ? 'Creating…' : 'Create gift page'}
