@@ -4328,7 +4328,6 @@ const AdminPanel = ({ session }) => {
   const [portfolioLink, setPortfolioLink] = useState('');
   const [availability, setAvailability] = useState('Available now');
   const [preferences, setPreferences] = useState('');
-  const [verifiedOnCreate, setVerifiedOnCreate] = useState(false);
   const [giftMode, setGiftMode] = useState(true);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -4469,27 +4468,32 @@ const AdminPanel = ({ session }) => {
       ? await supabase.rpc('admin_create_claim', {
           p_page_name: effectiveName,
           p_primary_niche: giftMode ? null : niche,
-          p_verified: verifiedOnCreate
+          p_verified: false
         })
       : await supabase.rpc('admin_create_business_claim', {
           p_business_name: effectiveName,
           p_industry: giftMode ? null : industry,
-          p_verified: verifiedOnCreate
+          p_verified: false
         });
 
     setCreating(false);
     if (error) {
+      console.error('Commissioner: gift page creation failed', error);
       const missing = error.code === 'PGRST202' || /could not find the function/i.test(error.message || '');
+      const brokenFn = /gen_random_bytes/i.test(error.message || '');
       setSetupStatus(missing ? 'missing' : setupStatus);
       setCreateError(
         missing
           ? 'The Supabase admin_create_claim function is missing. Apply the latest Supabase migration shown in the Admin setup panel, then refresh the page.'
-          : safeUserError(error, 'Could not create the requested profile.')
+          : brokenFn
+            ? 'Gift page creation needs the 20261013_GIFT_PAGE_CREATE_FIX.sql migration. Run it in the Supabase SQL editor, then try again.'
+            : safeUserError(error, 'Could not create the requested profile.')
       );
       return;
     }
 
     const token = data;
+    let detailsFailed = false;
     try {
       const table = claimType === 'creator' ? 'creator_profiles' : 'business_profiles';
       const avatarUrl = claimType === 'creator' ? await uploadAdminImage(avatarFile, 'avatars', token) : null;
@@ -4502,7 +4506,9 @@ const AdminPanel = ({ session }) => {
       const { error: updateError } = await supabase.from(table).update(update).eq('id', found.id);
       if (updateError) throw updateError;
     } catch (err) {
+      console.error('Commissioner: gift page detail save failed', err);
       setCreateError(safeUserError(err, 'The page was created, but some profile details could not be saved.'));
+      detailsFailed = true;
     }
     const { data: createdRow, error: createdRowError } = await supabase
       .from(claimType === 'creator' ? 'creator_profiles' : 'business_profiles')
@@ -4510,7 +4516,7 @@ const AdminPanel = ({ session }) => {
       .eq('claim_token', token)
       .single();
     if (createdRowError || !createdRow) {
-      setCreateError(createdRowError?.message || 'Page created, but its permanent profile URL could not be generated.');
+      setCreateError(safeUserError(createdRowError, 'Page created, but its permanent profile URL could not be generated.'));
       return;
     }
     const officialPath = claimType === 'creator' ? `/creator/${createdRow.id}` : `/business/${createdRow.id}`;
@@ -4518,7 +4524,7 @@ const AdminPanel = ({ session }) => {
     const setup = `${window.location.origin}/?claim=${token}`;
     setNewLink(link);
     setSetupLink(setup);
-    resetBuilder();
+    if (!detailsFailed) resetBuilder();
     loadRows();
   };
 
@@ -4852,7 +4858,7 @@ const AdminPanel = ({ session }) => {
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             type="button"
-            onClick={() => { setClaimType('creator'); setPageName(''); setNiche('Entertainment'); setGiftMode(true); setVerifiedOnCreate(true); setNewLink(''); setCreateError(''); }}
+            onClick={() => { setClaimType('creator'); setPageName(''); setNiche('Entertainment'); setGiftMode(true); setNewLink(''); setCreateError(''); }}
             className="text-xs font-semibold px-3 py-2 rounded-lg border flex items-center gap-1.5"
             style={{ borderColor: '#E6007A', color: '#99154F', background: '#FDE7F1' }}
           >
