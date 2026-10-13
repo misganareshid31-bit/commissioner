@@ -188,7 +188,8 @@ async function fetchLaunchStats() {
       threshold: creatorThreshold,
       creatorThreshold,
       businessThreshold,
-      unlocked: creatorCount >= creatorThreshold && businessCount >= businessThreshold,
+      // V1 is open-access: these counts are informational, never an access gate.
+      unlocked: true,
     };
   }
 
@@ -208,7 +209,8 @@ async function fetchLaunchStats() {
     threshold: LAUNCH_THRESHOLD,
     creatorThreshold: LAUNCH_THRESHOLD,
     businessThreshold: LAUNCH_THRESHOLD,
-    unlocked: creatorCount >= LAUNCH_THRESHOLD && businessCount >= LAUNCH_THRESHOLD,
+    // V1 is open-access even when the legacy launch-stats RPC is unavailable.
+    unlocked: true,
   };
 }
 
@@ -3460,6 +3462,32 @@ const downloadNfcProfileInfo = (profile, kind) => {
   const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${name.replace(/[^a-z0-9-_]+/gi,'-') || 'commissioner-profile'}-info.txt`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
 };
 
+const NfcMessageButton = ({ profile, session, kind }) => {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const recipientId = profile?.auth_user_id;
+  const isSelf = Boolean(session?.user?.id && recipientId === session.user.id);
+  const openMessage = async () => {
+    if (!session?.user?.id) {
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/?auth=1&returnTo=${encodeURIComponent(returnTo)}`;
+      return;
+    }
+    if (!recipientId || isSelf || busy) return;
+    setBusy(true);
+    setMessage('');
+    const { data, error } = await supabase.rpc('start_conversation', { p_other_user_id: recipientId, p_initial_message: null });
+    setBusy(false);
+    if (error) {
+      setMessage(safeUserError(error, 'Could not open this conversation.'));
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('commissioner:open-messages', { detail: { recipientId, conversationId: data } }));
+  };
+  if (!recipientId || isSelf) return null;
+  return <div className="flex flex-col items-start gap-1"><button type="button" onClick={openMessage} disabled={busy} className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60" style={{background:'#E6007A'}}><MessageSquare size={15}/>{busy ? 'Opening conversation…' : 'Message on Commissioner'}</button>{message && <p role="status" className="text-xs" style={{color:'#B42318'}}>{message}</p>}</div>;
+};
+
 const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPage, nfcMode = false }) => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reviewRefresh, setReviewRefresh] = useState(0);
@@ -3479,7 +3507,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               <span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner profile
             </div>
           </div>
-          {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/creator/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>Go to Website <ArrowUpRight size={14}/></a></div>}
+          {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><NfcMessageButton profile={profile} session={session} kind="creator"/><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/creator/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>View Commissioner Profile <ArrowUpRight size={14}/></a></div>}
           <div className="px-5 md:px-8 pb-8">
             <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
               <div className="relative shrink-0 w-fit">
@@ -3523,7 +3551,9 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                 <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Social platforms</p>
                 <div className="flex flex-wrap gap-2">
                   {socialEntries.map(([platform, value]) => {
-                    const href = value.url || (value.handle && /^https?:\/\//.test(value.handle) ? value.handle : null);
+                    const rawHandle = String(value.url || value.handle || '').trim();
+                    const platformHosts = { instagram: 'https://www.instagram.com/', tiktok: 'https://www.tiktok.com/@', youtube: 'https://www.youtube.com/@', facebook: 'https://www.facebook.com/', telegram: 'https://t.me/' };
+                    const href = /^https?:\/\//i.test(rawHandle) ? rawHandle : (platformHosts[String(platform).toLowerCase()] && rawHandle ? `${platformHosts[String(platform).toLowerCase()]}${rawHandle.replace(/^@/, '')}` : null);
                     return href ? (
                       <a key={platform} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 border rounded-xl px-3 py-2 text-xs font-semibold hover:bg-gray-50" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
                         <PlatformIcon p={platform.toLowerCase()} /> {platform} {value.handle && !value.handle.startsWith('http') ? `· ${value.handle}` : ''}
@@ -3579,7 +3609,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
         <div className="h-36 md:h-48 relative" style={{ background: profile.banner_url ? `url(${profile.banner_url}) center/cover` : 'linear-gradient(120deg,#FFFFFF,#FFFFFF)' }}>
           <div className="absolute top-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 text-xs font-bold" style={{ color: '#334155' }}><span className="w-2 h-2 rounded-full" style={{ background: '#0E7A3B' }} /> Commissioner business profile</div>
         </div>
-        {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/business/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>Go to Website <ArrowUpRight size={14}/></a></div>}
+        {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><NfcMessageButton profile={profile} session={session} kind="business"/><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/business/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>View Commissioner Profile <ArrowUpRight size={14}/></a></div>}
         <div className="px-5 md:px-8 pb-8">
           <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
             <div className="relative shrink-0 w-fit">
@@ -3609,9 +3639,9 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
           </div>
           {showNfc('role') && profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
           {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
-          <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>
+          {!nfcMode && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
           <div className="flex flex-wrap gap-3">
-            {showNfc('website') && profile.website && <a href={/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Website <ArrowUpRight size={15} /></a>}
+            {showNfc('website') && profile.website && <a href={/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Visit Website <ArrowUpRight size={15} /></a>}
           </div>
           {canEdit && (
             <div className="mt-8 pt-7 border-t" style={{ borderColor: '#E5E7EB' }}>
@@ -3852,7 +3882,7 @@ const Marketplace = ({ onMessage, session, activeRole }) => {
     })();
   },[]);
   const [showSetup,setShowSetup]=useState(false);
-  if (featureGate && !featureGate.marketplace_unlocked) return <div className="max-w-3xl mx-auto px-5 md:px-8 py-12"><div className="bg-white border rounded-2xl p-8 text-center" style={{borderColor:'#E5E7EB'}}><Lock size={24} className="mx-auto mb-3" style={{color:'#9CA3AF'}}/><p className="text-sm font-semibold" style={{color:'#07152F'}}>Marketplace opens at 5 registered products or services</p><p className="text-xs mt-2 leading-5" style={{color:'#526078'}}>The marketplace is being prepared while Commissioner builds the required network. Profile setup remains available.</p></div></div>;
+  // V1 marketplace is available immediately; legacy feature-gate data is ignored.
   const filtered=items.filter(x=>(tab==='all'||x.owner_type===tab||x.listing_type===tab)&&`${x.title} ${x.description} ${x.category} ${x.owner?.page_name||x.owner?.business_name||''}`.toLowerCase().includes(q.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 relative cm-marketplace-page"><div className="flex justify-end mb-4"><button onClick={()=>setShowSetup(true)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white shadow-lg" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}><ShoppingBag size={15} className="inline mr-2"/>Marketplace setup</button></div><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Commissioner marketplace</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Products & services</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Discover products and services offered by creators and businesses. Anyone with a Commissioner account can message a poster directly.</p></div><div className="flex flex-col md:flex-row gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white flex-1" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products, services, creators, businesses…" className="flex-1 outline-none text-sm"/></div><div className="flex gap-1 bg-white border rounded-xl p-1" style={{borderColor:'#E5E7EB'}}>{[['all','All'],['creator','Creators'],['business','Businesses'],['product','Products'],['service','Services']].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className="px-3 py-2 rounded-lg text-xs font-semibold" style={{background:tab===v?'#E0FBFF':'transparent',color:tab===v?'#036377':'#334155'}}>{l}</button>)}</div></div>{loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading marketplace…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((x,i)=><div key={x.id} className="bg-white rounded-2xl p-5 cm-card-hover" style={{border:`3px solid ${x.owner_type==='business'?'#00D9FF':'#E6007A'}`}}>{x.media_url&&<div className="mb-4 overflow-hidden rounded-xl" style={{background:'#F8FAFC'}}>{x.media_type==='video'?<video src={x.media_url} controls className="w-full max-h-64 object-cover"/>:<img src={x.media_url} alt="" className="w-full max-h-64 object-cover"/>}</div>}<div className="flex items-center gap-3 mb-4"><Avatar name={x.owner?.page_name||x.owner?.business_name} size={42} tone={i} src={x.owner?.avatar_url}/><div className="min-w-0"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.owner?.page_name||x.owner?.business_name}</p>{x.owner?.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.owner_type==='creator'?'Creator':'Business'} · {x.owner?.city||'—'}</p></div></div><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.listing_type}</span><span className="text-[10px] font-bold uppercase tracking-wide" style={{color:x.owner_type==='business'?'#00A8CC':'#E6007A'}}>{x.owner_type==='business'?'Business post':'Creator post'}</span></div><h3 className="cm-display font-bold text-base mt-1" style={{color:'#334155'}}>{x.title}</h3><p className="text-xs leading-6 mt-2 h-12 overflow-hidden" style={{color:'#334155'}}>{x.description||'No description provided.'}</p>{x.price_display&&<p className="text-sm font-bold mt-3" style={{color:'#334155'}}>{x.price_display}</p>}<div className="flex gap-2 mt-4"><button onClick={()=>onMessage?.(x.owner, x.id)} disabled={session?.user?.id && x.owner?.auth_user_id === session.user.id} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-60 disabled:cursor-not-allowed" style={{background:'#E6007A'}}>{session?.user?.id && x.owner?.auth_user_id === session.user.id ? 'Your listing' : 'Message'}</button>{x.external_url&&<a href={x.external_url} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}{!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Couldn't load the marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Something went wrong on our end. Please refresh to try again.</p></div>}{!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><ShoppingBag size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Nothing matches yet</p><p className="text-xs mt-1" style={{color:'#334155'}}>Creators and businesses can publish products and services from their dashboards.</p></div>}{showSetup&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(7,21,47,.55)',backdropFilter:'blur(8px)'}}><div className="w-full max-w-4xl max-h-[90vh] overflow-auto bg-white rounded-3xl p-6 shadow-2xl"><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Marketplace setup</p><h2 className="cm-display font-bold text-xl mt-1" style={{color:'#172033'}}>Manage your products and services</h2><p className="text-xs mt-1" style={{color:'#526078'}}>Your marketplace setup now lives here instead of on the dashboard.</p></div><button onClick={()=>setShowSetup(false)} className="w-9 h-9 rounded-xl border" style={{color:'#172033',borderColor:'#D7DFEA'}}>×</button></div>{activeRole==='business'?<BusinessDashboardMarketplaceSetup session={session}/>:<CreatorDashboardMarketplaceSetup session={session}/>}</div></div>}</div>;
 };
@@ -4045,7 +4075,8 @@ const B2BNetwork = ({ session, initialBusiness=null }) => {
   useEffect(()=>{fetchLaunchStats().then(setLaunchStats); supabase.rpc('commissioner_feature_gates').then(({data})=>setFeatureGates(data||null))},[]);
   useEffect(()=>{if(!session){setIsAdmin(false);return;}supabase.rpc('is_admin').then(({data})=>setIsAdmin(!!data))},[session?.user?.id]);
   useEffect(()=>{if(initialBusiness&&session){setMessageTarget(initialBusiness);setMessage(`I'd like to connect with ${initialBusiness.business_name||initialBusiness.name} through Commissioner.`)}},[initialBusiness?.id,session?.user?.id]);
-  const launched = !!featureGates?.b2b_unlocked || isAdmin;
+  // V1 access is open to every signed-in Commissioner account.
+  const launched = true;
   const send=async(target)=>{if(!session||!target?.auth_user_id)return;if(target.auth_user_id===session.user.id)return;if(!launched){setMessage('Connecting is locked until Commissioner reaches 50 registered businesses.');return;}setBusyTarget(target.auth_user_id);setMessageTarget(target);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||`I would like to connect with ${target.name||target.business_name||target.page_name||'you'} professionally through Commissioner.`});setBusyTarget(null);if(error)setMessage(error.code==='23505'?'A connection request already exists with this person.':safeUserError(error, 'Could not send the connection request.'));else{setMessage('Connection request sent.');await load();}};
   const startMessage=async(target)=>{if(!session||!target?.auth_user_id||target.auth_user_id===session.user.id)return;if(!launched){setMessage('Messaging is locked until Commissioner reaches 50 registered businesses.');return;}setMessageTarget(target);setMessage(`I'd like to discuss a professional opportunity with ${target.name||target.business_name||target.page_name||'you'}.`);const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:target.auth_user_id,p_initial_message:null});if(error){setMessage(safeUserError(error, 'Could not start the conversation.'));return;}window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:target.auth_user_id,conversationId:data}}));};
   const filtered=items.filter(x=>`${x.name} ${x.industry||x.primary_niche||''} ${x.city||''}`.toLowerCase().includes(search.toLowerCase()));
@@ -4838,25 +4869,10 @@ const AdminPanel = ({ session }) => {
         </div>
       )}
 
-      {adminTab==='overview' && <>
-      <div className="mb-8"><AdminLiveCountsCard stats={launchStats} /></div>
-      <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB' }}>
-        <p className="text-sm font-bold" style={{ color: '#07152F' }}>Network launch threshold</p>
-        <p className="text-xs mt-1 mb-4" style={{ color: '#334155' }}>How many verified creators and verified businesses are required before networking unlocks platform-wide. Takes effect immediately, no redeploy.</p>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block">
-            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Verified creators needed</span>
-            <input type="number" min="0" value={thresholdDraft.creator} onChange={e => setThresholdDraft(d => ({ ...d, creator: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
-          </label>
-          <label className="block">
-            <span className="text-[11px] font-semibold" style={{ color: '#334155' }}>Verified businesses needed</span>
-            <input type="number" min="0" value={thresholdDraft.business} onChange={e => setThresholdDraft(d => ({ ...d, business: e.target.value }))} className="mt-1 w-32 border rounded-lg px-3 py-2 text-sm outline-none" style={{ borderColor: '#E5E7EB' }} />
-          </label>
-          <button type="button" onClick={saveThreshold} disabled={savingThreshold} className="text-xs font-semibold px-4 py-2.5 rounded-lg text-white disabled:opacity-50" style={{ background: '#07152F', color: '#334155' }}>{savingThreshold ? 'Saving…' : 'Save threshold'}</button>
-        </div>
-        {thresholdMessage && <p className="text-xs mt-3" style={{ color: thresholdMessage === 'Saved.' ? '#0E7A3B' : '#B42318' }}>{thresholdMessage}</p>}
-      </div>
-      </>}
+      {adminTab==='overview' && <div className="border rounded-2xl p-5 mb-8" style={{ borderColor: '#E5E7EB', background: '#FFFFFF' }}>
+        <p className="text-sm font-bold" style={{ color: '#07152F' }}>V1 access status</p>
+        <p className="text-xs mt-1" style={{ color: '#334155' }}>Creator and business networking features are open during V1. Verification remains a separate manual review and is not required to access the platform.</p>
+      </div>}
 
       {adminTab==='nfc' && <AdminNfcManager />}
       {adminTab==='verification' && <VerificationAdminQueue />}
@@ -5574,7 +5590,8 @@ export default function Commissioner() {
   }, [page]);
   const pageLabels = {home:'Homepage',explore:'Explore',creators:'Explore creators',businesses:'Explore businesses',campaigns:'Campaigns',marketplace:'Marketplace',network:'B2B network',trust:'Trust & verification',messages:'Messages',spotlight:'Spotlight',pricing:'Plans',dashboard:'Dashboard',account:'Account settings',onboarding:'Profile setup'};
   const availabilityBlocked = !isAdmin && (siteControls.site_closed || siteControls.disabled_pages.includes(page));
-  const networkLaunched = !!launchStats?.unlocked || isAdmin;
+  // Do not gate messaging on legacy creator/business count thresholds in V1.
+  const networkLaunched = true;
   const onHire = async (creator) => {
     if (!session) { setPage('auth'); return; }
     const { data: canInteract, error: interactError } = await supabase.rpc('can_current_user_interact');
