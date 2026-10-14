@@ -2112,3 +2112,16 @@ html, body {
   color: #FFFFFF !important;
   -webkit-text-fill-color: #FFFFFF !important;
 }
+
+
+/* === NFC flow: mobile / iPhone hardening — 2026-10-14 (keep this block last) ===
+   - 16px form text stops iOS Safari zooming the page when a field is focused.
+   - 44px minimum tap targets (Apple HIG).
+   - Checkbox / file inputs are exempt from the global full-width input rules. */
+.cm-root .cm-nfc { overflow-wrap: anywhere; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.cm-root .cm-nfc input:not([type="checkbox"]):not([type="file"]),
+.cm-root .cm-nfc textarea { font-size: 16px !important; }
+.cm-root .cm-nfc input[type="checkbox"] { width: 22px !important; height: 22px !important; padding: 0 !important; flex: none; }
+.cm-root .cm-nfc a, .cm-root .cm-nfc button, .cm-root .cm-nfc label { touch-action: manipulation; -webkit-tap-highlight-color: rgba(230,0,122,.18); }
+.cm-root .cm-nfc a.inline-flex, .cm-root .cm-nfc button { min-height: 44px; }
+.cm-root .cm-nfc a:focus-visible, .cm-root .cm-nfc button:focus-visible, .cm-root .cm-nfc input:focus-visible, .cm-root .cm-nfc textarea:focus-visible { outline: 3px solid #00D9FF; outline-offset: 2px; }

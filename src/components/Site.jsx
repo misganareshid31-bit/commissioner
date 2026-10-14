@@ -3749,49 +3749,340 @@ const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
   );
 };
 
-// NFC links are permanent: before a profile is claimed they open setup;
-// once onboarded, the same NFC URL opens the public profile. Verification is separate.
-const ClaimGate = ({ token, session, setPage }) => {
-  const [state, setState] = useState({ kind: null, profile: null, error: '' });
+/* ========================= NFC card flow =========================
+   tap card -> public preview -> "Claim Profile" (if unclaimed) -> sign in -> "Edit Profile".
+   - Public data comes ONLY from the get_nfc_public_profile RPC, which filters by the
+     owner's visibility choices on the server.
+   - Claiming and editing use claim_nfc_profile / update_my_nfc_profile, which are
+     owner-scoped and never touch admin, verified, approved or plan fields.
+   Colours: white cards use dark ink (#07152F / #334155 / #526078); navy surfaces use white. */
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase.rpc('get_claim_any', { p_token: token });
-      if (cancelled) return;
+const NFC_FEATURES = [
+  { icon: Zap, title: 'Tap to share', text: 'Anyone can tap your card with their phone and see your Commissioner profile. They do not need an app or an account to look.' },
+  { icon: Lock, title: 'You choose what is public', text: 'Turn your name, photo, bio, location, links and contact details on or off. Anything you hide is not sent to visitors at all.' },
+  { icon: MessageSquare, title: 'Message on Commissioner', text: 'Signed-in visitors can message you inside Commissioner. Your email and phone stay private unless you choose to show them.' },
+  { icon: ShieldCheck, title: 'Verification you control', text: 'Request a manual review whenever you are ready. A badge shows which specific claims Commissioner checked.' },
+  { icon: Settings, title: 'Edit any time', text: 'Change your photo, bio or links whenever you like. The card keeps working, so it never needs to be reprogrammed.' },
+];
 
-      if (error) {
-        setState({ kind: 'error', profile: null, error: safeUserError(error, 'NFC lookup failed') });
-        return;
-      }
+const NfcFeatureBlock = () => (
+  <section aria-labelledby="nfc-features-title" className="rounded-2xl border bg-white p-5 md:p-6" style={{ borderColor: '#E5E7EB' }}>
+    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#B80061' }}>Commissioner NFC card</p>
+    <h2 id="nfc-features-title" className="cm-display font-bold text-lg md:text-xl mt-1 mb-4" style={{ color: '#07152F' }}>What your card does</h2>
+    <ul className="grid gap-4 sm:grid-cols-2" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+      {NFC_FEATURES.map(({ icon: Icon, title, text }) => (
+        <li key={title} className="flex gap-3">
+          <span className="shrink-0 rounded-xl flex items-center justify-center" style={{ width: 36, height: 36, background: '#E0FBFF', color: '#036377' }}><Icon size={18} aria-hidden="true" /></span>
+          <span><span className="block text-sm font-bold" style={{ color: '#07152F' }}>{title}</span><span className="block text-xs leading-5 mt-0.5" style={{ color: '#334155' }}>{text}</span></span>
+        </li>
+      ))}
+    </ul>
+  </section>
+);
 
-      if (!data?.kind) {
-        setState({ kind: 'not_found', profile: null, error: '' });
-        return;
-      }
+const isHttpUrl = (v) => /^https?:\/\/[^\s<>"']+$/i.test(String(v || '').trim());
+const NFC_SOCIAL_HOSTS = { instagram: 'https://www.instagram.com/', tiktok: 'https://www.tiktok.com/@', youtube: 'https://www.youtube.com/@', facebook: 'https://www.facebook.com/', telegram: 'https://t.me/' };
+const nfcSocialHref = (platform, value) => {
+  const raw = String(value?.url || value?.handle || '').trim();
+  if (isHttpUrl(raw)) return raw;
+  const host = NFC_SOCIAL_HOSTS[String(platform).toLowerCase()];
+  const handle = raw.replace(/^@/, '');
+  return host && handle && !/[\s<>"']/.test(handle) ? `${host}${encodeURIComponent(handle)}` : null;
+};
+const nfcAuthRedirect = (token) => { window.location.href = `/?auth=1&returnTo=${encodeURIComponent(`/?claim=${token}`)}`; };
 
-      // The RPC is security-definer and deliberately handles both claimable
-      // and published rows. This keeps the physical NFC URL permanent.
-      if (data.status === 'published') {
-        if (data.kind === 'creator') setState({ kind: 'public_creator', profile: data, error: '' });
-        else setState({ kind: 'public_business', profile: data, error: '' });
-      } else {
-        setState({ kind: data.kind, profile: data, error: '' });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [token]);
+const NfcPublicCard = ({ data, session, token, onEdit }) => {
+  const isBiz = data.kind === 'business';
+  const socials = data.platforms && typeof data.platforms === 'object' ? Object.entries(data.platforms).filter(([, v]) => v && (v.handle || v.url)) : [];
+  const siteUrl = isBiz ? data.website : data.portfolio_link;
+  const siteHref = siteUrl ? (isHttpUrl(siteUrl) ? siteUrl : (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(siteUrl) ? `https://${siteUrl}` : null)) : null;
+  const chip = { fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999 };
+  const linkBtn = { minHeight: 44, borderColor: '#CBD5E1', color: '#07152F', background: '#FFFFFF' };
+  return (
+    <article className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: '#E5E7EB' }}>
+      <div style={{ height: 112, background: data.banner_url && isHttpUrl(data.banner_url) ? `url(${data.banner_url}) center/cover` : 'linear-gradient(110deg,#07152F,#17365D)' }} />
+      <div className="px-5 pb-6 md:px-8">
+        <div className="flex items-end gap-4" style={{ marginTop: -40 }}>
+          {data.avatar_url !== undefined ? <Avatar name={data.name || 'Profile'} size={88} ring src={data.avatar_url} /> : null}
+        </div>
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          {data.name && <h1 className="cm-display font-bold text-2xl" style={{ color: '#07152F' }}>{data.name}</h1>}
+          {data.verified && <span style={{ ...chip, background: '#E9FBEF', color: '#0E7A3B' }}>Verified</span>}
+        </div>
+        <p className="text-sm mt-1" style={{ color: '#334155' }}>{data.username ? `@${String(data.username).replace(/^@/, '')}` : ''}{data.city ? `${data.username ? ' · ' : ''}${data.city}` : ''}</p>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {data.role && <span style={{ ...chip, background: '#FDE7F1', color: '#99154F' }}>{data.role}</span>}
+          {data.language && <span style={{ ...chip, background: '#E0FBFF', color: '#036377' }}>{data.language}</span>}
+          {data.availability && <span style={{ ...chip, background: '#E9FBEF', color: '#0E7A3B' }}>{data.availability}</span>}
+        </div>
+        {data.bio && <p className="text-sm leading-7 mt-4" style={{ color: '#334155', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{data.bio}</p>}
 
-  if (state.kind === null) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading NFC profile…</div>;
-  if (state.kind === 'public_creator') return <OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} />;
-  if (state.kind === 'public_business') return <OfficialBusinessPage id={state.profile.id} session={session} setPage={setPage} />;
-  if (state.kind === 'not_found') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>This Commissioner card isn't available</p><p className="text-xs" style={{ color: '#526078' }}>The NFC token was not found. The physical card URL is valid, but its page may have been deleted or the token was never installed in this Supabase project.</p></div>;
-  if (state.kind === 'error') return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold mb-1" style={{ color: '#172033' }}>NFC setup needs attention</p><p className="text-xs" style={{ color: '#526078' }}>The card reached Commissioner, but the Supabase NFC lookup function is unavailable. Run the latest NFC ownership hardening migration, then try again.</p></div>;
-  return state.kind === 'business'
-    ? <BusinessClaimForm token={token} session={session} />
-    : <CreatorClaimForm token={token} session={session} />;
+        {(socials.length > 0 || siteHref) && (
+          <div className="mt-5">
+            <p className="text-sm font-semibold mb-2" style={{ color: '#07152F' }}>Links</p>
+            <div className="flex flex-wrap gap-2">
+              {socials.map(([platform, value]) => {
+                const href = nfcSocialHref(platform, value);
+                const label = `${platform}${value.handle && !isHttpUrl(value.handle) ? ` · ${value.handle}` : ''}`;
+                const inner = <><PlatformIcon p={String(platform).toLowerCase()} /> {label}</>;
+                return href
+                  ? <a key={platform} href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 border rounded-xl px-3 text-xs font-semibold" style={linkBtn}>{inner}</a>
+                  : <span key={platform} className="inline-flex items-center gap-2 border rounded-xl px-3 text-xs font-semibold" style={linkBtn}>{inner}</span>;
+              })}
+              {siteHref && <a href={siteHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 border rounded-xl px-3 text-xs font-semibold" style={linkBtn}><Globe size={14} aria-hidden="true" /> {isBiz ? 'Visit website' : 'View portfolio'} <ArrowUpRight size={14} aria-hidden="true" /></a>}
+            </div>
+          </div>
+        )}
+
+        {(data.contact_email || data.contact_phone) && (
+          <div className="mt-5">
+            <p className="text-sm font-semibold mb-2" style={{ color: '#07152F' }}>Contact</p>
+            <div className="flex flex-wrap gap-2">
+              {data.contact_email && <a href={`mailto:${data.contact_email}`} className="inline-flex items-center gap-2 border rounded-xl px-3 text-xs font-semibold" style={linkBtn}><Mail size={14} aria-hidden="true" /> {data.contact_email}</a>}
+              {data.contact_phone && <a href={`tel:${String(data.contact_phone).replace(/[^+\d]/g, '')}`} className="inline-flex items-center gap-2 border rounded-xl px-3 text-xs font-semibold" style={linkBtn}><Phone size={14} aria-hidden="true" /> {data.contact_phone}</a>}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-wrap items-start gap-3">
+          {data.recipient_id && <NfcMessageButton profile={{ auth_user_id: data.recipient_id }} session={session} kind={data.kind} />}
+          {data.is_owner && onEdit && (
+            <button type="button" onClick={onEdit} className="inline-flex items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white" style={{ minHeight: 44, background: '#07152F' }}>
+              <Settings size={15} aria-hidden="true" /> Edit Profile
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
 };
 
+const NFC_VISIBILITY = [
+  ['name', 'Name and username'], ['photo', 'Photo'], ['bio', 'Bio'], ['location', 'City / location'],
+  ['socials', 'Social links'], ['website', 'Website (business)'], ['portfolio', 'Portfolio link (creator)'],
+  ['contact', 'Contact email and phone'], ['messaging', 'Allow "Message on Commissioner"'],
+];
+
+const NfcEditProfile = ({ token, session, onDone, onCancel }) => {
+  const [p, setP] = useState(null);
+  const [form, setForm] = useState({});
+  const [vis, setVis] = useState({});
+  const [links, setLinks] = useState({});
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let off = false;
+    supabase.rpc('get_my_nfc_profile', { p_token: token }).then(({ data, error }) => {
+      if (off) return;
+      if (error || !data) { setErr(error ? safeUserError(error, 'Could not load your profile.') : 'You can only edit a profile you have claimed.'); return; }
+      setP(data);
+      setForm({ name: data.name || '', username: data.username || '', bio: data.bio || '', city: data.city || '', contact_email: data.contact_email || '', contact_phone: data.contact_phone || '', site: (data.kind === 'business' ? data.website : data.portfolio_link) || '' });
+      const s = data.nfc_display_settings || {};
+      const v = {};
+      NFC_VISIBILITY.forEach(([k]) => { v[k] = k === 'contact' ? s[k] === true : s[k] !== false; });
+      setVis(v);
+      const l = {};
+      Object.entries(data.platforms || {}).forEach(([k, val]) => { l[k.toLowerCase()] = { key: k, handle: (val && val.handle) || '', url: (val && val.url) || '' }; });
+      setLinks(l);
+    });
+    return () => { off = true; };
+  }, [token]);
+
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const pickFile = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { setErr('Please choose an image file.'); return; }
+    if (f.size > 5 * 1024 * 1024) { setErr('Photos must be 5 MB or smaller.'); return; }
+    setErr(''); setFile(f); setPreview(URL.createObjectURL(f));
+  };
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setErr('');
+    const name = form.name.trim();
+    const username = form.username.trim().replace(/^@/, '').toLowerCase();
+    if (!name) { setErr('Enter your name.'); return; }
+    if (!/^[a-z0-9_.]{3,30}$/.test(username)) { setErr('Username must be 3-30 characters: letters, numbers, dot or underscore.'); return; }
+    if (form.site.trim() && !isHttpUrl(form.site.trim())) { setErr('Website and portfolio links must start with http:// or https://'); return; }
+    if (form.contact_email.trim() && !/^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test(form.contact_email.trim())) { setErr('Enter a valid contact email address.'); return; }
+    setBusy(true);
+    try {
+      let avatar_url;
+      if (file) {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) || 'jpg';
+        const path = `${session.user.id}/nfc-avatar-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type || undefined });
+        if (upErr) throw new Error('We could not upload that photo. Please try a smaller JPG or PNG.');
+        avatar_url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+      }
+      const fields = {
+        name, username, bio: form.bio, city: form.city,
+        contact_email: form.contact_email, contact_phone: form.contact_phone,
+        nfc_display_settings: vis,
+      };
+      if (avatar_url) fields.avatar_url = avatar_url;
+      if (p.kind === 'business') fields.website = form.site;
+      else {
+        fields.portfolio_link = form.site;
+        const out = {};
+        NFC_PLATFORM_KEYS.forEach((pk) => { const l = links[pk]; if (l) out[l.key || pk] = { handle: (l.handle || '').trim().replace(/^@/, ''), url: (l.url || '').trim() }; });
+        fields.platforms = out;
+      }
+      const { error } = await supabase.rpc('update_my_nfc_profile', { p_token: token, p_fields: fields });
+      if (error) throw error;
+      onDone();
+    } catch (ex) {
+      setErr(safeUserError(ex, 'We could not save your profile. Please try again.'));
+    }
+    setBusy(false);
+  };
+
+  const field = { fontSize: 16, minHeight: 44, color: '#07152F', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 12, padding: '10px 12px', width: '100%' };
+  const label = { color: '#07152F', fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 6 };
+  const hint = { color: '#526078', fontSize: 12, marginTop: 4 };
+
+  if (!p) return <div className="rounded-2xl border bg-white p-6 text-sm" style={{ borderColor: '#E5E7EB', color: err ? '#B42318' : '#334155' }} role={err ? 'alert' : 'status'}>{err || 'Loading your profile…'}</div>;
+  const isBiz = p.kind === 'business';
+  const shownAvatar = preview || p.avatar_url;
+
+  return (
+    <form onSubmit={save} className="rounded-2xl border bg-white p-5 md:p-6" style={{ borderColor: '#E5E7EB' }} noValidate>
+      <h2 className="cm-display font-bold text-xl" style={{ color: '#07152F' }}>Edit Profile</h2>
+      <p className="text-xs mt-1 mb-5" style={{ color: '#526078' }}>You can change these details any time. Only what you switch on under “Visible on your card” is shown to visitors.</p>
+
+      <div className="flex items-center gap-4 mb-5">
+        <Avatar name={form.name || 'Profile'} size={72} ring src={shownAvatar} />
+        <div>
+          <label htmlFor="nfc-photo" className="inline-flex items-center gap-2 rounded-xl border px-4 text-sm font-semibold cursor-pointer" style={{ minHeight: 44, borderColor: '#CBD5E1', color: '#07152F', background: '#FFFFFF' }}><Camera size={15} aria-hidden="true" /> {shownAvatar ? 'Change photo' : 'Add photo'}</label>
+          <input id="nfc-photo" type="file" accept="image/*" onChange={pickFile} style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }} />
+          <p style={hint}>JPG or PNG, up to 5 MB.</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4">
+        <div><label htmlFor="nfc-name" style={label}>{isBiz ? 'Business name' : 'Name'}</label><input id="nfc-name" style={field} value={form.name} onChange={set('name')} maxLength={isBiz ? 100 : 80} autoComplete="name" /></div>
+        <div><label htmlFor="nfc-username" style={label}>Username</label><input id="nfc-username" style={field} value={form.username} onChange={set('username')} maxLength={31} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" /></div>
+        <div><label htmlFor="nfc-bio" style={label}>Bio</label><textarea id="nfc-bio" style={{ ...field, minHeight: 110 }} value={form.bio} onChange={set('bio')} maxLength={1000} /><p style={hint}>{form.bio.length}/1000</p></div>
+        <div><label htmlFor="nfc-city" style={label}>City / location</label><input id="nfc-city" style={field} value={form.city} onChange={set('city')} maxLength={80} autoComplete="address-level2" /></div>
+
+        <fieldset className="border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
+          <legend className="px-1 text-sm font-bold" style={{ color: '#07152F' }}>Contact info</legend>
+          <div className="grid gap-4 mt-1">
+            <div><label htmlFor="nfc-email" style={label}>Contact email</label><input id="nfc-email" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" style={field} value={form.contact_email} onChange={set('contact_email')} maxLength={200} autoComplete="email" /></div>
+            <div><label htmlFor="nfc-phone" style={label}>Contact phone</label><input id="nfc-phone" type="tel" inputMode="tel" style={field} value={form.contact_phone} onChange={set('contact_phone')} maxLength={25} autoComplete="tel" /></div>
+          </div>
+          <p style={hint}>Private by default. It appears on your card only if you switch on “Contact email and phone” below.</p>
+        </fieldset>
+
+        <fieldset className="border rounded-xl p-4" style={{ borderColor: '#E5E7EB' }}>
+          <legend className="px-1 text-sm font-bold" style={{ color: '#07152F' }}>Links shown on your card</legend>
+          <div className="grid gap-4 mt-1">
+            <div><label htmlFor="nfc-site" style={label}>{isBiz ? 'Website' : 'Portfolio link'}</label><input id="nfc-site" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" placeholder="https://" style={field} value={form.site} onChange={set('site')} maxLength={500} /></div>
+            {!isBiz && NFC_PLATFORM_KEYS.map((pk) => (
+              <div key={pk}><label htmlFor={`nfc-${pk}`} style={label}>{pk.charAt(0).toUpperCase() + pk.slice(1)} handle</label>
+                <input id={`nfc-${pk}`} style={field} autoCapitalize="none" autoCorrect="off" spellCheck={false} value={(links[pk] && links[pk].handle) || ''} maxLength={60} onChange={(e) => setLinks((l) => ({ ...l, [pk]: { key: (l[pk] && l[pk].key) || pk, url: (l[pk] && l[pk].url) || '', handle: e.target.value } }))} placeholder="@yourname" /></div>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="border rounded-xl p-2" style={{ borderColor: '#E5E7EB' }}>
+          <legend className="px-2 text-sm font-bold" style={{ color: '#07152F' }}>Visible on your card</legend>
+          {NFC_VISIBILITY.filter(([k]) => !(k === 'website' && !isBiz) && !(k === 'portfolio' && isBiz) && !(k === 'socials' && isBiz)).map(([k, text]) => (
+            <label key={k} className="flex items-center gap-3 px-2 cursor-pointer" style={{ minHeight: 44 }}>
+              <input type="checkbox" checked={!!vis[k]} onChange={(e) => setVis((v) => ({ ...v, [k]: e.target.checked }))} style={{ width: 22, height: 22, accentColor: '#E6007A' }} />
+              <span className="text-sm" style={{ color: '#07152F' }}>{text}</span>
+            </label>
+          ))}
+        </fieldset>
+      </div>
+
+      {err && <p role="alert" className="text-sm font-semibold mt-4" style={{ color: '#B42318' }}>{err}</p>}
+      <div className="flex gap-3 mt-5" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <button type="submit" disabled={busy} className="rounded-xl px-5 text-sm font-bold text-white disabled:opacity-60" style={{ minHeight: 48, background: '#E6007A' }}>{busy ? 'Saving…' : 'Save profile'}</button>
+        <button type="button" onClick={onCancel} disabled={busy} className="rounded-xl border px-5 text-sm font-semibold" style={{ minHeight: 48, borderColor: '#CBD5E1', color: '#07152F', background: '#FFFFFF' }}>Cancel</button>
+      </div>
+    </form>
+  );
+};
+const NFC_PLATFORM_KEYS = ['instagram', 'tiktok', 'youtube', 'facebook', 'telegram'];
+
+// Tap card -> preview -> claim -> edit. One component owns the whole NFC token flow.
+const NfcFlow = ({ token, session }) => {
+  const [state, setState] = useState({ loading: true, error: '', data: null });
+  const [editing, setEditing] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [claimErr, setClaimErr] = useState('');
+
+  const load = async () => {
+    const { data, error } = await supabase.rpc('get_nfc_public_profile', { p_token: token });
+    if (error) { setState({ loading: false, error: safeUserError(error, 'This card could not be opened.'), data: null }); return null; }
+    setState({ loading: false, error: '', data: data || null });
+    return data || null;
+  };
+  useEffect(() => { setState((s) => ({ ...s, loading: true })); load(); }, [token, session?.user?.id]);
+
+  const claim = async () => {
+    setClaimErr('');
+    if (!session?.user?.id) { nfcAuthRedirect(token); return; }
+    setClaiming(true);
+    const { error } = await supabase.rpc('claim_nfc_profile', { p_token: token });
+    if (error) { setClaimErr(safeUserError(error, 'We could not claim this profile. Please try again.')); setClaiming(false); return; }
+    await load();
+    setClaiming(false);
+    setEditing(true);
+  };
+
+  const shell = (children) => <div className="cm-nfc max-w-2xl mx-auto px-4 md:px-8 pb-16 pt-4 grid gap-5" style={{ paddingLeft: 'max(16px, env(safe-area-inset-left))', paddingRight: 'max(16px, env(safe-area-inset-right))' }}>{children}</div>;
+  const msgBox = (title, text) => <div className="max-w-md mx-auto px-5 py-24 text-center"><p className="text-sm font-bold mb-1" style={{ color: '#FFFFFF' }}>{title}</p><p className="text-xs" style={{ color: '#E2E8F0' }}>{text}</p></div>;
+
+  if (state.loading) return <div className="max-w-2xl mx-auto px-5 py-24 text-center text-sm" style={{ color: '#FFFFFF' }} role="status">Loading NFC profile…</div>;
+  if (state.error) return msgBox('This card could not be opened', 'Check your connection and tap the card again. If it keeps happening, the card service may be unavailable.');
+  const d = state.data;
+  if (!d) return msgBox("This Commissioner card isn't available", 'We could not find a profile linked to this card.');
+
+  // Owner is editing (either just claimed it, or pressed Edit Profile, or the profile is still being set up).
+  if (d.is_owner && (editing || d.status === 'setting_up')) {
+    return shell(<NfcEditProfile token={token} session={session} onCancel={() => setEditing(false)} onDone={async () => { await load(); setEditing(false); setNotice('Profile saved. Your card now shows what you chose.'); }} />);
+  }
+
+  if (d.status === 'setting_up') {
+    return shell(<div className="rounded-2xl border bg-white p-6 text-center" style={{ borderColor: '#E5E7EB' }}><p className="text-sm font-bold" style={{ color: '#07152F' }}>{d.name ? `${d.name} is setting up their profile` : 'This profile is being set up'}</p><p className="text-xs mt-1" style={{ color: '#526078' }}>Check back soon.</p></div>);
+  }
+
+  if (d.status === 'unclaimed') {
+    return shell(<>
+      <div className="rounded-2xl border bg-white p-5 md:p-6 text-center" style={{ borderColor: '#E5E7EB' }}>
+        <div className="flex justify-center"><Avatar name={d.name || 'Profile'} size={88} ring src={d.avatar_url} /></div>
+        <p className="text-xs font-bold uppercase tracking-wider mt-4" style={{ color: '#B80061' }}>Unclaimed profile preview</p>
+        <h1 className="cm-display font-bold text-2xl mt-1" style={{ color: '#07152F' }}>{d.name || 'This Commissioner card is ready to claim'}</h1>
+        {d.city && <p className="text-sm mt-1" style={{ color: '#334155' }}>{d.city}</p>}
+        {d.bio && <p className="text-sm leading-6 mt-3" style={{ color: '#334155', overflowWrap: 'anywhere' }}>{d.bio}</p>}
+        <p className="text-xs mt-4" style={{ color: '#526078' }}>{session?.user?.id ? 'Claim this profile to edit it and choose what the public sees.' : 'Sign in or create an account to claim this profile and choose what the public sees.'}</p>
+        <button type="button" onClick={claim} disabled={claiming} className="mt-4 rounded-xl px-6 text-sm font-bold text-white disabled:opacity-60" style={{ minHeight: 48, background: '#E6007A', width: '100%', maxWidth: 320 }}>{claiming ? 'Claiming…' : 'Claim Profile'}</button>
+        {claimErr && <p role="alert" className="text-sm font-semibold mt-3" style={{ color: '#B42318' }}>{claimErr}</p>}
+      </div>
+      <NfcFeatureBlock />
+    </>);
+  }
+
+  return shell(<>
+    {notice && <p role="status" className="rounded-xl px-4 py-3 text-sm font-semibold" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{notice}</p>}
+    <NfcPublicCard data={d} session={session} token={token} onEdit={() => { setNotice(''); setEditing(true); }} />
+    <NfcFeatureBlock />
+  </>);
+};
+
+// NFC links are permanent: the same URL previews an unclaimed card, then shows the
+// owner-controlled public profile once it is claimed and completed.
+const ClaimGate = ({ token, session }) => <NfcFlow token={token} session={session} />;
 
 
 /* ========================= Commissioner trust + marketplace ========================= */
@@ -5374,7 +5665,7 @@ const NfcCardPage = ({ cardId, session, setPage }) => {
   useEffect(()=>{let cancelled=false;(async()=>{const {data,error}=await supabase.rpc('get_nfc_card_public',{p_card_id:cardId});if(cancelled)return;if(error){setState({loading:false,error:safeUserError(error,'This NFC card could not be opened.'),kind:null,profile:null,claimToken:null});return;}if(!data?.kind){setState({loading:false,error:'This NFC card is not assigned or is unavailable.',kind:null,profile:null,claimToken:null});return;}setState({loading:false,error:'',kind:data.kind,profile:data,claimToken:data.claim_token||null});})();return()=>{cancelled=true}},[cardId]);
   if(state.loading)return <div className="max-w-xl mx-auto px-5 py-24 text-center text-sm" style={{color:'#526078'}}>Loading NFC profile…</div>;
   if(state.error)return <div className="max-w-xl mx-auto px-5 py-24 text-center"><Zap size={30} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#172033'}}>NFC card unavailable</h1><p className="text-sm mt-2" style={{color:'#526078'}}>{state.error}</p></div>;
-  if(state.profile?.status==='claimable' && state.claimToken)return state.kind==='business'?<BusinessClaimForm token={state.claimToken} session={session}/>:<CreatorClaimForm token={state.claimToken} session={session}/>;
+  if(state.profile?.status==='claimable' && state.claimToken)return <NfcFlow token={state.claimToken} session={session}/>;
   return state.kind==='business'?<OfficialBusinessPage id={state.profile.id} session={session} setPage={setPage} nfcMode={true}/>:<OfficialCreatorPage id={state.profile.id} session={session} setPage={setPage} nfcMode={true}/>;
 };
 
