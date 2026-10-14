@@ -243,7 +243,7 @@ const PlatformIcon = ({ p, size = 14 }) => {
   return null;
 };
 
-// One metric's progress toward the launch threshold (e.g. "32 / 50 creators").
+// Admin-only operational counts; never displayed as a public milestone.
 const LaunchProgressBar = ({ label, count, threshold, color }) => (
   <div>
     <div className="flex items-center justify-between mb-1.5">
@@ -271,7 +271,7 @@ const LaunchGateNotice = ({ stats }) => (
 
 const AdminLiveCountsCard = ({ stats }) => {
   if (!stats) return null;
-  return <div className="bg-white border rounded-2xl p-5 md:p-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Admin only</p><h3 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Live 50 / 50 verification counts</h3><p className="text-xs mt-1" style={{color:'#64748B'}}>Operational counts are visible only to administrators.</p></div><ShieldCheck size={19} style={{color:'#00A8CC'}}/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-5"><LaunchProgressBar label="Verified creators" count={stats.creatorCount} threshold={stats.creatorThreshold} color="#E6007A"/><LaunchProgressBar label="Verified businesses" count={stats.businessCount} threshold={stats.businessThreshold} color="#00D9FF"/></div></div>;
+  return <div className="bg-white border rounded-2xl p-5 md:p-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Admin only</p><h3 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Verification operations</h3><p className="text-xs mt-1" style={{color:'#64748B'}}>Private operational counts for administrators only.</p></div><ShieldCheck size={19} style={{color:'#00A8CC'}}/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-5"><LaunchProgressBar label="Verified creators" count={stats.creatorCount} threshold={stats.creatorThreshold} color="#E6007A"/><LaunchProgressBar label="Verified businesses" count={stats.businessCount} threshold={stats.businessThreshold} color="#00D9FF"/></div></div>;
 };
 
 const CommissionerGettingStarted = ({ compact = false }) => (
@@ -3671,11 +3671,27 @@ const OfficialBusinessPage = ({ id, session, setPage, nfcMode = false }) => {
   const [editMode, setEditMode] = useState(false);
   const owner = Boolean(session?.user?.id && profile?.auth_user_id === session.user.id);
   useEffect(() => {
-    setLoading(true);
-    supabase.from('business_profiles').select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, onboarded, nfc_display_settings').eq('id', id).maybeSingle().then(({ data }) => {
-      setProfile(data || null); setLoading(false);
-    });
-  }, [id]);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      let data = null;
+      // Owners may load their own full editing context. Everyone else receives
+      // a server-filtered public projection, never the raw profile table row.
+      if (session?.user?.id) {
+        const own = await supabase.from('business_profiles')
+          .select('id, auth_user_id, business_name, username, avatar_url, banner_url, city, language, bio, verified, industry, website, onboarded, nfc_display_settings')
+          .eq('id', id).eq('auth_user_id', session.user.id).maybeSingle();
+        if (own.data) data = own.data;
+      }
+      if (!data) {
+        const result = await supabase.rpc('get_public_business_profile', { p_profile_id: id });
+        if (!result.error && result.data) data = result.data;
+      }
+      if (!cancelled) { setProfile(data || null); setLoading(false); }
+    };
+    load().catch(() => { if (!cancelled) { setProfile(null); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [id, session?.user?.id]);
   if (loading) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading business profile…</div>;
   if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Business profile not found</p></div>;
   if (!profile.onboarded && !owner) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
@@ -3693,18 +3709,26 @@ const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
 
   const loadProfile = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('creator_profiles')
-      .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
-      .eq('id', id)
-      .maybeSingle();
-    if (!error && data) {
+    let data = null;
+    // Only the authenticated owner can load their direct profile row. Public
+    // viewers use the SQL projection that applies each visibility toggle.
+    if (session?.user?.id) {
+      const own = await supabase.from('creator_profiles')
+        .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
+        .eq('id', id).eq('auth_user_id', session.user.id).maybeSingle();
+      if (own.data) data = own.data;
+    }
+    if (!data) {
+      const result = await supabase.rpc('get_public_creator_profile', { p_profile_id: id });
+      if (!result.error && result.data) data = result.data;
+    }
+    if (data) {
       setProfile(data);
       setOwner(Boolean(session?.user?.id && data.auth_user_id === session.user.id));
       if (data.onboarded && data.auth_user_id) {
         supabase.rpc('track_profile_event', { p_creator_profile_id: id, p_event_type: 'profile_view' }).catch(() => {});
       }
-    }
+    } else { setProfile(null); setOwner(false); }
     setLoading(false);
   };
 
