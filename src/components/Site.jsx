@@ -126,7 +126,15 @@ async function fetchLiveCreators(limit = 48) {
     const socials = row.platforms && typeof row.platforms === 'object' ? row.platforms : {};
     const platformKeys = Object.keys(socials).filter(p => socials[p]?.handle);
     const first = socials[platformKeys[0]];
-    const price = firstNonEmpty(row.services, ['reel', 'story', 'tiktok', 'youtube', 'ugc', 'monthly']);
+    const rawPrice = firstNonEmpty(row.services, ['reel', 'story', 'tiktok', 'youtube', 'ugc', 'monthly']);
+    // Service entries may be objects (e.g. { price: 1200 }) rather than
+    // numbers. Normalize them so cards never display NaN and price filters
+    // don't accidentally hide every creator.
+    const priceValue = rawPrice && typeof rawPrice === 'object'
+      ? (rawPrice.price ?? rawPrice.rate ?? rawPrice.amount ?? rawPrice.minPrice ?? null)
+      : rawPrice;
+    const parsedPrice = priceValue == null ? null : Number(String(priceValue).replace(/[^\d.]/g, ''));
+    const price = Number.isFinite(parsedPrice) ? parsedPrice : null;
     return {
       id: row.id,
       name: row.page_name || row.username || 'Creator',
@@ -1155,7 +1163,9 @@ const Creators = ({ session, savedIds, toggleSave, onHire, onView, setPage, appl
     (filters.platforms.length === 0 || filters.platforms.some(p => c.platforms.includes(p))) &&
     (filters.city === 'All' || c.city === filters.city) &&
     parseFollowers(c.followers) >= filters.minFollowers &&
-    (c.price === null || c.price <= filters.maxPrice) &&
+    // 350 ETB is the slider's upper/default position, not a default
+    // restriction. Show all creators until the user deliberately lowers it.
+    (filters.maxPrice >= 350 || c.price === null || c.price <= filters.maxPrice) &&
     (!filters.verifiedOnly || c.verified)
   );
 
