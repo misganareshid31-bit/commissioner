@@ -529,17 +529,16 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                 </span>
                 <ChevronDown size={14} style={{ color: '#334155' }} />
               </button>
-              {hasBothProfiles && (
-                <button
-                  type="button"
-                  onClick={() => switchWorkspace(isBusiness ? 'creator' : 'business')}
-                  title={`Switch to ${isBusiness ? 'creator' : 'business'} account`}
-                  className="hidden sm:flex items-center gap-1.5 ml-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-extrabold uppercase tracking-wider"
-                  style={{ borderColor: roleAccent, color: roleAccentInk, background: roleAccentSoft }}
-                >
-                  <Repeat size={13}/> {isBusiness ? 'Creator' : 'Business'}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => switchWorkspace(isBusiness ? 'creator' : 'business')}
+                title={`Switch to ${isBusiness ? 'creator' : 'business'} account`}
+                aria-label={`Switch to ${isBusiness ? 'creator' : 'business'} account`}
+                className="flex items-center gap-1.5 ml-1 px-2 py-2 rounded-lg border text-[10px] font-extrabold uppercase tracking-wider shrink-0"
+                style={{ borderColor: roleAccent, color: roleAccentInk, background: roleAccentSoft }}
+              >
+                <Repeat size={13}/> {isBusiness ? 'Creator' : 'Business'}
+              </button>
               {accountMenuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border rounded-2xl py-2 z-50" style={{ borderColor: '#E5E7EB', boxShadow: '0 12px 36px rgba(17,24,39,0.12)' }}>
                   {/* The role switcher is explicit: the workspace you are in is
