@@ -1,18 +1,16 @@
-# Commissioner account switch and Explore visibility fix
+# Commissioner account switch and Explore fix
 
-## Changes in this bundle
+## Supabase SQL
 
-1. The Creator/Business switch control in the signed-in header is now always visible on small and large screens. If the other profile does not exist yet, selecting it starts that role's setup instead of hiding the control.
-2. Added `supabase/migrations/20261016_PUBLIC_DISCOVERY_NO_APPROVAL.sql`. It defines public discovery eligibility as an owned profile with `onboarded = true`; `approved` and `verified` are not required. Premium/Pro only affect ranking.
+Use `supabase/migrations/20261016_PUBLIC_DISCOVERY_NO_APPROVAL.sql` in Supabase SQL Editor.
 
-## Apply the SQL
+This corrected migration only adds the public SELECT policies for completed Creator and Business profiles. It deliberately does **not** run `CREATE OR REPLACE VIEW` on the existing `creator_profiles_ranked` or `business_profiles_ranked` views. Those views use `table.*`, and adding a new table column can shift the view's column order and trigger PostgreSQL error 42P16.
 
-1. Back up your Supabase database.
-2. Open Supabase Dashboard → SQL Editor.
-3. Review and run `supabase/migrations/20261016_PUBLIC_DISCOVERY_NO_APPROVAL.sql`.
-4. Deploy the updated app bundle to Vercel.
-5. Test Explore while logged out and signed in, with one completed unverified Creator and one completed unverified Business profile.
+The policies allow completed profiles (`onboarded = true`) belonging to an account (`auth_user_id IS NOT NULL`) to be read by `anon` and `authenticated` roles without requiring approval or verification. They do not make incomplete profiles public.
 
-## Important
+## Important notes
 
-This migration assumes the current Commissioner schema has `creator_profiles`, `business_profiles`, `auth_user_id`, `onboarded`, `plan`, and `plan_expires_at`, matching the project's existing migrations and queries. It does not make incomplete profiles public. If profiles still fail to appear after applying it, inspect Supabase Table Editor to confirm their `onboarded` value is `true` and check the browser console/network response for RLS errors. This SQL has not been run against the live database from this workspace.
+- Back up the database before applying SQL.
+- This SQL assumes both profile tables have `auth_user_id` and `onboarded` columns. If Supabase reports a missing column, stop and inspect the actual schema rather than guessing a replacement column.
+- RLS policies on a table are generally combined permissively with OR. Existing policies can therefore also grant visibility; audit them if you need the exact public-visibility rule to be exclusive.
+- This migration does not change frontend Explore queries or account-switch UI. Deploy the matching application code as well, and test in a logged-out browser.

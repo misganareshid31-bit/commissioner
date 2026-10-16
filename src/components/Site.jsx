@@ -105,14 +105,23 @@ function safeUserError(error, fallback = 'Something went wrong. Please try again
 // shape CreatorCard expects. Returns [] if none exist yet — callers should
 // render an empty state rather than assume data is present.
 async function fetchLiveCreators(limit = 48) {
+  // Query the base profile table for discovery instead of the legacy ranked
+  // view. Older databases may have a stale creator_profiles_ranked column
+  // order after profile columns were added, which makes the view query fail
+  // and previously looked exactly like an empty Explore page.
   const { data, error } = await supabase
-    .from('creator_profiles_ranked')
-    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified, plan')
+    .from('creator_profiles')
+    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified, plan, onboarded, created_at')
     .eq('onboarded', true)
-    .order('effective_plan_rank', { ascending: false })
+    .not('auth_user_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
+  if (error || !data) {
+    console.warn('[Commissioner Explore] Could not load creator profiles:', error?.message || 'No data returned');
+    return [];
+  }
+  const planRank = (plan) => ({ premium: 3, elite: 3, pro: 2, basic: 1 }[String(plan || 'basic').toLowerCase()] || 0);
+  data.sort((a, b) => planRank(b.plan) - planRank(a.plan));
   return data.map((row, i) => {
     const socials = row.platforms && typeof row.platforms === 'object' ? row.platforms : {};
     const platformKeys = Object.keys(socials).filter(p => socials[p]?.handle);
