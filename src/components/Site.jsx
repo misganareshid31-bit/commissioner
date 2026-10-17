@@ -105,18 +105,10 @@ function safeUserError(error, fallback = 'Something went wrong. Please try again
 // shape CreatorCard expects. Returns [] if none exist yet — callers should
 // render an empty state rather than assume data is present.
 async function fetchLiveCreators(limit = 48) {
-  // Query the base profile table for discovery instead of the legacy ranked
-  // view. Older databases may have a stale creator_profiles_ranked column
-  // order after profile columns were added, which makes the view query fail
-  // and previously looked exactly like an empty Explore page.
-  const { data, error } = await supabase
-    .from('creator_profiles')
-    .select('id, auth_user_id, page_name, username, avatar_url, city, primary_niche, platforms, services, verified, plan, onboarded, created_at')
-    .eq('onboarded', true)
-    .not('auth_user_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error || !data) {
+  // Use a narrow server-side projection so gifted/unclaimed profiles can be
+  // discovered without exposing claim tokens or querying the legacy ranked view.
+  const { data, error } = await supabase.rpc('list_public_creator_discovery', { p_limit: limit });
+  if (error || !Array.isArray(data)) {
     console.warn('[Commissioner Explore] Could not load creator profiles:', error?.message || 'No data returned');
     return [];
   }
@@ -124,12 +116,9 @@ async function fetchLiveCreators(limit = 48) {
   data.sort((a, b) => planRank(b.plan) - planRank(a.plan));
   return data.map((row, i) => {
     const socials = row.platforms && typeof row.platforms === 'object' ? row.platforms : {};
-    const platformKeys = Object.keys(socials).filter(p => socials[p]?.handle);
+    const platformKeys = Object.keys(socials).filter(p => socials[p]?.handle || socials[p]?.url);
     const first = socials[platformKeys[0]];
     const rawPrice = firstNonEmpty(row.services, ['reel', 'story', 'tiktok', 'youtube', 'ugc', 'monthly']);
-    // Service entries may be objects (e.g. { price: 1200 }) rather than
-    // numbers. Normalize them so cards never display NaN and price filters
-    // don't accidentally hide every creator.
     const priceValue = rawPrice && typeof rawPrice === 'object'
       ? (rawPrice.price ?? rawPrice.rate ?? rawPrice.amount ?? rawPrice.minPrice ?? null)
       : rawPrice;
@@ -147,7 +136,8 @@ async function fetchLiveCreators(limit = 48) {
       platforms: platformKeys.map(p => p.toLowerCase()),
       verified: !!row.verified,
       response: null,
-      authUserId: row.auth_user_id,
+      authUserId: row.auth_user_id || null,
+      claimed: row.claimed === true,
       tone: i,
       avatarUrl: row.avatar_url,
       plan: row.plan || 'basic',
@@ -156,21 +146,21 @@ async function fetchLiveCreators(limit = 48) {
 }
 
 async function fetchLiveBusinesses(limit = 48) {
-  const { data, error } = await supabase
-    .from('business_profiles')
-    .select('id, auth_user_id, business_name, username, avatar_url, city, industry, bio, verified, onboarded, plan, created_at')
-    .eq('onboarded', true)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error || !data) return [];
+  const { data, error } = await supabase.rpc('list_public_business_discovery', { p_limit: limit });
+  if (error || !Array.isArray(data)) {
+    console.warn('[Commissioner Explore] Could not load business profiles:', error?.message || 'No data returned');
+    return [];
+  }
   return data.map((row, i) => ({
     id: row.id,
-    authUserId: row.auth_user_id,
+    authUserId: row.auth_user_id || null,
+    claimed: row.claimed === true,
     name: row.business_name || row.username || 'Business',
     handle: row.username ? (row.username.startsWith('@') ? row.username : `@${row.username}`) : '',
     industry: row.industry || 'Business',
     city: row.city || '',
     bio: row.bio || '',
+    website: row.website || '',
     verified: !!row.verified,
     avatarUrl: row.avatar_url,
     plan: row.plan || 'basic',
@@ -872,6 +862,7 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
           <div className="flex items-center gap-1.5">
             <p className="font-semibold text-sm" style={{ color: '#334155' }}>{c.name}</p>
             {c.verified && <VerifiedIcon size={14} />}
+            {c.claimed === false && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ background: '#FFF4E5', color: '#9A4A0C' }}>Unclaimed</span>}
             {(c.plan === 'premium' || c.plan === 'elite') && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#FFFFFF', color: '#00D9FF' }}>Premium</span>}
             {c.plan === 'pro' && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: '#E0FBFF', color: '#036377' }}>Pro</span>}
           </div>
@@ -920,7 +911,7 @@ const CreatorCard = ({ c, saved = false, onToggleSave = () => {}, onHire = () =>
         <p className="cm-mono text-base font-semibold" style={{ color: '#334155' }}>{c.price ? `${Number(c.price).toLocaleString()} ETB` : 'Rate on request'}</p>
         <p className="text-[11px]" style={{ color: '#334155' }}>Starting price</p>
       </div>
-      <div className="flex gap-2"><button onClick={() => onView(c)} style={{ borderColor: '#E6007A', color: '#E6007A' }} className="text-xs font-semibold px-3 py-2.5 rounded-lg border">View profile</button><button onClick={() => onHire(c)} style={{ background: '#E6007A' }} className="text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:opacity-90">Message</button></div>
+      <div className="flex gap-2"><button onClick={() => onView(c)} style={{ borderColor: '#E6007A', color: '#E6007A' }} className="text-xs font-semibold px-3 py-2.5 rounded-lg border">View profile</button><button onClick={() => onHire(c)} disabled={c.claimed === false || !c.authUserId} title={c.claimed === false ? 'This profile has not been claimed yet' : 'Message creator'} style={{ background: c.claimed === false || !c.authUserId ? '#CBD5E1' : '#E6007A', cursor: c.claimed === false || !c.authUserId ? 'not-allowed' : 'pointer' }} className="text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-80">{c.claimed === false ? 'Unclaimed' : 'Message'}</button></div>
     </div>
   </div>
 );
@@ -987,11 +978,11 @@ const Home = ({ setPage, joinAs, hasCreator, hasBusiness, session }) => {
 
       <section style={{ background:'#F8FAFC' }} className="py-16">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
-          <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#FF4FA6'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#9FB0C4'}}>Completed Commissioner profiles are shown here. Verification is separate.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Explore creators</button><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Explore businesses</button></div></div>
+          <div className="flex items-end justify-between gap-4 mb-8"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#FF4FA6'}}>Discover</p><h2 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Real profiles. No demo accounts.</h2><p className="text-sm mt-2" style={{color:'#9FB0C4'}}>Claimed and gifted profiles can appear here. Verification is separate.</p></div><div className="hidden sm:flex gap-2"><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Explore creators</button><button onClick={()=>setPage('explore')} className="text-xs font-bold px-3 py-2 rounded-lg border bg-white" style={{borderColor:'#E5E7EB'}}>Explore businesses</button></div></div>
           {(creators.length || businesses.length) ? <div className="grid lg:grid-cols-2 gap-5">
             <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured creators</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#FDE7F1',color:'#99154F'}}>LIVE DATA</span></div>{creators.slice(0,3).map(c=><div key={c.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={c.name} size={42} src={c.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{c.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{c.niche}{c.city?` · ${c.city}`:''}</p></div>{c.verified&&<VerifiedIcon size={14}/>}</div>)}{!creators.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No creators have joined yet.</p>}</div>
             <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-bold" style={{color:'#07152F'}}>Featured businesses</p><span className="text-[10px] font-bold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>LIVE DATA</span></div>{businesses.slice(0,3).map(b=><div key={b.id} className="flex items-center gap-3 py-3 border-t" style={{borderColor:'#F3F4F6'}}><Avatar name={b.name} size={42} src={b.avatarUrl}/><div className="min-w-0 flex-1"><p className="text-sm font-bold truncate" style={{color:'#07152F'}}>{b.name}</p><p className="text-[11px] truncate" style={{color:'#526078'}}>{b.industry}{b.city?` · ${b.city}`:''}</p></div>{b.verified&&<VerifiedIcon size={14}/>}</div>)}{!businesses.length&&<p className="text-xs py-5" style={{color:'#334155'}}>No businesses have joined yet.</p>}</div>
-          </div> : <div className="bg-white border rounded-2xl p-10 text-center" style={{borderColor:'#E5E7EB'}}><Users size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-bold" style={{color:'#334155'}}>The Commissioner network is being built.</p><p className="text-xs mt-1" style={{color:'#334155'}}>Approved creators and businesses will appear here automatically.</p></div>}
+          </div> : <div className="bg-white border rounded-2xl p-10 text-center" style={{borderColor:'#E5E7EB'}}><Users size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-bold" style={{color:'#334155'}}>The Commissioner network is being built.</p><p className="text-xs mt-1" style={{color:'#334155'}}>Public creator and business profiles will appear here automatically.</p></div>}
         </div>
       </section>
 
@@ -2583,6 +2574,7 @@ const Onboarding = ({ session, setPage, editMode = false, onSaved }) => {
           availability,
           professional_preferences: preferences,
           onboarded: true,
+          claimed: true,
         }, { onConflict: 'auth_user_id' });
       if (error) throw error;
       // Verification is optional. Completing setup only saves the profile;
@@ -3527,6 +3519,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
           </div>
           {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><NfcMessageButton profile={profile} session={session} kind="creator"/><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'creator')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/creator/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>View Commissioner Profile <ArrowUpRight size={14}/></a></div>}
           <div className="px-5 md:px-8 pb-8">
+            {profile.claimed === false && <div className="mt-5 mb-5 rounded-xl border px-4 py-3" style={{ borderColor: '#F5D0A9', background: '#FFF8EF' }}><p className="text-sm font-bold" style={{ color: '#9A4A0C' }}>Unclaimed creator profile</p><p className="text-xs mt-1 leading-5" style={{ color: '#7C4A18' }}>This profile was prepared for its owner. To manage it, use the original Commissioner claim link or tap the associated NFC card. Public visitors cannot claim it from this listing.</p></div>}
             <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
               <div className="relative shrink-0 w-fit">
                 {showNfc('photo') && <Avatar name={profile.page_name || profile.username || 'Creator'} size={96} ring src={profile.avatar_url} />}
@@ -3547,7 +3540,7 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
                   {showNfc('name') && <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.page_name || profile.username || 'Creator'}</h1>}
                 </div>
                 <p className="text-sm" style={{ color: '#334155' }}>{showNfc('name') && profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
-                <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
+                <div className="mt-1.5">{profile.auth_user_id && <RatingSummary userId={profile.auth_user_id} />}</div>
               </div>
               {!canEdit && profile.auth_user_id && (
                 <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
@@ -3561,9 +3554,9 @@ const PublicCreatorProfile = ({ profile, canEdit = false, onEdit, session, setPa
               {showNfc('availability') && profile.availability && <span className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#E9FBEF', color: '#0E7A3B' }}>{profile.availability}</span>}
             </div>
             {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-7" style={{ color: '#334155' }}>{profile.bio}</p>}
-            <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>
-            <CreatorProducts profile={profile} />
-            <WorkWithMe profile={profile} />
+            {profile.claimed !== false && <div className="mb-7"><VerificationDetails type="creator" id={profile.id} /></div>}
+            {profile.claimed !== false && <CreatorProducts profile={profile} />}
+            {profile.claimed !== false && <WorkWithMe profile={profile} />}
             {showNfc('socials') && socialEntries.length > 0 && (
               <div className="mb-7">
                 <p className="text-sm font-semibold mb-3" style={{ color: '#334155' }}>Social platforms</p>
@@ -3629,6 +3622,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
         </div>
         {nfcMode && <div className="px-5 pt-3 flex flex-wrap items-center justify-between gap-2" style={{background:'#FFFFFF'}}><span className="text-[11px] font-semibold" style={{color:'#0E7A3B'}}>NFC page configured by the account holder</span><NfcMessageButton profile={profile} session={session} kind="business"/><button type="button" onClick={() => downloadNfcProfileInfo(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Download profile info</button><button type="button" onClick={() => downloadNfcContact(profile, 'business')} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold" style={{borderColor:'#CBD5E1',color:'#07152F',background:'#FFFFFF'}}><Download size={14}/> Contact card</button><a href={`/business/${encodeURIComponent(profile.id)}`} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white" style={{background:'#07152F'}}>View Commissioner Profile <ArrowUpRight size={14}/></a></div>}
         <div className="px-5 md:px-8 pb-8">
+          {profile.claimed === false && <div className="mt-5 mb-5 rounded-xl border px-4 py-3" style={{ borderColor: '#F5D0A9', background: '#FFF8EF' }}><p className="text-sm font-bold" style={{ color: '#9A4A0C' }}>Unclaimed business profile</p><p className="text-xs mt-1 leading-5" style={{ color: '#7C4A18' }}>This profile was prepared for its owner. To manage it, use the original Commissioner claim link or tap the associated NFC card. Public visitors cannot claim it from this listing.</p></div>}
           <div className="-mt-12 relative flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
             <div className="relative shrink-0 w-fit">
               {showNfc('photo') && <Avatar name={profile.business_name || profile.username || 'Business'} size={96} ring src={profile.avatar_url} />}
@@ -3647,7 +3641,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
             <div className="pb-1">
               <div className="flex items-center gap-2 flex-wrap">{showNfc('name') && <h1 className="cm-display font-bold text-2xl md:text-3xl" style={{ color: '#334155' }}>{profile.business_name || profile.username || 'Business'}</h1>}</div>
               <p className="text-sm" style={{ color: '#334155' }}>{showNfc('name') && profile.username ? `@${profile.username.replace(/^@/, '')}` : ''}{showNfc('location') && profile.city ? ` · ${profile.city}` : ''}</p>
-              <div className="mt-1.5"><RatingSummary userId={profile.auth_user_id} /></div>
+              <div className="mt-1.5">{profile.auth_user_id && <RatingSummary userId={profile.auth_user_id} />}</div>
             </div>
             {profile.auth_user_id && (
               <button onClick={() => setReportOpen(true)} className="ml-auto sm:ml-0 sm:mb-1 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: '#E5E7EB', color: '#334155' }}>
@@ -3657,7 +3651,7 @@ const PublicBusinessProfile = ({ profile, session, canEdit = false, onEdit, nfcM
           </div>
           {showNfc('role') && profile.industry && <span className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-full mb-5" style={{ background: '#F3E8FF', color: '#7C3AED' }}>{profile.industry}</span>}
           {showNfc('bio') && profile.bio && <p className="text-sm leading-7 mb-6" style={{ color: '#334155' }}>{profile.bio}</p>}
-          {!nfcMode && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
+          {!nfcMode && profile.claimed !== false && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
           <div className="flex flex-wrap gap-3">
             {showNfc('website') && profile.website && <a href={/^https?:\/\//i.test(profile.website) ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-xl" style={{ background: '#E0FBFF',color:'#036377' }}><Globe size={15} /> Visit Website <ArrowUpRight size={15} /></a>}
           </div>
@@ -3712,7 +3706,7 @@ const OfficialBusinessPage = ({ id, session, setPage, nfcMode = false }) => {
   }, [id, session?.user?.id]);
   if (loading) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading business profile…</div>;
   if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Business profile not found</p></div>;
-  if (!profile.onboarded && !owner) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
+  if (!profile.onboarded && !owner && profile.claimed !== false) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
   if (editMode && owner) return <div><div className="max-w-2xl mx-auto px-5 md:px-8 pt-6"><button onClick={() => setEditMode(false)} className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-lg border" style={{ borderColor:'#E5E7EB', color:'#334155' }}><ChevronLeft size={15}/> Back to profile</button></div><BusinessOnboarding session={session} setPage={setPage} editMode={true} /></div>;
   return <PublicBusinessProfile profile={profile} session={session} canEdit={owner} onEdit={() => setEditMode(true)} nfcMode={nfcMode} />;
 };
@@ -3754,7 +3748,7 @@ const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
 
   if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading creator profile…</div>;
   if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Creator profile not found</p></div>;
-  if (!profile.onboarded && !owner) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
+  if (!profile.onboarded && !owner && profile.claimed !== false) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
 
   if (editMode && owner) {
     return (
@@ -3769,7 +3763,7 @@ const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
 
   return (
     <>
-      {!profile.onboarded && (
+      {!profile.onboarded && profile.claimed !== false && (
         <div className="max-w-5xl mx-auto px-5 md:px-8 pt-3"><div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#E5E7EB', color: '#334155' }}>This creator is still completing their profile. The NFC card is already linked to this permanent creator page.</div></div>
       )}
       <PublicCreatorProfile
@@ -4165,14 +4159,14 @@ const VerificationDetails = ({ type, id, compact=false }) => {
 const Businesses = ({ onConnect, session, setPage, appliedIds, onApply, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('primary');
   const [items,setItems]=useState([]); const [search,setSearch]=useState(''); const [category,setCategory]=useState('All'); const [loading,setLoading]=useState(true); const [loadError,setLoadError]=useState(false);
-  useEffect(()=>{supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,city,bio,industry,website,verified,onboarded,plan,created_at').eq('onboarded',true).order('created_at',{ascending:false}).limit(60).then(({data,error})=>{if(error){setLoadError(true);setItems([]);}else{setItems(data||[]);}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
+  useEffect(()=>{supabase.rpc('list_public_business_discovery',{p_limit:60}).then(({data,error})=>{if(error){console.warn('[Commissioner Explore] Could not load businesses:',error.message);setLoadError(true);setItems([]);}else{setItems((data||[]).map(row=>({...row,claimed:row.claimed===true,auth_user_id:row.auth_user_id||null})));}setLoading(false)}).catch(()=>{setLoadError(true);setItems([]);setLoading(false)})},[]);
   if (activeTab === 'campaigns') return <><div className="max-w-7xl mx-auto px-5 md:px-8 py-10"><div className="mb-1"><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{ color: '#334155' }}>Explore businesses</h1><p className="text-sm" style={{ color: '#9FB0C4' }}>Browse businesses and the campaigns they have posted.</p></div><ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" /></div><Campaigns session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} /></>;
   const filtered=items.filter(b=>(category==='All'||b.industry===category)&&`${b.business_name} ${b.industry} ${b.city} ${b.bio}`.toLowerCase().includes(search.toLowerCase()));
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10">
     <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>Business network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Explore businesses</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Find registered and Commissioner-verified businesses, then decide who you want to work with.</p></div>
     <ExploreTabs active={activeTab} onChange={setActiveTab} primaryLabel="Businesses" />
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 mb-6"><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search business, industry, city…" className="flex-1 outline-none text-sm"/></div><select value={category} onChange={e=>setCategory(e.target.value)} className="border rounded-xl px-3 py-3 text-sm bg-white" style={{borderColor:'#E5E7EB'}}><option>All</option>{BUSINESS_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
-    {loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#334155'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.plan==='premium'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#FFFFFF',color:'#00D9FF'}}>Premium</span>}{b.plan==='pro'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Pro</span>}</div><p className="text-xs" style={{color:'#334155'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#334155'}}>{b.bio||'Business profile on Commissioner.'}</p><VerificationDetails type="business" id={b.id} compact/><div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b,'view')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>View profile</button><button onClick={()=>onConnect?.(b,'connect')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg" style={{background:'#E0FBFF',color:'#036377'}}>Connect</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
+    {loading?<p className="py-16 text-center text-sm" style={{color:'#334155'}}>Loading businesses…</p>:<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{filtered.map((b,i)=><div key={b.id} className="bg-white border rounded-2xl p-5 cm-card-hover" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={b.business_name} size={50} tone={i} src={b.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5 flex-wrap"><h3 className="cm-display font-bold text-base truncate" style={{color:'#334155'}}>{b.business_name}</h3>{b.verified&&<VerifiedIcon size={14}/>}{b.claimed===false&&<span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{background:'#FFF4E5',color:'#9A4A0C'}}>Unclaimed</span>}{b.plan==='premium'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#FFFFFF',color:'#00D9FF'}}>Premium</span>}{b.plan==='pro'&&<span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{background:'#F3E8FF',color:'#7C3AED'}}>Pro</span>}</div><p className="text-xs" style={{color:'#334155'}}>{b.industry||'Business'}{b.city?` · ${b.city}`:''}</p></div></div><p className="text-xs leading-6 mt-4 min-h-[48px]" style={{color:'#334155'}}>{b.bio||'Business profile on Commissioner.'}</p>{b.claimed !== false && <VerificationDetails type="business" id={b.id} compact/>}<div className="flex gap-2 mt-4"><button onClick={()=>onConnect?.(b,'view')} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg border" style={{borderColor:'#00D9FF',color:'#036377'}}>View profile</button><button onClick={()=>onConnect?.(b,'connect')} disabled={b.claimed===false||!b.auth_user_id} title={b.claimed===false?'This profile has not been claimed yet':'Connect with business'} className="flex-1 text-sm font-semibold px-3 py-2.5 rounded-lg disabled:opacity-60" style={{background:b.claimed===false||!b.auth_user_id?'#E5E7EB':'#E0FBFF',color:b.claimed===false||!b.auth_user_id?'#64748B':'#036377',cursor:b.claimed===false||!b.auth_user_id?'not-allowed':'pointer'}}>{b.claimed===false?'Unclaimed':'Connect'}</button>{b.website&&<a href={b.website} target="_blank" rel="noreferrer" className="px-3 py-2.5 rounded-lg border" style={{borderColor:'#E5E7EB'}}><ArrowUpRight size={15}/></a>}</div></div>)}</div>}
     {!loading&&loadError&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>Couldn't load businesses</p><p className="text-xs mt-1" style={{color:'#334155'}}>Something went wrong on our end. Please refresh to try again.</p></div>}
     {!loading&&!loadError&&!filtered.length&&<div className="bg-white border rounded-2xl p-12 text-center" style={{borderColor:'#E5E7EB'}}><Building2 size={28} className="mx-auto mb-3" style={{color:'#D1D5DB'}}/><p className="text-sm font-semibold" style={{color:'#334155'}}>No businesses found</p><p className="text-xs mt-1" style={{color:'#334155'}}>Try another category or search.</p></div>}
   </div>;
