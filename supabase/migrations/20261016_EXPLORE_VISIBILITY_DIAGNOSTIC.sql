@@ -5,6 +5,7 @@ select 'creator_profiles' as source,
        count(*) as total_rows,
        count(*) filter (where coalesce(onboarded, false)) as completed_rows,
        count(*) filter (where coalesce(onboarded, false) and auth_user_id is not null) as discoverable_rows,
+       count(*) filter (where auth_user_id is null and coalesce(claimed, false) = false and claim_token is not null and nullif(trim(page_name), '') is not null) as unclaimed_discoverable_rows,
        count(*) filter (where coalesce(onboarded, false) and coalesce(verified, false)) as verified_rows
 from public.creator_profiles
 union all
@@ -12,6 +13,7 @@ select 'business_profiles' as source,
        count(*) as total_rows,
        count(*) filter (where coalesce(onboarded, false)) as completed_rows,
        count(*) filter (where coalesce(onboarded, false) and auth_user_id is not null) as discoverable_rows,
+       count(*) filter (where auth_user_id is null and coalesce(claimed, false) = false and claim_token is not null and nullif(trim(business_name), '') is not null) as unclaimed_discoverable_rows,
        count(*) filter (where coalesce(onboarded, false) and coalesce(verified, false)) as verified_rows
 from public.business_profiles;
 
