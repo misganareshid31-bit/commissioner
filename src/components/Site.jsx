@@ -3786,36 +3786,61 @@ const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
   const [loading, setLoading] = useState(true);
   const [owner, setOwner] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const loadProfile = async () => {
     setLoading(true);
-    let data = null;
-    // Only the authenticated owner can load their direct profile row. Public
-    // viewers use the SQL projection that applies each visibility toggle.
-    if (session?.user?.id) {
-      const own = await supabase.from('creator_profiles')
-        .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
-        .eq('id', id).eq('auth_user_id', session.user.id).maybeSingle();
-      if (own.data) data = own.data;
-    }
-    if (!data) {
-      const result = await supabase.rpc('get_public_creator_profile', { p_profile_id: id });
-      if (!result.error && result.data) data = result.data;
-    }
-    if (data) {
-      setProfile(data);
-      setOwner(Boolean(session?.user?.id && data.auth_user_id === session.user.id));
-      if (data.onboarded && data.auth_user_id) {
-        supabase.rpc('track_profile_event', { p_creator_profile_id: id, p_event_type: 'profile_view' }).catch(() => {});
+    setLoadError('');
+    try {
+      let data = null;
+      // Only the authenticated owner can load their direct profile row. Public
+      // viewers use the SQL projection that applies each visibility toggle.
+      if (session?.user?.id) {
+        const own = await supabase.from('creator_profiles')
+          .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
+          .eq('id', id).eq('auth_user_id', session.user.id).maybeSingle();
+        if (own.data) data = own.data;
       }
-    } else { setProfile(null); setOwner(false); }
-    setLoading(false);
+      if (!data) {
+        const result = await supabase.rpc('get_public_creator_profile', { p_profile_id: id });
+        if (result.error) throw result.error;
+        if (result.data) data = Array.isArray(result.data) ? result.data[0] : result.data;
+      }
+      if (data) {
+        setProfile(data);
+        setOwner(Boolean(session?.user?.id && data.auth_user_id === session.user.id));
+        if (data.onboarded && data.auth_user_id) {
+          supabase.rpc('track_profile_event', { p_creator_profile_id: id, p_event_type: 'profile_view' }).catch(() => {});
+        }
+      } else {
+        setProfile(null);
+        setOwner(false);
+        setLoadError('This creator profile could not be found. The profile may be unlinked, or the public-profile database function may be missing.');
+      }
+    } catch (error) {
+      console.error('Failed to load creator profile:', error);
+      setProfile(null);
+      setOwner(false);
+      setLoadError('We could not load this creator profile. Please check your connection and try again. If this keeps happening, the Supabase public-profile function or permissions may need fixing.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadProfile(); }, [id, session?.user?.id]);
+  useEffect(() => {
+    let active = true;
+    const timeout = setTimeout(() => {
+      if (active) {
+        setLoading(false);
+        setLoadError('Loading is taking too long. Please try again. If it persists, check the Supabase connection and get_public_creator_profile database function.');
+      }
+    }, 15000);
+    loadProfile().finally(() => clearTimeout(timeout));
+    return () => { active = false; clearTimeout(timeout); };
+  }, [id, session?.user?.id]);
 
   if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading creator profile…</div>;
-  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Creator profile not found</p></div>;
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>{loadError || 'Creator profile not found'}</p><button onClick={loadProfile} className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: '#E6007A' }}>Try again</button></div>;
   if (!profile.onboarded && !owner && profile.claimed !== false) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
 
   if (editMode && owner) {
