@@ -377,6 +377,60 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   }, [session?.user?.id]);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
+  const unreadNotificationCount = notifications.filter(n => !n.read_at).length;
+  const loadNotifications = async () => {
+    if (!session?.user?.id) { setNotifications([]); return; }
+    setNotificationsLoading(true);
+    setNotificationsError('');
+    const { data, error } = await supabase
+      .from('user_notifications')
+      .select('id,notification_type,title,body,target_url,metadata,read_at,created_at')
+      .eq('recipient_user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error) {
+      setNotificationsError('Notifications are temporarily unavailable.');
+    } else {
+      setNotifications(Array.isArray(data) ? data : []);
+    }
+    setNotificationsLoading(false);
+  };
+  useEffect(() => {
+    if (!session?.user?.id) { setNotifications([]); return undefined; }
+    loadNotifications();
+    const channel = supabase.channel(`user-notifications:${session.user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'user_notifications',
+        filter: `recipient_user_id=eq.${session.user.id}`
+      }, () => loadNotifications())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id]);
+  const openNotification = async (notification) => {
+    if (!notification.read_at) {
+      const { error } = await supabase.from('user_notifications').update({ read_at: new Date().toISOString() }).eq('id', notification.id).eq('recipient_user_id', session.user.id);
+      if (!error) setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n));
+    }
+    setNotifOpen(false);
+    const type = notification.notification_type;
+    const target = notification.target_url || notification.metadata?.page;
+    if (target && ['messages','network','campaigns','explore','dashboard','settings','verification'].includes(String(target).replace(/^\//, ''))) {
+      setPage(String(target).replace(/^\//, ''));
+    } else if (type === 'message') setPage('messages');
+    else if (type === 'connection') setPage('network');
+    else if (type === 'campaign_match' || type === 'campaign_application') setPage('campaigns');
+    else if (type === 'profile_completion') setPage('dashboard');
+  };
+  const markAllNotificationsRead = async () => {
+    if (!session?.user?.id || unreadNotificationCount === 0) return;
+    const ids = notifications.filter(n => !n.read_at).map(n => n.id);
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('user_notifications').update({ read_at: now }).in('id', ids).eq('recipient_user_id', session.user.id);
+    if (!error) setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at || now })));
+  };
   const [joinMenuOpen, setJoinMenuOpen] = useState(false);
   const [addingProfile, setAddingProfile] = useState(false);
   const isBusiness = activeRole === 'business';
@@ -506,17 +560,31 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
           {session && (
             <div className="relative">
               <button
-                aria-label="Notifications"
-                onClick={() => { setNotifOpen(o => !o); setAccountMenuOpen(false); }}
-                className="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+                aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
+                onClick={() => { setNotifOpen(o => !o); setAccountMenuOpen(false); if (!notifOpen) loadNotifications(); }}
+                className="relative w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
                 style={{ color: notifOpen ? roleAccentInk : '#334155', background: notifOpen ? roleAccentSoft : 'transparent' }}
               >
                 <Bell size={18} />
+                {unreadNotificationCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 h-4 px-1 rounded-full text-[9px] font-extrabold flex items-center justify-center text-white" style={{ background: '#E6007A' }}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</span>}
               </button>
               {notifOpen && (
-                <div className="absolute right-0 top-full mt-1 w-64 bg-white border rounded-xl shadow-lg p-4 z-50" style={{ borderColor: '#E5E7EB' }}>
-                  <p className="text-xs font-bold mb-1" style={{ color: '#334155' }}>Notifications</p>
-                  <p className="text-xs leading-relaxed" style={{ color: '#334155' }}>You're all caught up. Connection requests and verification updates will appear here.</p>
+                <div className="absolute right-0 top-full mt-2 w-[min(22rem,calc(100vw-2rem))] bg-white border rounded-xl shadow-xl z-50 overflow-hidden" style={{ borderColor: '#E5E7EB' }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: '#F1F5F9' }}>
+                    <div><p className="text-sm font-bold" style={{ color: '#0F172A' }}>Notifications</p><p className="text-[11px] mt-0.5" style={{ color: '#64748B' }}>{unreadNotificationCount ? `${unreadNotificationCount} unread` : 'All caught up'}</p></div>
+                    {unreadNotificationCount > 0 && <button onClick={markAllNotificationsRead} className="text-[11px] font-bold" style={{ color: roleAccentInk }}>Mark all read</button>}
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {notificationsLoading && <p className="p-4 text-xs" style={{ color: '#64748B' }}>Loading notifications…</p>}
+                    {!notificationsLoading && notificationsError && <div className="p-4"><p className="text-xs" style={{ color: '#B45309' }}>{notificationsError}</p><button className="mt-2 text-xs font-bold" style={{ color: roleAccentInk }} onClick={loadNotifications}>Try again</button></div>}
+                    {!notificationsLoading && !notificationsError && notifications.length === 0 && <div className="p-6 text-center"><Bell size={22} className="mx-auto mb-2" style={{ color: '#94A3B8' }}/><p className="text-sm font-semibold" style={{ color: '#334155' }}>You're all caught up</p><p className="text-xs mt-1 leading-relaxed" style={{ color: '#64748B' }}>Updates about messages, connections, campaigns, and verification will appear here.</p></div>}
+                    {!notificationsLoading && !notificationsError && notifications.map(n => (
+                      <button key={n.id} onClick={() => openNotification(n)} className="w-full text-left px-4 py-3 border-b transition-colors hover:bg-slate-50 flex gap-3" style={{ borderColor: '#F1F5F9', background: n.read_at ? '#FFFFFF' : '#FFF7FB' }}>
+                        <span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: n.read_at ? '#CBD5E1' : '#E6007A' }}/>
+                        <span className="min-w-0 flex-1"><span className="block text-xs font-bold" style={{ color: '#0F172A' }}>{n.title}</span>{n.body && <span className="block text-xs mt-1 leading-relaxed" style={{ color: '#475569' }}>{n.body}</span>}<span className="block text-[10px] mt-1.5" style={{ color: '#94A3B8' }}>{n.created_at ? new Date(n.created_at).toLocaleString() : ''}</span></span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
