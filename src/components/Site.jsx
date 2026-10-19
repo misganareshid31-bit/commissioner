@@ -1330,13 +1330,15 @@ const CampaignPostSetup = ({ session, onClose }) => {
 
 const Campaigns = ({ session, setPage, appliedIds, onApply }) => {
   const [showPost,setShowPost]=useState(false);
-  const [items,setItems]=useState([]); const [loading,setLoading]=useState(true); const [localAppliedIds,setLocalAppliedIds]=useState(appliedIds||[]); const [applyBusy,setApplyBusy]=useState(''); const [applyMessage,setApplyMessage]=useState('');
-  const load=async()=>{setLoading(true);const {data}=await supabase.from('campaigns').select('*,business_profiles(business_name,avatar_url,city,verified)').eq('status','published').order('created_at',{ascending:false});setItems(data||[]);if(session?.user?.id){const {data:cp}=await supabase.from('creator_profiles').select('id').eq('auth_user_id',session.user.id).maybeSingle();if(cp){const {data:apps}=await supabase.from('campaign_applications').select('campaign_id').eq('creator_profile_id',cp.id).in('status',['pending','accepted']);setLocalAppliedIds((apps||[]).map(x=>x.campaign_id));}}setLoading(false)};
+  const [items,setItems]=useState([]); const [loading,setLoading]=useState(true); const [localAppliedIds,setLocalAppliedIds]=useState(appliedIds||[]); const [applyBusy,setApplyBusy]=useState(''); const [applyMessage,setApplyMessage]=useState(''); const [selectedCampaign,setSelectedCampaign]=useState(null); const [applicationDraft,setApplicationDraft]=useState('');
+  const load=async()=>{setLoading(true);const {data}=await supabase.from('campaigns').select('*,business_profiles(business_name,avatar_url,city,verified)').eq('status','published').order('created_at',{ascending:false});setItems(data||[]);if(session?.user?.id){const {data:cp}=await supabase.from('creator_profiles').select('id').eq('auth_user_id',session.user.id).maybeSingle();if(cp){const {data:apps}=await supabase.from('campaign_applications').select('campaign_id').eq('creator_profile_id',cp.id);setLocalAppliedIds((apps||[]).map(x=>x.campaign_id));}}setLoading(false)};
   useEffect(()=>{load()},[session?.user?.id]);
-  const apply=async(camp)=>{if(!session){setPage('auth');return;}setApplyBusy(camp.id);setApplyMessage('');const {data:cp}=await supabase.from('creator_profiles').select('id,onboarded').eq('auth_user_id',session.user.id).maybeSingle();if(!cp?.onboarded){setApplyMessage('Complete your Creator profile setup before applying to a campaign.');setApplyBusy('');return;}const {error}=await supabase.rpc('apply_to_campaign',{p_campaign_id:camp.id,p_message:`I would like to apply for ${camp.title}.`});setApplyBusy('');if(error){setApplyMessage(safeUserError(error, 'Could not submit the application.'));return;}setLocalAppliedIds(ids=>ids.includes(camp.id)?ids:[...ids,camp.id]);onApply?.(camp);setApplyMessage('Application submitted.');};
+  const openApplicationComposer=(camp)=>{if(!session){setPage('auth');return;}setApplyMessage('');setSelectedCampaign(camp);setApplicationDraft(`Hello, I would like to apply for ${camp.title}.\n\nHere is why I am a good fit for this campaign: `);};
+  const apply=async()=>{const camp=selectedCampaign;if(!camp||!session)return;if(!applicationDraft.trim()){setApplyMessage('Write a short application message before sending.');return;}setApplyBusy(camp.id);setApplyMessage('');let applicationCreated=false;try{const {data:cp,error:profileError}=await supabase.from('creator_profiles').select('id,onboarded').eq('auth_user_id',session.user.id).maybeSingle();if(profileError)throw profileError;if(!cp?.onboarded){setApplyMessage('Complete your Creator profile setup before applying to a campaign.');return;}const {data:applicationId,error}=await supabase.rpc('apply_to_campaign',{p_campaign_id:camp.id,p_message:applicationDraft.trim()});if(error)throw error;applicationCreated=true;const {data:conversationId,error:threadError}=await supabase.rpc('open_campaign_application_conversation',{p_application_id:applicationId});if(threadError)throw threadError;if(!conversationId)throw new Error('Your application was saved, but the conversation could not be opened.');setLocalAppliedIds(ids=>ids.includes(camp.id)?ids:[...ids,camp.id]);onApply?.(camp);setApplyMessage('Application sent. Opening your campaign conversation…');setSelectedCampaign(null);window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{conversationId}}));}catch(error){if(applicationCreated){setLocalAppliedIds(ids=>ids.includes(camp.id)?ids:[...ids,camp.id]);setSelectedCampaign(null);setApplyMessage('Your application was saved, but Messages could not open. Do not apply again; check Dashboard → Your campaign applications and try opening the conversation there.');}else{setApplyMessage(safeUserError(error,'Could not submit the application. Please try again.'));}}finally{setApplyBusy('');}};
   return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 relative">
-    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8"><div><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{color:'#172033'}}>Campaigns</h1><p className="text-sm" style={{color:'#526078'}}>Open opportunities from businesses.</p></div>{applyMessage&&<p className="text-xs mt-2" style={{color:applyMessage.includes('submitted')?'#0E7A3B':'#B42318'}}>{applyMessage}</p>}<button onClick={()=>session?setShowPost(true):setPage('auth')} style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}} className="text-white text-sm font-semibold px-4 py-2.5 rounded-xl shrink-0 shadow-lg">Post a campaign</button></div>
-    {loading?<div className="py-16 text-center text-sm" style={{color:'#526078'}}>Loading campaigns…</div>:<div className="flex flex-col gap-4">{items.length===0?<div className="text-center py-16"><Briefcase size={28} className="mx-auto mb-3" style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mb-1" style={{color:'#172033'}}>No campaigns posted yet</p><p className="text-xs" style={{color:'#526078'}}>Be the first business to post one.</p></div>:items.map(camp=><div key={camp.id} className="cm-card-hover bg-white border rounded-2xl p-5 md:p-6" style={{borderColor:'#E5E7EB'}}><div className="flex flex-col md:flex-row md:items-center justify-between gap-4"><div className="flex items-start gap-4"><div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{background:'#FDE7F1'}}><Building2 size={18} style={{color:'#E6007A'}}/></div><div><div className="flex items-center gap-2 flex-wrap mb-1"><p className="font-semibold text-sm" style={{color:'#172033'}}>{camp.title}</p><StatusPill status={camp.status}/></div><p className="text-xs" style={{color:'#526078'}}>{camp.business_profiles?.business_name||'Business'}{camp.business_profiles?.city?` · ${camp.business_profiles.city}`:''}</p></div></div>{camp.budget&&<span className="text-xs font-bold px-3 py-1.5 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{camp.budget}</span>}</div><p className="text-sm leading-6 mt-4" style={{color:'#39465E'}}>{camp.description}</p><div className="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold" style={{color:'#526078'}}>{camp.niche&&<span className="px-2.5 py-1 rounded-full" style={{background:'#F5F3FF',color:'#6D28D9'}}>{camp.niche}</span>}{camp.location&&<span className="px-2.5 py-1 rounded-full" style={{background:'#ECFEFF',color:'#036377'}}>{camp.location}</span>}{camp.deadline&&<span className="px-2.5 py-1 rounded-full" style={{background:'#F8FAFC',color:'#526078'}}>Deadline {new Date(camp.deadline).toLocaleDateString()}</span>}</div><div className="mt-4 flex justify-end"><button onClick={()=>apply(camp)} disabled={applyBusy===camp.id||localAppliedIds.includes(camp.id)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white disabled:opacity-60" style={{background:'#E6007A'}}>{applyBusy===camp.id?'Applying…':localAppliedIds.includes(camp.id)?'Applied':'Apply to campaign'}</button></div></div>)}</div>}
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8"><div><h1 className="cm-display font-bold text-2xl md:text-3xl mb-2" style={{color:'#172033'}}>Campaigns</h1><p className="text-sm" style={{color:'#526078'}}>Open opportunities from businesses.</p></div>{applyMessage&&<p className="text-xs mt-2" style={{color:(applyMessage.includes('submitted')||applyMessage.includes('sent')||applyMessage.includes('Opening'))?'#0E7A3B':'#B42318'}}>{applyMessage}</p>}<button onClick={()=>session?setShowPost(true):setPage('auth')} style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}} className="text-white text-sm font-semibold px-4 py-2.5 rounded-xl shrink-0 shadow-lg">Post a campaign</button></div>
+    {loading?<div className="py-16 text-center text-sm" style={{color:'#526078'}}>Loading campaigns…</div>:<div className="flex flex-col gap-4">{items.length===0?<div className="text-center py-16"><Briefcase size={28} className="mx-auto mb-3" style={{color:'#7C3AED'}}/><p className="text-sm font-semibold mb-1" style={{color:'#172033'}}>No campaigns posted yet</p><p className="text-xs" style={{color:'#526078'}}>Be the first business to post one.</p></div>:items.map(camp=><div key={camp.id} className="cm-card-hover bg-white border rounded-2xl p-5 md:p-6" style={{borderColor:'#E5E7EB'}}><div className="flex flex-col md:flex-row md:items-center justify-between gap-4"><div className="flex items-start gap-4"><div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{background:'#FDE7F1'}}><Building2 size={18} style={{color:'#E6007A'}}/></div><div><div className="flex items-center gap-2 flex-wrap mb-1"><p className="font-semibold text-sm" style={{color:'#172033'}}>{camp.title}</p><StatusPill status={camp.status}/></div><p className="text-xs" style={{color:'#526078'}}>{camp.business_profiles?.business_name||'Business'}{camp.business_profiles?.city?` · ${camp.business_profiles.city}`:''}</p></div></div>{camp.budget&&<span className="text-xs font-bold px-3 py-1.5 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{camp.budget}</span>}</div><p className="text-sm leading-6 mt-4" style={{color:'#39465E'}}>{camp.description}</p><div className="flex flex-wrap gap-2 mt-4 text-[11px] font-semibold" style={{color:'#526078'}}>{camp.niche&&<span className="px-2.5 py-1 rounded-full" style={{background:'#F5F3FF',color:'#6D28D9'}}>{camp.niche}</span>}{camp.location&&<span className="px-2.5 py-1 rounded-full" style={{background:'#ECFEFF',color:'#036377'}}>{camp.location}</span>}{camp.deadline&&<span className="px-2.5 py-1 rounded-full" style={{background:'#F8FAFC',color:'#526078'}}>Deadline {new Date(camp.deadline).toLocaleDateString()}</span>}</div><div className="mt-4 flex justify-end"><button onClick={()=>openApplicationComposer(camp)} disabled={applyBusy===camp.id||localAppliedIds.includes(camp.id)} className="text-sm font-semibold px-4 py-2.5 rounded-xl text-white disabled:opacity-60" style={{background:'#E6007A'}}>{applyBusy===camp.id?'Applying…':localAppliedIds.includes(camp.id)?'Applied':'Apply to campaign'}</button></div></div>)}</div>}
+    {selectedCampaign&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(7,21,47,.62)',backdropFilter:'blur(6px)'}}><div role="dialog" aria-modal="true" aria-labelledby="campaign-application-title" className="w-full max-w-xl bg-white rounded-3xl border shadow-2xl p-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-4 mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>Campaign application</p><h2 id="campaign-application-title" className="cm-display text-xl font-bold mt-1" style={{color:'#172033'}}>{selectedCampaign.title}</h2><p className="text-xs mt-2" style={{color:'#526078'}}>Your message will be sent to the business and saved in Messages with this application.</p></div><button type="button" onClick={()=>{setSelectedCampaign(null);setApplyMessage('');}} className="w-9 h-9 rounded-xl border" style={{borderColor:'#E5E7EB',color:'#172033'}} aria-label="Close application">×</button></div><label htmlFor="campaign-application-message" className="cm-field-label">Application message</label><textarea id="campaign-application-message" rows={7} maxLength={4000} value={applicationDraft} onChange={e=>setApplicationDraft(e.target.value)} className="cm-field resize-y" placeholder="Introduce yourself and explain why you fit this campaign." />{applyMessage&&!applyMessage.includes('Opening')&&<p className="text-xs mt-2" style={{color:'#B42318'}}>{applyMessage}</p>}<div className="flex justify-between items-center gap-3 mt-4"><span className="text-[11px]" style={{color:'#64748B'}}>{applicationDraft.length}/4000</span><div className="flex gap-2"><button type="button" onClick={()=>{setSelectedCampaign(null);setApplyMessage('');}} className="px-4 py-2.5 rounded-xl border text-sm font-semibold" style={{borderColor:'#E5E7EB',color:'#334155'}}>Cancel</button><button type="button" disabled={applyBusy===selectedCampaign.id||!applicationDraft.trim()} onClick={apply} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{background:'#E6007A'}}>{applyBusy===selectedCampaign.id?'Sending…':'Send Application'}</button></div></div></div></div>}
     {showPost&&<CampaignPostSetup session={session} onClose={()=>{setShowPost(false);load();}}/>}
   </div>;
 };
@@ -1572,21 +1574,135 @@ const CreatorInquiryInbox = ({ profile }) => {
   return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><p className="text-sm font-semibold" style={{color:'#07152F'}}>Business inquiries</p><span className="text-[11px] font-semibold px-2 py-1 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{items.length} recent</span></div><div className="flex flex-col gap-3">{items.map(i=><div key={i.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>{i.name}{i.company?` · ${i.company}`:''}</p><p className="text-xs mt-0.5 cm-workspace-description">{i.email}{i.budget?` · Budget: ${i.budget}`:''}</p></div><span className="text-[10px] font-semibold uppercase" style={{color:i.status==='new'?'#E6007A':'#334155'}}>{i.status}</span></div><p className="text-xs leading-6 mt-3" style={{color:'#334155'}}>{i.message}</p></div>)}</div></div>;
 };
 
+const CampaignStatusTabs = ({ value, onChange, counts, tone = 'magenta' }) => (
+  <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Campaign application status">
+    {[['pending','Pending'],['accepted','Accepted'],['declined','Declined'],['all','All']].map(([id,label]) => {
+      const active = value === id;
+      const activeStyle = tone === 'purple' ? {background: active ? '#F3E8FF' : '#FFFFFF', color: active ? '#7C3AED' : '#64748B', borderColor: active ? '#C4B5FD' : '#E5E7EB'} : {background: active ? '#FDE7F1' : '#FFFFFF', color: active ? '#BE185D' : '#64748B', borderColor: active ? '#F9A8D4' : '#E5E7EB'};
+      return <button key={id} type="button" role="tab" aria-selected={active} onClick={() => onChange(id)} className="border rounded-full px-3 py-1.5 text-xs font-semibold" style={activeStyle}>{label} <span className="ml-1">{counts[id] || 0}</span></button>;
+    })}
+  </div>
+);
+
+const CampaignApplicationMessageButton = ({ applicationId, label, onError }) => {
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState('');
+  const open = async () => {
+    setBusy(true); setError('');
+    try {
+      const {data,error:rpcError} = await supabase.rpc('open_campaign_application_conversation',{p_application_id:applicationId});
+      if (rpcError) throw rpcError;
+      if (!data) throw new Error('The campaign conversation could not be opened.');
+      window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{conversationId:data}}));
+    } catch (e) { const msg = safeUserError(e,'Could not open the campaign conversation.'); setError(msg); onError?.(msg); }
+    finally { setBusy(false); }
+  };
+  return <div className="mt-3"><button type="button" disabled={busy} onClick={open} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-60" style={{background:'#E6007A'}}>{busy?'Opening…':label}</button>{error&&<p className="text-xs mt-2" style={{color:'#B42318'}}>{error}</p>}</div>;
+};
+
 const CreatorCampaignApplications = ({ profile, session }) => {
-  const [rows,setRows]=useState([]); const [loading,setLoading]=useState(true);
-  const load=async()=>{if(!profile?.id){setRows([]);setLoading(false);return;}setLoading(true);const {data,error}=await supabase.from('campaign_applications').select('id,campaign_id,message,status,created_at,campaigns(title,budget,deadline,business_profiles(business_name,auth_user_id))').eq('creator_profile_id',profile.id).order('created_at',{ascending:false}).limit(30);setRows(error?[]:(data||[]));setLoading(false);};
+  const [rows,setRows]=useState([]); const [loading,setLoading]=useState(true); const [filter,setFilter]=useState('all'); const [error,setError]=useState('');
+  const load=async()=>{if(!profile?.id){setRows([]);setLoading(false);return;}setLoading(true);setError('');const {data,error:queryError}=await supabase.from('campaign_applications').select('id,campaign_id,message,status,created_at,campaigns(title,budget,deadline,business_profiles(business_name))').eq('creator_profile_id',profile.id).order('created_at',{ascending:false}).limit(100);if(queryError){setRows([]);setError(safeUserError(queryError,'Could not load your applications.'));}else setRows(data||[]);setLoading(false);};
   useEffect(()=>{load()},[profile?.id]);
-  return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>UGC applications</p><h2 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Your campaign applications</h2></div><span className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{rows.length}</span></div>{loading?<p className="text-xs" style={{color:'#526078'}}>Loading applications…</p>:!rows.length?<p className="text-xs leading-5" style={{color:'#526078'}}>No applications yet. Explore campaigns and apply when a brief matches your work.</p>:<div className="space-y-3">{rows.map(r=><div key={r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#07152F'}}>{r.campaigns?.title||'Campaign'}</p><p className="text-xs mt-1" style={{color:'#526078'}}>{r.campaigns?.business_profiles?.business_name||'Business'}{r.campaigns?.budget?` · ${r.campaigns.budget}`:''}</p></div><span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:r.status==='accepted'?'#E9FBEF':r.status==='declined'?'#FFF1F1':'#E0FBFF',color:r.status==='accepted'?'#0E7A3B':r.status==='declined'?'#B42318':'#036377'}}>{r.status}</span></div>{r.message&&<p className="text-xs leading-5 mt-3" style={{color:'#475569'}}>{r.message}</p>}{r.status==='accepted'&&r.campaigns?.business_profiles?.auth_user_id&&<button onClick={async()=>{const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:r.campaigns.business_profiles.auth_user_id,p_initial_message:`I’m following up on the ${r.campaigns.title||'campaign'} application.`});if(!error&&data){window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:r.campaigns.business_profiles.auth_user_id,conversationId:data}}));}}} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#E6007A'}}>Message business</button>}</div>)}</div>}</div>;
+  const counts={all:rows.length,pending:rows.filter(r=>r.status==='pending').length,accepted:rows.filter(r=>r.status==='accepted').length,declined:rows.filter(r=>r.status==='declined').length};
+  const visible=filter==='all'?rows:rows.filter(r=>r.status===filter);
+  return <div className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>UGC applications</p><h2 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Your campaign applications</h2><p className="text-xs mt-1" style={{color:'#64748B'}}>Accepted applications unlock campaign-specific collaboration and messaging—not admin or verification privileges.</p></div><span className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full" style={{background:'#E0FBFF',color:'#036377'}}>{rows.length}</span></div>{!loading&&rows.length>0&&<CampaignStatusTabs value={filter} onChange={setFilter} counts={counts} />}{loading?<p className="text-xs" style={{color:'#526078'}}>Loading applications…</p>:error?<p className="text-xs" style={{color:'#B42318'}}>{error} <button type="button" className="underline font-semibold" onClick={load}>Retry</button></p>:!visible.length?<p className="text-xs leading-5" style={{color:'#526078'}}>{rows.length?'No applications in this status.':'No applications yet. Explore campaigns and apply when a brief matches your work.'}</p>:<div className="space-y-3">{visible.map(r=><div key={r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:'#07152F'}}>{r.campaigns?.title||'Campaign'}</p><p className="text-xs mt-1" style={{color:'#526078'}}>{r.campaigns?.business_profiles?.business_name||'Business'}{r.campaigns?.budget?` · ${r.campaigns.budget}`:''}</p>{r.campaigns?.deadline&&<p className="text-[11px] mt-1" style={{color:'#64748B'}}>Deadline: {r.campaigns.deadline}</p>}</div><span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:r.status==='accepted'?'#E9FBEF':r.status==='declined'?'#FFF1F1':'#E0FBFF',color:r.status==='accepted'?'#0E7A3B':r.status==='declined'?'#B42318':'#036377'}}>{r.status}</span></div>{r.message&&<p className="text-xs leading-5 mt-3 whitespace-pre-line" style={{color:'#475569'}}>{r.message}</p>}{r.status==='accepted'&&<p className="text-xs mt-3 rounded-lg p-3" style={{background:'#ECFDF3',color:'#166534'}}>Accepted — you can coordinate the campaign brief, deliverables, timing and next steps with the business through Messages.</p>}{r.status!=='declined'&&<CampaignApplicationMessageButton applicationId={r.id} label={r.status==='accepted'?'Message business':'Open application conversation'}/>}</div>)}</div>}</div>;
 };
 
 const BusinessCampaignApplications = ({ profile }) => {
-  const [rows,setRows]=useState([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState('');
-  const load=async()=>{if(!profile?.id){setRows([]);setLoading(false);return;}setLoading(true);const {data:camps}=await supabase.from('campaigns').select('id').eq('business_profile_id',profile.id);const ids=(camps||[]).map(c=>c.id);if(!ids.length){setRows([]);setLoading(false);return;}const {data,error}=await supabase.from('campaign_applications').select('id,campaign_id,creator_profile_id,message,status,created_at,creator_profiles(id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified)').in('campaign_id',ids).order('created_at',{ascending:false});setRows(error?[]:(data||[]));setLoading(false);};
-  useEffect(()=>{load()},[profile?.id]);
-  const review=async(id,status)=>{setBusy(id);const {error}=await supabase.rpc('review_campaign_application',{p_application_id:id,p_status:status});setBusy('');if(!error)load();};
-  return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>UGC applications</p><h2 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Review creator applications</h2></div><span className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full" style={{background:'#F3E8FF',color:'#7C3AED'}}>{rows.length}</span></div>{loading?<p className="text-xs" style={{color:'#526078'}}>Loading applications…</p>:!rows.length?<p className="text-xs leading-5" style={{color:'#526078'}}>No creator applications yet. Publish a campaign brief and applications will appear here.</p>:<div className="space-y-3">{rows.map(r=><div key={r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}><div className="flex items-start gap-3"><Avatar name={r.creator_profiles?.page_name||'Creator'} size={42} src={r.creator_profiles?.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-2 flex-wrap"><p className="text-sm font-semibold" style={{color:'#07152F'}}>{r.creator_profiles?.page_name||'Creator'}</p>{r.creator_profiles?.verified&&<VerifiedIcon size={12}/>}<span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:r.status==='accepted'?'#E9FBEF':r.status==='declined'?'#FFF1F1':'#E0FBFF',color:r.status==='accepted'?'#0E7A3B':r.status==='declined'?'#B42318':'#036377'}}>{r.status}</span></div><p className="text-[11px] mt-1" style={{color:'#526078'}}>{r.creator_profiles?.primary_niche||'Creator'}{r.creator_profiles?.city?` · ${r.creator_profiles.city}`:''}</p>{r.message&&<p className="text-xs leading-5 mt-3" style={{color:'#475569'}}>{r.message}</p>}</div></div>{r.status==='pending'&&<div className="flex gap-2 mt-3"><button disabled={busy===r.id} onClick={()=>review(r.id,'accepted')} className="text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#0E7A3B'}}>Accept</button><button disabled={busy===r.id} onClick={()=>review(r.id,'declined')} className="text-xs font-semibold px-3 py-2 rounded-lg" style={{background:'#FFF1F1',color:'#B42318'}}>Decline</button></div>}{r.status==='accepted'&&r.creator_profiles?.auth_user_id&&<button onClick={async()=>{const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:r.creator_profiles.auth_user_id,p_initial_message:'I accepted your campaign application. Let’s discuss the collaboration.'});if(!error&&data){window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:r.creator_profiles.auth_user_id,conversationId:data}}));}}} className="mt-3 text-xs font-semibold px-3 py-2 rounded-lg text-white" style={{background:'#E6007A'}}>Message creator</button>}</div>)}</div>}</div>;
-};
+  const [rows,setRows] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [busy,setBusy] = useState('');
+  const [filter,setFilter] = useState('pending');
+  const [error,setError] = useState('');
+  const [notice,setNotice] = useState('');
 
+  const load = async () => {
+    if (!profile?.id) { setRows([]); setLoading(false); return; }
+    setLoading(true); setError('');
+    const {data:camps,error:campaignError} = await supabase.from('campaigns').select('id').eq('business_profile_id',profile.id);
+    if (campaignError) { setRows([]); setError(safeUserError(campaignError,'Could not load your campaigns.')); setLoading(false); return; }
+    const ids = (camps || []).map(c => c.id);
+    if (!ids.length) { setRows([]); setLoading(false); return; }
+    const {data,error:queryError} = await supabase.from('campaign_applications')
+      .select('id,campaign_id,creator_profile_id,message,status,created_at,creator_profiles(id,page_name,username,avatar_url,primary_niche,city,verified)')
+      .in('campaign_id',ids).order('created_at',{ascending:false}).limit(200);
+    if (queryError) { setRows([]); setError(safeUserError(queryError,'Could not load applications.')); }
+    else setRows(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [profile?.id]);
+
+  const review = async (id,status) => {
+    setBusy(id); setError(''); setNotice('');
+    try {
+      const {data,error:rpcError} = await supabase.rpc('review_campaign_application',{p_application_id:id,p_status:status});
+      if (rpcError) throw rpcError;
+      if (data !== true) throw new Error('The application status was not changed. Check that this business owns the campaign and try again.');
+      setRows(old => old.map(row => row.id === id ? {...row,status} : row));
+      setFilter(status);
+      setNotice(status === 'accepted'
+        ? 'Application accepted and moved to Accepted. Campaign messaging is available for this application.'
+        : 'Application declined and moved to Declined.');
+    } catch (e) {
+      setError(safeUserError(e,'Could not update the application. Please try again.'));
+    } finally { setBusy(''); }
+  };
+
+  const counts = {
+    all: rows.length,
+    pending: rows.filter(r => r.status === 'pending').length,
+    accepted: rows.filter(r => r.status === 'accepted').length,
+    declined: rows.filter(r => r.status === 'declined').length
+  };
+  const visible = filter === 'all' ? rows : rows.filter(r => r.status === filter);
+
+  return (
+    <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider" style={{color:'#7C3AED'}}>UGC applications</p>
+          <h2 className="cm-display font-bold text-lg mt-1" style={{color:'#07152F'}}>Review creator applications</h2>
+          <p className="text-xs mt-1" style={{color:'#64748B'}}>Accept to move the creator into Accepted and unlock campaign-specific messaging and coordination.</p>
+        </div>
+        <span className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full" style={{background:'#F3E8FF',color:'#7C3AED'}}>{rows.length}</span>
+      </div>
+      {notice && <p className="text-xs rounded-lg p-3 mb-3" style={{background:'#ECFDF3',color:'#166534'}}>{notice}</p>}
+      {error && <p className="text-xs rounded-lg p-3 mb-3" style={{background:'#FFF1F1',color:'#B42318'}}>{error} <button type="button" className="underline font-semibold" onClick={load}>Retry</button></p>}
+      {!loading && rows.length > 0 && <CampaignStatusTabs value={filter} onChange={setFilter} counts={counts} tone="purple" />}
+      {loading ? <p className="text-xs" style={{color:'#526078'}}>Loading applications…</p> : !visible.length ? (
+        <p className="text-xs leading-5" style={{color:'#526078'}}>{rows.length ? 'No applications in this status.' : 'No creator applications yet. Publish a campaign brief and applications will appear here.'}</p>
+      ) : (
+        <div className="space-y-3">
+          {visible.map(r => (
+            <div key={r.id} className="border rounded-xl p-4" style={{borderColor:'#E5E7EB'}}>
+              <div className="flex items-start gap-3">
+                <Avatar name={r.creator_profiles?.page_name || 'Creator'} size={42} src={r.creator_profiles?.avatar_url} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold" style={{color:'#07152F'}}>{r.creator_profiles?.page_name || 'Creator'}</p>
+                    {r.creator_profiles?.verified && <VerifiedIcon size={12} />}
+                    <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full" style={{background:r.status === 'accepted' ? '#E9FBEF' : r.status === 'declined' ? '#FFF1F1' : '#E0FBFF',color:r.status === 'accepted' ? '#0E7A3B' : r.status === 'declined' ? '#B42318' : '#036377'}}>{r.status}</span>
+                  </div>
+                  <p className="text-[11px] mt-1" style={{color:'#526078'}}>{r.creator_profiles?.primary_niche || 'Creator'}{r.creator_profiles?.city ? ` · ${r.creator_profiles.city}` : ''}</p>
+                  {r.message && <p className="text-xs leading-5 mt-3 whitespace-pre-line" style={{color:'#475569'}}>{r.message}</p>}
+                </div>
+              </div>
+              {r.status === 'pending' && (
+                <div className="flex gap-2 mt-3">
+                  <button type="button" disabled={busy === r.id} onClick={() => review(r.id,'accepted')} className="text-xs font-semibold px-3 py-2 rounded-lg text-white disabled:opacity-60" style={{background:'#0E7A3B'}}>{busy === r.id ? 'Saving…' : 'Accept application'}</button>
+                  <button type="button" disabled={busy === r.id} onClick={() => review(r.id,'declined')} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-60" style={{background:'#FFF1F1',color:'#B42318'}}>{busy === r.id ? 'Saving…' : 'Decline'}</button>
+                </div>
+              )}
+              {r.status === 'accepted' && <p className="text-xs mt-3 rounded-lg p-3" style={{background:'#ECFDF3',color:'#166534'}}>Accepted — this creator can coordinate this campaign through Messages. Other account features remain governed by their normal permissions.</p>}
+              {r.status !== 'declined' && <CampaignApplicationMessageButton applicationId={r.id} label={r.status === 'accepted' ? 'Message creator' : 'Open application conversation'} />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const hasProfileValue = (value) => {
   if (value == null) return false;
@@ -6051,8 +6167,8 @@ export default function Commissioner() {
   useEffect(() => {
     const openMessages = (event) => {
       const detail = event.detail || {};
-      if (!detail.recipientId || detail.recipientId === session?.user?.id) return;
-      setMessageRecipientId(detail.recipientId);
+      if ((!detail.recipientId && !detail.conversationId) || detail.recipientId === session?.user?.id) return;
+      setMessageRecipientId(detail.recipientId || null);
       setMessageConversationId(detail.conversationId || null);
       setMarketplaceContact(false);
       setPage('messages');
@@ -6274,8 +6390,8 @@ export default function Commissioner() {
       {availabilityBlocked ? <MaintenanceScreen message={siteControls.site_message} pageLabel={siteControls.site_closed ? null : pageLabels[page]} /> : <>
       {authRedirect && page === 'home' ? <Auth onAuthenticated={() => { window.history.replaceState({}, '', authRedirect); window.location.reload(); }} /> : null}
       {!authRedirect && page === 'home' && <Home setPage={setPage} joinAs={joinAs} hasCreator={hasCreator} hasBusiness={hasBusiness} session={session} />}
-      {page === 'explore' && <ExploreHub session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} onBusinessConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
-      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } const {data:canInteract}=await supabase.rpc('can_current_user_interact'); if (!canInteract) { setToast('Finish your active Creator or Business profile setup to 100% before connecting or messaging.'); setTimeout(()=>setToast(''),4000); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'explore' && <ExploreHub session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} savedIds={savedIds} toggleSave={toggleSave} onHire={onHire} isAdmin={isAdmin} onView={(c)=>{ window.history.pushState({},'',`/creator/${encodeURIComponent(c.id)}`); window.location.reload(); }} onBusinessConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } setSelectedBusiness(b); setPage('network'); }} />}
+      {page === 'businesses' && <Businesses session={session} setPage={setPage} appliedIds={appliedIds} onApply={onApply} isAdmin={isAdmin} onConnect={async (b,action) => { if (action === 'view') { window.history.pushState({},'',`/business/${encodeURIComponent(b.id)}`); window.location.reload(); return; } if (!session) { setPage('auth'); return; } setSelectedBusiness(b); setPage('network'); }} />}
       {page === 'marketplace' && <Marketplace session={session} activeRole={activeRole} onMessage={async (owner, listingId) => {
         if (!session) { setPage('auth'); return; }
         const id = owner?.auth_user_id || owner?.authUserId;
