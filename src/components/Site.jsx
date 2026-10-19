@@ -3786,61 +3786,36 @@ const OfficialCreatorPage = ({ id, session, setPage, nfcMode = false }) => {
   const [loading, setLoading] = useState(true);
   const [owner, setOwner] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [loadError, setLoadError] = useState('');
 
   const loadProfile = async () => {
     setLoading(true);
-    setLoadError('');
-    try {
-      let data = null;
-      // Only the authenticated owner can load their direct profile row. Public
-      // viewers use the SQL projection that applies each visibility toggle.
-      if (session?.user?.id) {
-        const own = await supabase.from('creator_profiles')
-          .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
-          .eq('id', id).eq('auth_user_id', session.user.id).maybeSingle();
-        if (own.data) data = own.data;
-      }
-      if (!data) {
-        const result = await supabase.rpc('get_public_creator_profile', { p_profile_id: id });
-        if (result.error) throw result.error;
-        if (result.data) data = Array.isArray(result.data) ? result.data[0] : result.data;
-      }
-      if (data) {
-        setProfile(data);
-        setOwner(Boolean(session?.user?.id && data.auth_user_id === session.user.id));
-        if (data.onboarded && data.auth_user_id) {
-          supabase.rpc('track_profile_event', { p_creator_profile_id: id, p_event_type: 'profile_view' }).catch(() => {});
-        }
-      } else {
-        setProfile(null);
-        setOwner(false);
-        setLoadError('This creator profile could not be found. The profile may be unlinked, or the public-profile database function may be missing.');
-      }
-    } catch (error) {
-      console.error('Failed to load creator profile:', error);
-      setProfile(null);
-      setOwner(false);
-      setLoadError('We could not load this creator profile. Please check your connection and try again. If this keeps happening, the Supabase public-profile function or permissions may need fixing.');
-    } finally {
-      setLoading(false);
+    let data = null;
+    // Only the authenticated owner can load their direct profile row. Public
+    // viewers use the SQL projection that applies each visibility toggle.
+    if (session?.user?.id) {
+      const own = await supabase.from('creator_profiles')
+        .select('id, auth_user_id, page_name, username, avatar_url, banner_url, city, language, bio, verified, primary_niche, availability, platforms, services, portfolio_link, portfolio_media, onboarded, nfc_display_settings')
+        .eq('id', id).eq('auth_user_id', session.user.id).maybeSingle();
+      if (own.data) data = own.data;
     }
+    if (!data) {
+      const result = await supabase.rpc('get_public_creator_profile', { p_profile_id: id });
+      if (!result.error && result.data) data = result.data;
+    }
+    if (data) {
+      setProfile(data);
+      setOwner(Boolean(session?.user?.id && data.auth_user_id === session.user.id));
+      if (data.onboarded && data.auth_user_id) {
+        supabase.rpc('track_profile_event', { p_creator_profile_id: id, p_event_type: 'profile_view' }).catch(() => {});
+      }
+    } else { setProfile(null); setOwner(false); }
+    setLoading(false);
   };
 
-  useEffect(() => {
-    let active = true;
-    const timeout = setTimeout(() => {
-      if (active) {
-        setLoading(false);
-        setLoadError('Loading is taking too long. Please try again. If it persists, check the Supabase connection and get_public_creator_profile database function.');
-      }
-    }, 15000);
-    loadProfile().finally(() => clearTimeout(timeout));
-    return () => { active = false; clearTimeout(timeout); };
-  }, [id, session?.user?.id]);
+  useEffect(() => { loadProfile(); }, [id, session?.user?.id]);
 
   if (loading) return <div className="max-w-2xl mx-auto px-5 md:px-8 py-24 text-center text-sm" style={{ color: '#334155' }}>Loading creator profile…</div>;
-  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>{loadError || 'Creator profile not found'}</p><button onClick={loadProfile} className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white" style={{ background: '#E6007A' }}>Try again</button></div>;
+  if (!profile) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>Creator profile not found</p></div>;
   if (!profile.onboarded && !owner && profile.claimed !== false) return <div className="max-w-md mx-auto px-5 md:px-8 py-24 text-center"><p className="text-sm font-semibold" style={{ color: '#334155' }}>This profile is not publicly available yet.</p><p className="text-xs mt-2" style={{ color: '#64748B' }}>The owner is still completing the Commissioner profile.</p></div>;
 
   if (editMode && owner) {
@@ -4488,21 +4463,112 @@ const TrustCenter = ({ session, activeRole }) => {
 };
 
 const B2BNetwork = ({ session, initialBusiness=null }) => {
-  const [items,setItems]=useState([]); const [connections,setConnections]=useState([]); const [search,setSearch]=useState(''); const [message,setMessage]=useState(''); const [messageTarget,setMessageTarget]=useState(null); const [busyTarget,setBusyTarget]=useState(null);
-  const [launchStats,setLaunchStats]=useState(null); const [featureGates,setFeatureGates]=useState(null); const [isAdmin,setIsAdmin]=useState(false);
-  const load=async()=>{if(!session)return;const [{data:bs},{data:cs}]=await Promise.all([supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,onboarded').eq('onboarded',true).limit(50),supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,onboarded').eq('onboarded',true).limit(50)]);setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name}))].filter(x=>x.auth_user_id!==session.user.id));const {data:c}=await supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false});setConnections(c||[])};
-  useEffect(()=>{load()},[session?.user?.id]);
-  useEffect(()=>{fetchLaunchStats().then(setLaunchStats); supabase.rpc('commissioner_feature_gates').then(({data})=>setFeatureGates(data||null))},[]);
-  useEffect(()=>{if(!session){setIsAdmin(false);return;}supabase.rpc('is_admin').then(({data})=>setIsAdmin(!!data))},[session?.user?.id]);
-  useEffect(()=>{if(initialBusiness&&session){setMessageTarget(initialBusiness);setMessage(`I'd like to connect with ${initialBusiness.business_name||initialBusiness.name} through Commissioner.`)}},[initialBusiness?.id,session?.user?.id]);
-  // V1 access is open to every signed-in Commissioner account.
-  const launched = true;
-  const send=async(target)=>{if(!session||!target?.auth_user_id)return;if(target.auth_user_id===session.user.id)return;if(!launched){setMessage('Connecting is locked until Commissioner reaches 50 registered businesses.');return;}setBusyTarget(target.auth_user_id);setMessageTarget(target);const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||`I would like to connect with ${target.name||target.business_name||target.page_name||'you'} professionally through Commissioner.`});setBusyTarget(null);if(error)setMessage(error.code==='23505'?'A connection request already exists with this person.':safeUserError(error, 'Could not send the connection request.'));else{setMessage('Connection request sent.');await load();}};
-  const startMessage=async(target)=>{if(!session||!target?.auth_user_id||target.auth_user_id===session.user.id)return;if(!launched){setMessage('Messaging is locked until Commissioner reaches 50 registered businesses.');return;}setMessageTarget(target);setMessage(`I'd like to discuss a professional opportunity with ${target.name||target.business_name||target.page_name||'you'}.`);const {data,error}=await supabase.rpc('start_conversation',{p_other_user_id:target.auth_user_id,p_initial_message:null});if(error){setMessage(safeUserError(error, 'Could not start the conversation.'));return;}window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:target.auth_user_id,conversationId:data}}));};
+  const [items,setItems]=useState([]);
+  const [connections,setConnections]=useState([]);
+  const [search,setSearch]=useState('');
+  const [message,setMessage]=useState('');
+  const [messageTarget,setMessageTarget]=useState(null);
+  const [busyTarget,setBusyTarget]=useState(null);
+  const [connectionError,setConnectionError]=useState('');
+  const [connectionNotice,setConnectionNotice]=useState('');
+  const [loading,setLoading]=useState(true);
+
+  const load=async()=>{
+    if(!session){setLoading(false);return;}
+    setLoading(true);
+    try {
+      const [{data:bs,error:be},{data:cs,error:ce},{data:c,error:connError}]=await Promise.all([
+        supabase.from('business_profiles').select('id,auth_user_id,business_name,username,avatar_url,industry,city,verified,onboarded').eq('onboarded',true).limit(100),
+        supabase.from('creator_profiles').select('id,auth_user_id,page_name,username,avatar_url,primary_niche,city,verified,onboarded').eq('onboarded',true).limit(100),
+        supabase.from('b2b_connections').select('*').or(`requester_user_id.eq.${session.user.id},recipient_user_id.eq.${session.user.id}`).order('created_at',{ascending:false})
+      ]);
+      if(be||ce) throw be||ce;
+      if(connError) throw connError;
+      setItems([...(bs||[]).map(x=>({...x,kind:'business',name:x.business_name||x.username||'Business'})),...(cs||[]).map(x=>({...x,kind:'creator',name:x.page_name||x.username||'Creator'}))].filter(x=>x.auth_user_id!==session.user.id));
+      setConnections(c||[]);
+      setConnectionError('');
+    } catch(err) {
+      setConnectionError(safeUserError(err,'Could not load B2B connections. Please try again.'));
+    } finally {setLoading(false);}
+  };
+  useEffect(()=>{load();},[session?.user?.id]);
+  useEffect(()=>{
+    if(initialBusiness&&session){
+      const normalized={...initialBusiness,auth_user_id:initialBusiness.auth_user_id||initialBusiness.authUserId||null,name:initialBusiness.business_name||initialBusiness.name||'Business',kind:'business'};
+      setMessageTarget(normalized);
+      setMessage(`I'd like to connect with ${normalized.name} through Commissioner.`);
+    }
+  },[initialBusiness?.id,session?.user?.id]);
+
+  const relationshipFor=(target)=>connections.find(c=>(c.requester_user_id===session?.user?.id&&c.recipient_user_id===target.auth_user_id)||(c.recipient_user_id===session?.user?.id&&c.requester_user_id===target.auth_user_id));
+  const openConversation=async(otherUserId,initialMessage=null)=>{
+    if(!session||!otherUserId||otherUserId===session.user.id){setConnectionError('This profile is not connected to a messaging account yet.');return false;}
+    const {data,error}=await supabase.rpc('open_b2b_conversation',{p_other_user_id:otherUserId,p_initial_message:initialMessage});
+    if(error){setConnectionError(safeUserError(error,'The connection is saved, but the conversation could not be opened.'));return false;}
+    window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:otherUserId,conversationId:data}}));
+    return true;
+  };
+  const send=async(target)=>{
+    if(!session||!target)return;
+    if(!target.auth_user_id){setConnectionError('This profile has not been claimed yet, so a connection request cannot be delivered.');return;}
+    if(target.auth_user_id===session.user.id)return;
+    const existing=relationshipFor(target);
+    if(existing){setConnectionNotice(existing.status==='accepted'?'You are already connected.':existing.requester_user_id===session.user.id?'Your connection request has already been sent.':'This person has already sent you a request.');return;}
+    setBusyTarget(target.auth_user_id);setConnectionError('');setConnectionNotice('');
+    try {
+      const {error}=await supabase.from('b2b_connections').insert({requester_user_id:session.user.id,recipient_user_id:target.auth_user_id,message:message.trim()||`I would like to connect with ${target.name||'you'} professionally through Commissioner.`});
+      if(error) throw error;
+      setConnectionNotice('Connection request sent.');
+      await load();
+    } catch(err) {
+      setConnectionError(err.code==='23505'?'A connection request already exists with this person.':safeUserError(err,'Could not send the connection request.'));
+    } finally {setBusyTarget(null);}
+  };
+  const respond=async(connection,decision)=>{
+    if(!session||connection.recipient_user_id!==session.user.id||connection.status!=='pending')return;
+    setBusyTarget(connection.id);setConnectionError('');setConnectionNotice('');
+    try {
+      const otherUserId=connection.requester_user_id;
+      if(decision==='accepted'){
+        const {data:conversationId,error}=await supabase.rpc('accept_b2b_connection',{p_connection_id:connection.id});
+        if(error) throw error;
+        await load();
+        window.dispatchEvent(new CustomEvent('commissioner:open-messages',{detail:{recipientId:otherUserId,conversationId}}));
+        setConnectionNotice('Connection accepted. Your conversation is opening in Messages.');
+      } else {
+        const {error}=await supabase.from('b2b_connections').update({status:'declined'}).eq('id',connection.id).eq('recipient_user_id',session.user.id).eq('status','pending');
+        if(error) throw error;
+        await load();
+        setConnectionNotice('Connection request declined.');
+      }
+    } catch(err) {setConnectionError(safeUserError(err,'Could not update this connection request. Check your permissions and try again.'));}
+    finally {setBusyTarget(null);}
+  };
+  const startMessage=async(target)=>{
+    if(!session||!target?.auth_user_id||target.auth_user_id===session.user.id){setConnectionError('This profile has not been claimed or linked to a messaging account yet.');return;}
+    const rel=relationshipFor(target);
+    if(rel?.status!=='accepted'){setConnectionError('Accept the connection first to open a direct conversation.');return;}
+    setConnectionError('');
+    await openConversation(target.auth_user_id,null);
+  };
   const filtered=items.filter(x=>`${x.name} ${x.industry||x.primary_niche||''} ${x.city||''}`.toLowerCase().includes(search.toLowerCase()));
+  const incoming=connections.filter(c=>c.recipient_user_id===session?.user?.id&&c.status==='pending');
+  const acceptedCount=connections.filter(c=>c.status==='accepted').length;
+  const outgoingPending=connections.filter(c=>c.requester_user_id===session?.user?.id&&c.status==='pending').length;
   if(!session)return <div className="max-w-xl mx-auto px-5 py-20 text-center"><Briefcase size={32} className="mx-auto mb-3" style={{color:'#E6007A'}}/><h1 className="cm-display font-bold text-2xl" style={{color:'#334155'}}>B2B network</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Sign in to connect with businesses and creators.</p></div>;
-  if(!launched)return <div className="max-w-3xl mx-auto px-5 md:px-8 py-10"><div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Professional connections without the noise</h1></div><LaunchGateNotice stats={launchStats}/>{connections.length>0&&<div className="bg-white border rounded-2xl p-5 mt-5" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold mb-3" style={{color:'#334155'}}>Your existing connections</p>{connections.map(c=><div key={c.id} className="flex items-center justify-between py-2 text-xs border-b last:border-0" style={{borderColor:'#F3F4F6'}}><span style={{color:'#334155'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}</div>}</div>;
-  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 cm-b2b-page">{isAdmin&&!launchStats?.unlocked&&<div className="mb-5 text-xs font-semibold px-4 py-2.5 rounded-lg" style={{background:'#FFF1E5',color:'#9A4A0C'}}>Admin preview — the network is still locked for everyone else until launch threshold is reached.</div>}<div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Professional connections without the noise</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Find people and companies, review their verified facts, and start a professional relationship.</p></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5"><div><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white mb-4" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, creators, industries…" className="flex-1 outline-none text-sm"/></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filtered.map((x,i)=><div key={x.kind+x.id} className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3"><Avatar name={x.name} size={46} tone={i} src={x.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.name}</p>{x.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.kind==='business'?x.industry:x.primary_niche}{x.city?` · ${x.city}`:''}</p></div></div><p className="text-[11px] mt-4" style={{color:'#334155'}}>Verified facts are shown separately from general reputation.</p><div className="flex gap-2 mt-3"><button type="button" onClick={(e)=>{e.stopPropagation();send(x)}} disabled={busyTarget===x.auth_user_id} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{busyTarget===x.auth_user_id?'Sending…':'Connect'}</button><button type="button" onClick={(e)=>{e.stopPropagation();startMessage(x)}} disabled={busyTarget===x.auth_user_id} aria-label={`Message ${x.name}`} className="px-3 py-2.5 rounded-lg border disabled:opacity-50" style={{borderColor:'#E5E7EB'}}><MessageSquare size={14}/></button></div></div>)}</div></div><aside className="bg-white border rounded-2xl p-5 h-fit" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold" style={{color:'#334155'}}>Connection message</p><p className="text-xs mt-1 mb-3" style={{color:'#334155'}}>This starts a professional connection. You can continue the conversation in Messages after acceptance.</p><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={5} className="w-full border rounded-xl px-3 py-3 text-xs outline-none resize-none" style={{borderColor:'#E5E7EB'}} placeholder="Introduce yourself and explain why you want to connect."/><div className="mt-4 border-t pt-4" style={{borderColor:'#F3F4F6'}}><p className="text-xs font-semibold mb-2" style={{color:'#334155'}}>Your recent connections</p>{connections.slice(0,5).map(c=><div key={c.id} className="flex items-center justify-between py-2 text-[11px]"><span style={{color:'#334155'}}>{c.requester_user_id===session.user.id?'You sent':'Incoming request'}</span><span className="font-semibold" style={{color:c.status==='accepted'?'#0E7A3B':'#9A4A0C'}}>{c.status}</span></div>)}{!connections.length&&<p className="text-[11px]" style={{color:'#9CA3AF'}}>No connections yet.</p>}</div></aside></div></div>;
+  return <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 cm-b2b-page">
+    <div className="mb-7"><p className="text-xs font-bold uppercase tracking-wider" style={{color:'#E6007A'}}>B2B network</p><h1 className="cm-display font-bold text-2xl md:text-3xl mt-1" style={{color:'#334155'}}>Professional connections without the noise</h1><p className="text-sm mt-2" style={{color:'#334155'}}>Find businesses and creators, then send a professional connection request from any signed-in account.</p>
+      <div className="flex flex-wrap gap-2 mt-4"><span className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{background:'#E0FBFF',color:'#036377'}}>{acceptedCount} accepted connection{acceptedCount===1?'':'s'}</span><span className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{background:'#FFF7E6',color:'#925B00'}}>{outgoingPending} request{outgoingPending===1?'':'s'} pending</span><span className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{background:'#FCE7F3',color:'#9D174D'}}>{incoming.length} incoming request{incoming.length===1?'':'s'}</span></div>
+    </div>
+    {connectionError&&<div role="alert" className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{borderColor:'#FECACA',background:'#FEF2F2',color:'#991B1B'}}>{connectionError}<button className="ml-3 underline font-semibold" onClick={()=>{setConnectionError('');load();}}>Retry</button></div>}
+    {connectionNotice&&<div role="status" className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{borderColor:'#A7F3D0',background:'#ECFDF5',color:'#065F46'}}>{connectionNotice}</div>}
+    {incoming.length>0&&<section className="bg-white border rounded-2xl p-5 mb-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between gap-3 mb-3"><h2 className="text-sm font-bold" style={{color:'#334155'}}>Incoming connection requests</h2><span className="text-xs font-bold rounded-full px-2.5 py-1" style={{background:'#FCE7F3',color:'#9D174D'}}>{incoming.length}</span></div><div className="space-y-3">{incoming.map(c=>{const sender=items.find(x=>x.auth_user_id===c.requester_user_id);return <div key={c.id} className="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3" style={{borderColor:'#E5E7EB'}}><Avatar name={sender?.name||'Commissioner member'} size={42} src={sender?.avatar_url}/><div className="flex-1 min-w-0"><p className="text-sm font-semibold" style={{color:'#334155'}}>{sender?.name||'Commissioner member'}</p><p className="text-xs mt-1" style={{color:'#64748B'}}>{c.message||'Would like to connect with you.'}</p></div><div className="flex gap-2"><button disabled={busyTarget===c.id} onClick={()=>respond(c,'accepted')} className="text-xs font-semibold rounded-lg px-3 py-2 text-white disabled:opacity-50" style={{background:'#0E7A3B'}}>{busyTarget===c.id?'Saving…':'Accept'}</button><button disabled={busyTarget===c.id} onClick={()=>respond(c,'declined')} className="text-xs font-semibold rounded-lg px-3 py-2 disabled:opacity-50" style={{background:'#FFF1F1',color:'#B42318'}}>Decline</button></div></div>})}</div></section>}
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5"><div><div className="flex items-center gap-2 border rounded-xl px-3.5 py-3 bg-white mb-4" style={{borderColor:'#E5E7EB'}}><Search size={16} style={{color:'#9CA3AF'}}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies, creators, industries…" className="flex-1 outline-none text-sm"/></div>
+      {loading?<div className="bg-white border rounded-2xl p-8 text-center text-sm" style={{borderColor:'#E5E7EB',color:'#64748B'}}>Loading network…</div>:!filtered.length?<div className="bg-white border rounded-2xl p-8 text-center text-sm" style={{borderColor:'#E5E7EB',color:'#64748B'}}>No matching profiles found.</div>:<div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filtered.map((x,i)=>{const rel=relationshipFor(x);const unclaimed=!x.auth_user_id;const isOutgoing=rel?.requester_user_id===session.user.id;const isIncoming=rel?.recipient_user_id===session.user.id;const isBusy=busyTarget===x.auth_user_id;let label='Connect';if(unclaimed)label='Unclaimed profile';else if(rel?.status==='accepted')label='Connected';else if(rel?.status==='declined')label=isOutgoing?'Request declined':'Declined';else if(rel?.status==='pending')label=isOutgoing?'Request sent':isIncoming?'Accept request':'Pending';return <div key={x.kind+x.id} className="bg-white border rounded-2xl p-5" style={{borderColor:'#E5E7EB'}}><div className="flex items-center gap-3"><Avatar name={x.name} size={46} tone={i} src={x.avatar_url}/><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><p className="text-sm font-semibold truncate" style={{color:'#334155'}}>{x.name}</p>{x.verified&&<VerifiedIcon size={12}/>}</div><p className="text-[11px]" style={{color:'#334155'}}>{x.kind==='business'?x.industry:x.primary_niche}{x.city?` · ${x.city}`:''}</p></div></div><p className="text-[11px] mt-4" style={{color:'#64748B'}}>{unclaimed?'This profile has not been claimed. The owner must claim it before connection requests or messaging can be delivered.':x.verified?'Verified profile facts are shown separately from general reputation.':'Connect to build a professional relationship.'}</p>
+        <div className="flex gap-2 mt-3">{isIncoming&&rel?.status==='pending'?<button type="button" disabled={busyTarget===rel.id} onClick={()=>respond(rel,'accepted')} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg text-white disabled:opacity-50" style={{background:'#0E7A3B'}}>{busyTarget===rel.id?'Saving…':'Accept request'}</button>:<button type="button" onClick={(e)=>{e.stopPropagation();send(x)}} disabled={unclaimed||!!rel||isBusy} className="flex-1 text-xs font-semibold px-3 py-2.5 rounded-lg disabled:opacity-60" style={{background:rel?.status==='accepted'?'#DCFCE7':'#E0FBFF',color:rel?.status==='accepted'?'#166534':'#036377'}}>{isBusy?'Sending…':label}</button>}
+          {rel?.status==='accepted'?<button type="button" onClick={()=>startMessage(x)} className="px-3 py-2.5 rounded-lg text-xs font-semibold border" style={{borderColor:'#E5E7EB',color:'#334155'}}><MessageSquare size={14} className="inline mr-1"/>Messages</button>:<button type="button" onClick={()=>startMessage(x)} disabled={unclaimed||isBusy||rel?.status!=='accepted'} aria-label={`Message ${x.name}`} className="px-3 py-2.5 rounded-lg border disabled:opacity-40" style={{borderColor:'#E5E7EB'}} title={unclaimed?'Profile must be claimed before messaging':rel?.status!=='accepted'?'Accept connection first':'Open message'}><MessageSquare size={14}/></button>}
+        </div></div>})}</div>}
+    </div><aside className="bg-white border rounded-2xl p-5 h-fit" style={{borderColor:'#E5E7EB'}}><p className="text-sm font-semibold" style={{color:'#334155'}}>Connection message</p><p className="text-xs mt-1 mb-3" style={{color:'#64748B'}}>Introduce yourself. This message is sent with your connection request.</p><textarea value={message} onChange={e=>setMessage(e.target.value)} rows={5} className="w-full border rounded-xl px-3 py-3 text-xs outline-none resize-none" style={{borderColor:'#E5E7EB'}} placeholder="Introduce yourself and explain why you want to connect."/>{messageTarget&&!messageTarget.auth_user_id&&<p className="text-[11px] mt-2" style={{color:'#B42318'}}>This profile is unclaimed; the request cannot be sent yet.</p>}<div className="mt-4 border-t pt-4" style={{borderColor:'#F3F4F6'}}><p className="text-xs font-semibold mb-2" style={{color:'#334155'}}>Recent connections</p>{connections.slice(0,8).map(c=><div key={c.id} className="flex items-center justify-between gap-2 py-2 text-[11px] border-b last:border-0" style={{borderColor:'#F3F4F6'}}><span style={{color:'#334155'}}>{c.requester_user_id===session.user.id?'You sent a request':'Incoming request'}</span><span className="font-semibold capitalize" style={{color:c.status==='accepted'?'#0E7A3B':c.status==='declined'?'#B42318':'#9A4A0C'}}>{c.status}</span></div>)}{!connections.length&&<p className="text-[11px]" style={{color:'#9CA3AF'}}>No connections yet.</p>}</div></aside></div></div>;
 };
 
 const VerificationAdminQueue = () => {
