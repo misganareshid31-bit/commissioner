@@ -2125,3 +2125,85 @@ html, body {
 .cm-root .cm-nfc a, .cm-root .cm-nfc button, .cm-root .cm-nfc label { touch-action: manipulation; -webkit-tap-highlight-color: rgba(230,0,122,.18); }
 .cm-root .cm-nfc a.inline-flex, .cm-root .cm-nfc button { min-height: 44px; }
 .cm-root .cm-nfc a:focus-visible, .cm-root .cm-nfc button:focus-visible, .cm-root .cm-nfc input:focus-visible, .cm-root .cm-nfc textarea:focus-visible { outline: 3px solid #00D9FF; outline-offset: 2px; }
+
+/* Luxury navigation + mobile quick-access layer (October 2026) */
+.cm-luxury-header {
+  background: rgba(255,255,255,.94) !important;
+  border-bottom: 1px solid rgba(148,163,184,.22) !important;
+  box-shadow: 0 8px 28px rgba(7,21,47,.055) !important;
+}
+.cm-primary-nav { background: rgba(241,245,249,.78); border: 1px solid rgba(226,232,240,.8); }
+.cm-primary-nav-link { color: #475569; position: relative; }
+.cm-primary-nav-link:hover { color: #07152F; background: rgba(255,255,255,.82); }
+.cm-primary-nav-link.is-active { color: #B80061 !important; background: #fff !important; box-shadow: 0 3px 12px rgba(7,21,47,.08), inset 0 -2px 0 #E6007A; }
+.cm-luxury-header > div:first-child { height: 3px; }
+.cm-luxury-header button:focus-visible { outline: 3px solid rgba(0,217,255,.55); outline-offset: 2px; }
+.cm-below-fold-guides { padding-top: 1rem; padding-bottom: 1.5rem; }
+.cm-below-fold-guides .cm-feature-guide { background: linear-gradient(135deg,#07152F,#132B4C); border-color: rgba(0,217,255,.18); box-shadow: 0 18px 46px rgba(7,21,47,.11); }
+.cm-mobile-quicknav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 3px; padding: 8px max(8px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right)); background: rgba(255,255,255,.94); border-top: 1px solid rgba(148,163,184,.25); box-shadow: 0 -8px 30px rgba(7,21,47,.09); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.cm-mobile-quicknav button { display:flex; min-width:0; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:6px 2px; border-radius:12px; color:#64748B; font-size:10px; font-weight:750; }
+.cm-mobile-quicknav button.is-active { color:#B80061; background:linear-gradient(135deg,rgba(230,0,122,.09),rgba(0,217,255,.08)); }
+.cm-mobile-quicknav button span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+@media (max-width: 767px) {
+  .cm-root main { padding-bottom: 78px; }
+  .cm-home-hero { padding-top: 1.25rem !important; }
+  .cm-home-hero h1 { font-size: clamp(2.45rem, 11vw, 3.65rem) !important; line-height: .99 !important; }
+  .cm-home-hero .grid { gap: 1.5rem; }
+  .cm-home-hero > .grid > div:first-child > p.text-lg { font-size: 1rem; line-height: 1.65; }
+  .cm-mobile-quicknav ~ * { padding-bottom: env(safe-area-inset-bottom); }
+}
+@media (min-width: 768px) {
+  .cm-mobile-quicknav { display:none !important; }
+}
+
+/* 2026-10-21 readability pass: enforce accessible contrast on dark Marketplace hero
+   and keep primary navigation readable instead of relying on pale inherited styles. */
+.cm-root .cm-marketplace-hero,
+.cm-root .cm-marketplace-hero * {
+  text-shadow: none !important;
+}
+.cm-root .cm-marketplace-hero h1,
+.cm-root .cm-marketplace-hero h1 span {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root .cm-marketplace-hero h1 span {
+  color: #67E8F9 !important;
+  -webkit-text-fill-color: #67E8F9 !important;
+}
+.cm-root .cm-marketplace-hero p {
+  color: #E2E8F0 !important;
+  -webkit-text-fill-color: #E2E8F0 !important;
+}
+.cm-root .cm-marketplace-hero .text-xs,
+.cm-root .cm-marketplace-hero span {
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+.cm-root header nav a,
+.cm-root header nav button,
+.cm-root header [data-tour="nav-account"] {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+}
+.cm-root header nav a[aria-current="page"],
+.cm-root header nav a.active,
+.cm-root header nav button[aria-current="page"] {
+  color: #BE185D !important;
+  -webkit-text-fill-color: #BE185D !important;
+}
+.cm-root .cm-page-canvas .cm-page-description,
+.cm-root .cm-page-canvas .cm-page-description p {
+  color: #334155 !important;
+  -webkit-text-fill-color: #334155 !important;
+}
+
+/* October 2026: page guides belong below the main hook/content, never above it. */
+.cm-below-fold-guides { clear: both; margin-top: 1.5rem; }
+.cm-below-fold-guides .cm-feature-guide { color: #FFFFFF; }
+.cm-below-fold-guides .cm-feature-guide p { overflow-wrap: anywhere; }
+.cm-primary-nav-link { color: #334155 !important; }
+.cm-primary-nav-link.is-active { color: #B80061 !important; }
+.cm-primary-nav-link svg { flex: 0 0 auto; display: block; }
+.cm-mobile-quicknav svg { display: block; flex: 0 0 auto; }
+.cm-mobile-quicknav button span { line-height: 1.15; }
