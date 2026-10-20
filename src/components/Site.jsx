@@ -503,11 +503,12 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
   // primary navigation.
   const links = session
     ? [
+        { id: 'dashboard', label: 'My workspace', icon: LayoutDashboard },
         { id: 'explore', label: 'Explore', icon: Globe },
         { id: 'marketplace', label: 'Marketplace', icon: Store },
         { id: 'network', label: 'B2B network', icon: Network },
         { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
-        { id: 'pricing', label: 'Plans', icon: CreditCard },
+        { id: 'messages', label: 'Messages', icon: MessageSquare },
       ]
     : [
         { id: 'home', label: 'Home', icon: Globe },
@@ -654,6 +655,14 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
                       <UserPlus size={16} />{addingProfile ? 'Setting up…' : `Add a ${isBusiness ? 'creator' : 'business'} profile`}
                     </button>
                   )}
+                  <div className="px-2 pb-1">
+                    <p className="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: '#9CA3AF' }}>Manage your account</p>
+                    <button onClick={() => { setAccountMenuOpen(false); openOnboarding(activeRole, { edit: true }); }} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-50 flex items-center gap-2" style={{ color: '#334155' }}><Pencil size={15}/> Edit profile</button>
+                    <button onClick={() => { setPage('nfc-settings'); setAccountMenuOpen(false); }} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-50 flex items-center gap-2" style={{ color: '#334155' }}><Zap size={15}/> NFC settings</button>
+                    <button onClick={() => { setPage('dashboard'); setAccountMenuOpen(false); }} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-50 flex items-center gap-2" style={{ color: '#334155' }}><Briefcase size={15}/> Manage campaigns & activity</button>
+                    <button onClick={() => { setPage('account'); setAccountMenuOpen(false); }} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-50 flex items-center gap-2" style={{ color: '#334155' }}><Settings size={15}/> Account settings</button>
+                  </div>
+                  <div className="h-px mx-3 my-1" style={{ background: '#F3F4F6' }} />
                   {isAdmin && (
                     <button onClick={() => { setPage('admin'); setAccountMenuOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2.5" style={{ color: '#334155' }}><Shield size={16} style={{ color: '#334155' }} />Admin</button>
                   )}
@@ -735,7 +744,10 @@ const NavBar = ({ page, setPage, menuOpen, setMenuOpen, session, hasCreator, has
               <p className="text-[10px] font-bold uppercase tracking-wider px-3 mb-2" style={{ color: '#9CA3AF' }}>Account</p>
               {session ? (
                 <div className="flex flex-col gap-1">
-                  <button onClick={() => { setPage('nfc-settings'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center gap-2" style={{color:page==='nfc-settings'?'#C00062':'#334155',background:page==='nfc-settings'?'#FDE7F1':'transparent'}}><Zap size={16}/> NFC information settings <ChevronRight size={15} className="ml-auto"/></button>
+                  <button onClick={() => { openOnboarding(activeRole, { edit: true }); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center gap-2" style={{color:page==='onboarding'?'#C00062':'#334155',background:page==='onboarding'?'#FDE7F1':'transparent'}}><Pencil size={16}/> Edit my profile <ChevronRight size={15} className="ml-auto"/></button>
+                  <button onClick={() => { setPage('nfc-settings'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center gap-2" style={{color:page==='nfc-settings'?'#C00062':'#334155',background:page==='nfc-settings'?'#FDE7F1':'transparent'}}><Zap size={16}/> NFC settings <ChevronRight size={15} className="ml-auto"/></button>
+                  <button onClick={() => { setPage('dashboard'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center gap-2" style={{color:page==='dashboard'?'#C00062':'#334155',background:page==='dashboard'?'#FDE7F1':'transparent'}}><Briefcase size={16}/> Manage campaigns & activity <ChevronRight size={15} className="ml-auto"/></button>
+                  <button onClick={() => { setPage('account'); setMenuOpen(false); }} className="text-left px-3 py-3 rounded-xl text-sm font-semibold flex items-center gap-2" style={{color:page==='account'?'#C00062':'#334155',background:page==='account'?'#FDE7F1':'transparent'}}><Settings size={16}/> Account settings <ChevronRight size={15} className="ml-auto"/></button>
                   <button
                     onClick={() => setAddingProfile(v => !v)}
                     className="w-full mb-3 rounded-2xl border-2 p-3.5 text-left flex items-center gap-3 transition-all"
@@ -1786,6 +1798,13 @@ const CreatorDashboard = ({ session, setPage }) => {
       </span>
     </div>
 
+    <div className="flex flex-wrap gap-2 mb-6">
+      <button onClick={() => window.dispatchEvent(new CustomEvent('commissioner:edit-profile'))} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#E5E7EB',background:'#FFFFFF',color:'#334155'}}><Pencil size={15}/> Edit profile</button>
+      <button onClick={() => setPage('nfc-settings')} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#BAE6FD',background:'#ECFEFF',color:'#036377'}}><Zap size={15}/> NFC settings</button>
+      <button onClick={() => setPage('messages')} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#F3C1D9',background:'#FFF7FB',color:'#C00062'}}><MessageSquare size={15}/> Messages</button>
+      <button onClick={() => setPage('marketplace')} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#E5E7EB',background:'#FFFFFF',color:'#334155'}}><ShoppingBag size={15}/> Manage marketplace posts</button>
+    </div>
+
     {profile?.onboarded && (
       <div
         className="flex items-center gap-2 rounded-xl p-4 mb-6 text-sm font-semibold"
@@ -1852,6 +1871,42 @@ const BusinessListingsManager = ({ profile }) => {
   return <div className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}><div className="flex items-center justify-between mb-4"><div><p className="text-sm font-semibold" style={{color:'#334155'}}>Business marketplace</p><p className="text-xs mt-1" style={{color:'#334155'}}>Publish products or services. Commissioner does not process payments.</p></div><ShoppingBag size={18} style={{color:'#7C3AED'}}/></div><form onSubmit={add} className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5"><OnboardingField label="Listing title" placeholder="e.g. Corporate catering" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Type</label><select value={form.listing_type} onChange={e=>setForm(f=>({...f,listing_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="service">Service</option><option value="product">Product</option></select></div><OnboardingField label="Category" placeholder="e.g. Hospitality" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}/><OnboardingField label="Price / range" placeholder="e.g. From 5,000 ETB" value={form.price_display} onChange={e=>setForm(f=>({...f,price_display:e.target.value}))}/><OnboardingField label="External order / website link" placeholder="https://..." value={form.external_url} onChange={e=>setForm(f=>({...f,external_url:e.target.value}))}/><OnboardingField label="Photo / video URL" placeholder="https://..." value={form.media_url} onChange={e=>setForm(f=>({...f,media_url:e.target.value}))}/><div><label className="text-xs font-semibold block mb-1.5" style={{color:'#334155'}}>Media type</label><select value={form.media_type} onChange={e=>setForm(f=>({...f,media_type:e.target.value}))} className="w-full border rounded-lg px-3 py-2.5 text-sm" style={{borderColor:'#E5E7EB'}}><option value="image">Photo</option><option value="video">Video</option></select></div><div className="md:col-span-2"><textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={2} placeholder="Describe the product or service." className="w-full border rounded-lg px-3 py-2.5 text-sm outline-none resize-none" style={{borderColor:'#E5E7EB'}}/></div><div className="md:col-span-2 flex items-center justify-between"><span className="text-xs" style={{color:'#B42318'}}>{error}</span><button disabled={saving||!form.title.trim()} className="text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-50" style={{background:'#E0FBFF',color:'#036377'}}>{saving?'Publishing…':'Publish listing'}</button></div></form>{items.length>0&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{items.map(x=><div key={x.id} className="border rounded-xl p-3 flex items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-xs font-semibold truncate" style={{color:'#334155'}}>{x.title}</p><p className="text-[11px]" style={{color:'#334155'}}>{x.listing_type} · {x.price_display||'Contact'}</p></div><button onClick={()=>remove(x.id)} className="text-[11px] font-semibold" style={{color:'#B42318'}}>Remove</button></div>)}</div>}</div>;
 };
 
+const BusinessCampaignManager = ({ profile }) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState('');
+  const load = async () => {
+    if (!profile?.id) { setRows([]); setLoading(false); return; }
+    setLoading(true); setError('');
+    const { data, error: queryError } = await supabase.from('campaigns').select('id,title,description,budget,deadline,status,created_at').eq('business_profile_id', profile.id).order('created_at', { ascending: false }).limit(50);
+    if (queryError) { setError(safeUserError(queryError, 'Could not load your campaigns.')); setRows([]); }
+    else setRows(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [profile?.id]);
+  const setStatus = async (row, status) => {
+    setBusyId(row.id); setError('');
+    const { error: updateError } = await supabase.from('campaigns').update({ status }).eq('id', row.id).eq('business_profile_id', profile.id);
+    if (updateError) setError(safeUserError(updateError, 'Could not update this campaign.'));
+    else await load();
+    setBusyId('');
+  };
+  const remove = async (row) => {
+    if (!window.confirm(`Delete “${row.title}”? This cannot be undone.`)) return;
+    setBusyId(row.id); setError('');
+    const { error: deleteError } = await supabase.from('campaigns').delete().eq('id', row.id).eq('business_profile_id', profile.id);
+    if (deleteError) setError(safeUserError(deleteError, 'Could not delete this campaign.'));
+    else await load();
+    setBusyId('');
+  };
+  return <section className="bg-white border rounded-2xl p-5 mb-6" style={{borderColor:'#E5E7EB'}}>
+    <div className="flex items-start justify-between gap-3 mb-4"><div><h2 className="text-sm font-bold" style={{color:'#172033'}}>My campaigns</h2><p className="text-xs mt-1" style={{color:'#64748B'}}>Manage the campaigns you have published.</p></div><button onClick={load} className="text-xs font-semibold px-3 py-2 border rounded-lg" style={{borderColor:'#CBD5E1',color:'#334155'}}>Refresh</button></div>
+    {error && <p className="text-xs mb-3" style={{color:'#B42318'}}>{error}</p>}
+    {loading ? <p className="text-xs" style={{color:'#64748B'}}>Loading your campaigns…</p> : !rows.length ? <p className="text-xs leading-5" style={{color:'#64748B'}}>You haven't posted a campaign yet. Use “Post a campaign” above to create one.</p> : <div className="space-y-3">{rows.map(row => <div key={row.id} className="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{borderColor:'#E5E7EB'}}><div className="min-w-0"><p className="text-sm font-semibold" style={{color:'#172033'}}>{row.title}</p><p className="text-xs mt-1" style={{color:'#64748B'}}>{row.budget || 'Budget not specified'}{row.deadline ? ` · Deadline ${new Date(row.deadline).toLocaleDateString()}` : ''} · {row.status || 'draft'}</p><p className="text-xs mt-1 line-clamp-2" style={{color:'#475569'}}>{row.description}</p></div><div className="flex flex-wrap gap-2 shrink-0"><button disabled={busyId===row.id} onClick={()=>setStatus(row, row.status==='published'?'closed':'published')} className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50" style={{background:row.status==='published'?'#FFF1E5':'#E9FBEF',color:row.status==='published'?'#9A4A0C':'#0E7A3B'}}>{busyId===row.id?'Saving…':row.status==='published'?'Close campaign':'Publish / reopen'}</button><button disabled={busyId===row.id} onClick={()=>remove(row)} className="text-xs font-semibold px-3 py-2 rounded-lg border disabled:opacity-50" style={{borderColor:'#FECACA',color:'#B42318'}}>Delete</button></div></div>)}</div>}
+  </section>;
+};
+
 const BusinessDashboard = ({ session, setPage }) => {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -1895,10 +1950,14 @@ const BusinessDashboard = ({ session, setPage }) => {
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
+        <button onClick={() => window.dispatchEvent(new CustomEvent('commissioner:edit-profile'))} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#E5E7EB',background:'#FFFFFF',color:'#334155'}}><Pencil size={15}/> Edit profile</button>
+        <button onClick={() => setPage('nfc-settings')} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#BAE6FD',background:'#ECFEFF',color:'#036377'}}><Zap size={15}/> NFC settings</button>
+        <button onClick={() => setPage('marketplace')} className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold border" style={{borderColor:'#E5E7EB',background:'#FFFFFF',color:'#334155'}}><ShoppingBag size={15}/> Manage marketplace posts</button>
         <button onClick={()=>setShowCampaignSetup(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg" style={{background:'linear-gradient(135deg,#E6007A,#7C3AED)'}}><Briefcase size={15}/> Post a campaign</button>
         <button onClick={()=>setPage('marketplace')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold" style={{background:'#fff',color:'#172033',border:'1px solid #d7dfeb'}}><ShoppingBag size={15} style={{color:'#7C3AED'}}/> Open marketplace</button>
       </div>
       {showCampaignSetup&&<CampaignPostSetup session={session} onClose={()=>setShowCampaignSetup(false)}/>}
+      {profile && <BusinessCampaignManager profile={profile} />}
       {profile && <div className="mb-6"><VerificationDetails type="business" id={profile.id} /></div>}
       {profile && <BusinessCampaignApplications profile={{...profile, id: profile.id}} />}
 
@@ -5805,19 +5864,36 @@ const BackButton = ({ onClick, style }) => (
 function useMyProfiles(session) {
   const [hasCreator, setHasCreator] = useState(false);
   const [hasBusiness, setHasBusiness] = useState(false);
-  const [activeRole, setActiveRoleState] = useState('creator');
+  const [activeRoleState, setActiveRoleState] = useState('creator');
+  const [activeRoleUserId, setActiveRoleUserId] = useState(null);
   const refreshSeq = React.useRef(0);
+  const userId = session?.user?.id;
+  // Derive the saved workspace synchronously for a newly restored session, so
+  // the wrong profile is never briefly shown while Supabase queries resolve.
+  let activeRole = activeRoleState;
+  if (userId && activeRoleUserId !== userId) {
+    try {
+      const savedRole = localStorage.getItem(`commissioner_active_role_${userId}`);
+      if (savedRole === 'creator' || savedRole === 'business') activeRole = savedRole;
+    } catch {}
+  }
 
   const refresh = React.useCallback(async () => {
-    const userId = session?.user?.id;
-    if (!userId) { setHasCreator(false); setHasBusiness(false); setActiveRoleState('creator'); return; }
+    if (!userId) {
+      setHasCreator(false);
+      setHasBusiness(false);
+      return;
+    }
     const seq = ++refreshSeq.current;
     const storageKey = `commissioner_active_role_${userId}`;
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
+    let stored = null;
+    try { stored = localStorage.getItem(storageKey); } catch {}
+    if (stored === 'creator' || stored === 'business') {
+      setActiveRoleUserId(userId);
+      setActiveRoleState(stored);
+    }
 
-    // Prefer the RPC, but also query the two profile tables directly as a
-    // fallback. This makes account switching continue to work even if an
-    // older database has not yet received get_my_profile_types().
+    // Prefer the RPC, falling back to direct profile lookups on older schemas.
     let hc = false, hb = false;
     const { data: types, error: typesError } = await supabase.rpc('get_my_profile_types');
     if (!typesError) {
@@ -5832,41 +5908,28 @@ function useMyProfiles(session) {
       hc = !!cp; hb = !!bp;
     }
     if (seq !== refreshSeq.current) return;
-    setHasCreator(hc); setHasBusiness(hb);
-
-    // An explicit choice by the user always wins. This is the fix for the
-    // switch appearing to do nothing: previously, if the other profile row
-    // did not exist yet (a second profile is only written when its setup is
-    // finished), this refresh forced the role straight back — so the click
-    // flipped the workspace for a moment and then snapped back.
-    const current = activeRole;
+    setHasCreator(hc);
+    setHasBusiness(hb);
     let next;
-    if (stored === 'creator' || stored === 'business') {
-      next = stored;
-    } else if (hc && !hb) {
-      next = 'creator';
-    } else if (hb && !hc) {
-      next = 'business';
-    } else {
-      next = current;
-    }
+    if (stored === 'creator' || stored === 'business') next = stored;
+    else if (hc && !hb) next = 'creator';
+    else if (hb && !hc) next = 'business';
+    else next = activeRole;
+    setActiveRoleUserId(userId);
     setActiveRoleState(next);
-    if (typeof window !== 'undefined' && (next === 'creator' || next === 'business')) {
-      localStorage.setItem(storageKey, next);
-    }
-  }, [session?.user?.id, activeRole]);
+    try { localStorage.setItem(storageKey, next); } catch {}
+  }, [userId, activeRole]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   const setActiveRole = React.useCallback((role) => {
     if (role !== 'creator' && role !== 'business') return;
-    // Update React state and storage immediately so the workspace changes on
-    // the same click. The profile-existence guard is handled by the UI.
     setActiveRoleState(role);
-    if (session?.user?.id && typeof window !== 'undefined') {
-      localStorage.setItem(`commissioner_active_role_${session.user.id}`, role);
+    if (userId) setActiveRoleUserId(userId);
+    if (userId) {
+      try { localStorage.setItem(`commissioner_active_role_${userId}`, role); } catch {}
     }
-  }, [session?.user?.id]);
+  }, [userId]);
 
   return { hasCreator, hasBusiness, activeRole, setActiveRole, refresh };
 }
@@ -6165,6 +6228,11 @@ export default function Commissioner() {
   const [launchStats, setLaunchStats] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
+    const editProfile = () => openOnboarding(activeRole, { edit: true });
+    window.addEventListener('commissioner:edit-profile', editProfile);
+    return () => window.removeEventListener('commissioner:edit-profile', editProfile);
+  }, [activeRole]);
+  useEffect(() => {
     const openMessages = (event) => {
       const detail = event.detail || {};
       if ((!detail.recipientId && !detail.conversationId) || detail.recipientId === session?.user?.id) return;
@@ -6301,6 +6369,10 @@ export default function Commissioner() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
       setSession(sess);
+      // Supabase emits INITIAL_SESSION during startup/refresh. It is a restore,
+      // not a new sign-in, so it must not redirect the current page or race the
+      // getSession() routing logic below.
+      if (event === 'INITIAL_SESSION') return;
       if (event === 'PASSWORD_RECOVERY') {
         // The user followed a "reset your password" email link. Supabase has
         // already exchanged the token in the URL for a temporary session —
@@ -6314,7 +6386,7 @@ export default function Commissioner() {
         window.location.reload();
         return;
       }
-      if (sess) setPage(p => (p === 'auth' ? 'dashboard' : p));
+      if (sess && event === 'SIGNED_IN') setPage(p => (p === 'auth' ? 'dashboard' : p));
     });
     return () => listener.subscription.unsubscribe();
   }, []);
